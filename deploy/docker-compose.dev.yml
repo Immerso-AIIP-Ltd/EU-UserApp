@@ -1,0 +1,27 @@
+services:
+  api:
+    ports:
+      # Exposes application port.
+    - "8000:8000"
+    build:
+      context: .
+    volumes:
+      # Adds current directory as volume.
+    - .:/app/src/
+    environment:
+      # Enables autoreload.
+      APP_RELOAD: "True"
+
+  celery-worker:
+    build:
+      context: .
+    volumes:
+      # Adds current directory as volume for live reload.
+    - .:/app/src/
+
+  celery-beat:
+    build:
+      context: .
+    volumes:
+      # Adds current directory as volume for live reload.
+    - .:/app/src/
