@@ -7,9 +7,21 @@ from fakeredis.aioredis import FakeConnection, FakeRedis
 from fastapi import FastAPI
 from httpx import AsyncClient
 from redis.asyncio import ConnectionPool
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.api.application import get_app
 from app.cache.dependencies import get_redis_connection
+from app.db.dependencies import get_db_session
+from app.db.meta import meta
+from app.db.models import load_all_models
+from app.db.utils import create_database, drop_database
+from app.settings import settings
 
 
 @pytest.fixture(autouse=True)
@@ -37,6 +49,61 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
+@pytest.fixture(scope="session")
+async def _engine() -> AsyncGenerator[AsyncEngine, None]:
+    """
+    Create engine and databases.
+
+    :yield: new engine.
+    """
+
+    load_all_models()
+
+    await create_database()
+
+    engine = create_async_engine(str(settings.db_url_pytest))
+    async with engine.begin() as conn:
+        # Create schemas first
+        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS user_app"))
+        await conn.run_sync(meta.create_all)
+
+    try:
+        yield engine
+    finally:
+        await engine.dispose()
+        await drop_database()
+
+
+@pytest.fixture
+async def dbsession(
+    _engine: AsyncEngine,
+) -> AsyncGenerator[AsyncSession, None]:
+    """
+    Get session to database.
+
+    Fixture that returns a SQLAlchemy session with a SAVEPOINT, and the rollback to it
+    after the test completes.
+
+    :param _engine: current engine.
+    :yields: async session.
+    """
+    connection = await _engine.connect()
+    trans = await connection.begin()
+
+    session_maker = async_sessionmaker(
+        connection,
+        expire_on_commit=False,
+    )
+    session = session_maker()
+
+    try:
+        yield session
+    finally:
+        await session.close()
+        await trans.rollback()
+        await connection.close()
+
+
 @pytest.fixture
 async def fake_redis_client() -> AsyncGenerator[FakeRedis, None]:
     """
@@ -57,13 +124,17 @@ async def fake_redis_client() -> AsyncGenerator[FakeRedis, None]:
 
 
 @pytest.fixture
-def fastapi_app() -> FastAPI:
+def fastapi_app(
+    dbsession: AsyncSession,
+    fake_redis_client: FakeRedis,
+) -> FastAPI:
     """
     Fixture for creating FastAPI app.
 
-    :return: fastapi app.
+    :return: fastapi app with mocked dependencies.
     """
     application = get_app()
+    application.dependency_overrides[get_db_session] = lambda: dbsession
     application.dependency_overrides[get_redis_connection] = lambda: fake_redis_client
     return application
 
@@ -71,6 +142,7 @@ def fastapi_app() -> FastAPI:
 @pytest.fixture
 async def client(
     fastapi_app: FastAPI,
+    anyio_backend: Any,
 ) -> AsyncGenerator[AsyncClient, None]:
     """
     Fixture that creates client for requesting server.
@@ -98,3 +170,12 @@ def override_dependencies(
     fastapi_app.dependency_overrides[get_redis_connection] = lambda: mock_redis_session
     yield
     fastapi_app.dependency_overrides = original_overrides
+
+
+@pytest.fixture
+def mock_db_session(fastapi_app: FastAPI) -> AsyncMock:
+    """Fixture to mock the database session."""
+    mock_db = AsyncMock()
+    fastapi_app.dependency_overrides[get_db_session] = lambda: mock_db
+    return mock_db
+ 

@@ -49,11 +49,13 @@ class Settings(BaseSettings):
 
     # api version
     api_version: str = "v1"
+
     # Variables for the database
     db_host: str = "localhost"
     db_port: int = 5432
     db_user: str = "app"
     db_pass: str = "app"
+    db_base: str = "admin"
     db_echo: bool = False
 
     # Variables for Redis
@@ -67,11 +69,11 @@ class Settings(BaseSettings):
     celery_broker_url: Optional[str] = None
     celery_backend_url: Optional[str] = None
 
-    def db_url(self, db_name: str = "admin") -> URL:
+    @property
+    def db_url(self) -> URL:
         """
         Assemble database URL from settings.
 
-        :param db_name: Database name.
         :return: database URL.
         """
         return URL.build(
@@ -80,7 +82,23 @@ class Settings(BaseSettings):
             port=self.db_port,
             user=self.db_user,
             password=self.db_pass,
-            path=f"/{db_name}",
+            path=f"/{self.db_base}",
+        )
+
+    @property
+    def db_url_pytest(self) -> URL:
+        """
+        Assemble database URL from settings for pytest.
+
+        :return: database URL.
+        """
+        return URL.build(
+            scheme="postgresql+asyncpg",
+            host=self.db_host,
+            port=self.db_port,
+            user=self.db_user,
+            password=self.db_pass,
+            path=f"/{self.db_base}_test",
         )
 
     @property
