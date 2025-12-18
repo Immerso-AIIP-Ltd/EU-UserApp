@@ -12,7 +12,7 @@ async def check_device_invite_status(device_id: str):
     """
     return standard_response(
         message="Device invite checked",
-        data={"device_id": device_id, "status": "invited"}
+        data={"device_id": device_id, "status": "invited"},
     )
 
 
@@ -21,7 +21,4 @@ async def invite_device_using_coupon():
     """
     Invite Device Using Coupon
     """
-    return standard_response(
-        message="Device invited",
-        data={"status": "success"}
-    )
+    return standard_response(message="Device invited", data={"status": "success"})
