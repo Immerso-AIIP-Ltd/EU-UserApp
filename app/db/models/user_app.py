@@ -1,8 +1,12 @@
+# Enums
+import enum
 import uuid
 from datetime import datetime
 from datetime import timezone as dt_timezone
+from typing import ClassVar
 
 from sqlalchemy import (
+    CHAR,
     UUID,
     VARCHAR,
     Boolean,
@@ -13,7 +17,6 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Text,
-    CHAR,
 )
 from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -21,12 +24,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
-# Enums
-import enum
-
-
 class UserState(str, enum.Enum):
     """User account state."""
+
     inactive = "inactive"
     active = "active"
     blocked = "blocked"
@@ -35,12 +35,14 @@ class UserState(str, enum.Enum):
 
 class UserType(str, enum.Enum):
     """User type."""
+
     regular = "regular"
     creator = "creator"
 
 
 class LoginType(str, enum.Enum):
     """Login type."""
+
     google = "google"
     facebook = "facebook"
     apple = "apple"
@@ -48,6 +50,7 @@ class LoginType(str, enum.Enum):
 
 class InviteStatus(str, enum.Enum):
     """Friend invite status."""
+
     pending = "pending"
     accepted = "accepted"
     rejected = "rejected"
@@ -56,6 +59,7 @@ class InviteStatus(str, enum.Enum):
 
 class CouponStatus(str, enum.Enum):
     """Invite coupon status."""
+
     active = "active"
     used = "used"
     expired = "expired"
@@ -65,7 +69,7 @@ class User(Base):
     """Represents the user table."""
 
     __tablename__ = "user"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(VARCHAR(255), nullable=False, unique=True, index=True)
@@ -127,7 +131,7 @@ class UserProfile(Base):
     """Represents the user_profile table."""
 
     __tablename__ = "user_profile"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
 
     id = Column(
         UUID(as_uuid=True),
@@ -161,7 +165,7 @@ class Platform(Base):
     """Represents the platform table."""
 
     __tablename__ = "platform"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
 
     platform_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     platform_name = Column(VARCHAR, unique=True, index=True)
@@ -183,14 +187,18 @@ class Device(Base):
     """Represents the device table."""
 
     __tablename__ = "device"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     device_id = Column(VARCHAR(255), nullable=False, unique=True, index=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("user_app.user.id"), index=True)
     device_name = Column(VARCHAR(255))
     device_type = Column(VARCHAR(50), index=True)
-    platform = Column(VARCHAR(20), ForeignKey("user_app.platform.platform_name"), index=True)
+    platform = Column(
+        VARCHAR(20),
+        ForeignKey("user_app.platform.platform_name"),
+        index=True,
+    )
     device_ip = Column(INET, index=True)
     is_vpn = Column(Boolean, default=False, index=True)
     is_anonymous_proxy = Column(Boolean, default=False)
@@ -228,7 +236,7 @@ class AuthenticationSession(Base):
     """Represents the authentication_session table."""
 
     __tablename__ = "authentication_session"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(
@@ -240,7 +248,11 @@ class AuthenticationSession(Base):
     auth_token = Column(Text, nullable=False, unique=True, index=True)
     token_secret = Column(Text)
     auth_token_expiry = Column(DateTime(timezone=True), index=True)
-    device_id = Column(VARCHAR(255), ForeignKey("user_app.device.device_id"), index=True)
+    device_id = Column(
+        VARCHAR(255),
+        ForeignKey("user_app.device.device_id"),
+        index=True,
+    )
     platform = Column(VARCHAR(20))
     app_version = Column(VARCHAR(20))
     country_code = Column(VARCHAR(10))
@@ -268,7 +280,7 @@ class OtpVerification(Base):
     """Represents the otp_verification table."""
 
     __tablename__ = "otp_verification"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(VARCHAR(255), index=True)
@@ -290,7 +302,7 @@ class OtpToken(Base):
     """Represents the otp_token table."""
 
     __tablename__ = "otp_token"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(VARCHAR(255))
@@ -311,7 +323,7 @@ class Waitlist(Base):
     """Represents the waitlist table."""
 
     __tablename__ = "waitlist"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("user_app.user.id"))
@@ -347,7 +359,7 @@ class FriendInvite(Base):
     """Represents the friend_invite table."""
 
     __tablename__ = "friend_invite"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     inviter_id = Column(
@@ -396,7 +408,7 @@ class InviteCoupon(Base):
     """Represents the invite_coupon table."""
 
     __tablename__ = "invite_coupon"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     code = Column(VARCHAR(255), unique=True)
@@ -423,7 +435,7 @@ class InviteDevice(Base):
     """Represents the invite_device table."""
 
     __tablename__ = "invite_device"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     device_id = Column(
@@ -459,7 +471,7 @@ class SocialIdentityProvider(Base):
     """Represents the social_identity_provider table."""
 
     __tablename__ = "social_identity_provider"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(

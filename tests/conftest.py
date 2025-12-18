@@ -178,4 +178,3 @@ def mock_db_session(fastapi_app: FastAPI) -> AsyncMock:
     mock_db = AsyncMock()
     fastapi_app.dependency_overrides[get_db_session] = lambda: mock_db
     return mock_db
- 

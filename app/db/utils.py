@@ -47,4 +47,3 @@ async def drop_database() -> None:
             await conn.execute(text(f'DROP DATABASE "{settings.db_base}_test"'))
     finally:
         await engine.dispose()
- 
