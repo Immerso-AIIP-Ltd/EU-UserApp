@@ -228,6 +228,27 @@ class Description(str):
     TRANSLATIONS_LANGUAGE = "translations:lang"
     TRANSLATIONS_KEY = "translations:textkey"
 
+    # User App Constants
+    DEVICE_ID = "Unique device identifier"
+    COUPON_ID = "Coupon code for invitation"
+    EMAIL = "User email address"
+    MOBILE = "User mobile number"
+    CALLING_CODE = "International calling code"
+    PASSWORD = "User password"
+    NEW_PASSWORD = "New password"
+    NAME = "Full name of the user"
+    AVATAR_ID = "Avatar ID"
+    BIRTH_DATE = "Birth date (YYYY-MM-DD)"
+    PROFILE_IMAGE = "Profile image URL or base64"
+    OTP = "One Time Password"
+    INTENT = "Purpose of OTP verification"
+    GENDER = "Gender (M/F/O)"
+    ABOUT_ME = "Bio or About Me"
+    NICK_NAME = "Nickname"
+    COUNTRY = "Country code"
+    INVITED_LIST = "List of emails or contact objects"
+    SOCIAL_USER_ID = "Social User ID"
+    OAUTH_TOKEN = "OAuth Token"
 
 class LoggerConfigs:
     """Logger setup constants."""
