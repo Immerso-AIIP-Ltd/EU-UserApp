@@ -35,7 +35,6 @@ async def flush_cache(
     except Exception as e:
         raise CacheConnectionError(detail=str(e)) from e
 
-
 @router.post("/cache/flush/pattern")
 async def flush_cache_by_pattern(
     request: Request,
