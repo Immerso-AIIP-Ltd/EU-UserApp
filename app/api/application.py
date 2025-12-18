@@ -41,7 +41,7 @@ def get_app() -> FastAPI:
     app.add_middleware(BaseHTTPMiddleware, dispatch=logging_middleware)
 
     # Main router for the API.
-    app.include_router(router=api_router, prefix="/api/v1")
+    app.include_router(router=api_router, prefix="/user/v1")
     # Adds static directory.
     # This directory is used to access swagger files.
     app.mount("/static", StaticFiles(directory=APP_ROOT / "static"), name="static")
