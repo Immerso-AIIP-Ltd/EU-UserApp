@@ -49,8 +49,6 @@ class Settings(BaseSettings):
 
     # api version
     api_version: str = "v1"
-
-
     # Variables for the database
     db_host: str = "localhost"
     db_port: int = 5432
@@ -68,7 +66,6 @@ class Settings(BaseSettings):
     # Celery settings
     celery_broker_url: Optional[str] = None
     celery_backend_url: Optional[str] = None
-
 
     def db_url(self, db_name: str = "admin") -> URL:
         """

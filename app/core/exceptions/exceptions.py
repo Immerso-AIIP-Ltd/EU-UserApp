@@ -160,5 +160,3 @@ class ForbiddenError(AppError):
     http_code = status.HTTP_403_FORBIDDEN
     message = ErrorMessages.FORBIDDEN
     error_code = ErrorCodes.FORBIDDEN_CODE
-
-
