@@ -3,7 +3,7 @@ name: Eternals eu-user - Dev Build & Push
 on:
   push:
     branches:
-      - eros-user-dev
+      - eros-user-dev  #user_app
 
 jobs:
 
