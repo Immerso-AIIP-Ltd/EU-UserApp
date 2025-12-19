@@ -10,16 +10,47 @@ class UserQueries:
         SELECT * FROM user_app.check_device_invite_status(
             :device_id
         );
-        """
+        """,
     )
 
-    INVITE_DEVICE_WITH_COUPON = text(
+    GET_COUPON = text(
         """
-        SELECT * FROM user_app.invite_device_with_coupon(
-            :device_id,
-            :coupon_id
-        );
+    SELECT id,
+        status = 'used' AS is_consumed,
+        expiry_date < NOW() AS is_expired
+    FROM user_app.invite_coupon
+    WHERE code = :coupon_id
+    """,
+    )
+
+    CHECK_DEVICE_INVITED = text(
         """
+        SELECT 1
+        FROM user_app.invite_device
+        WHERE device_id = :device_id
+          AND coupon_id IS NOT NULL
+    """,
+    )
+
+    UPSERT_DEVICE_INVITE = text(
+        """
+        INSERT INTO user_app.invite_device (device_id, coupon_id, invited_at)
+        VALUES (:device_id, :coupon_uuid, NOW())
+        ON CONFLICT (device_id)
+        DO UPDATE SET
+            coupon_id = EXCLUDED.coupon_id,
+            invited_at = NOW()
+        RETURNING device_id
+    """,
+    )
+
+    CONSUME_COUPON = text(
+        """
+        UPDATE user_app.invite_coupon
+        SET is_consumed = TRUE,
+            consumed_at = NOW()
+        WHERE id = :coupon_uuid
+    """,
     )
 
     # ==================== REGISTRATION ====================
@@ -35,7 +66,7 @@ class UserQueries:
             :birth_date,
             :profile_image
         );
-        """
+        """,
     )
 
     VERIFY_OTP_REGISTER = text(
@@ -48,18 +79,18 @@ class UserQueries:
             :password,
             :intent
         );
-        """
+        """,
     )
 
     RESEND_OTP = text(
         """
-        SELECT * FROM user_app.resend_otp( 
+        SELECT * FROM user_app.resend_otp(
             :email,
             :mobile,
             :calling_code,
             :intent
         );
-        """
+        """,
     )
 
     # ==================== LOGIN ====================
@@ -71,7 +102,7 @@ class UserQueries:
             :calling_code,
             :password
         );
-        """
+        """,
     )
 
     FORGOT_PASSWORD = text(
@@ -81,7 +112,7 @@ class UserQueries:
             :mobile,
             :calling_code
         );
-        """
+        """,
     )
 
     CHANGE_PASSWORD = text(
@@ -90,7 +121,7 @@ class UserQueries:
             :user_id,
             :new_password
         );
-        """
+        """,
     )
 
     # ==================== PROFILE ====================
@@ -99,7 +130,7 @@ class UserQueries:
         SELECT * FROM user_app.get_user_profile(
             :user_id
         );
-        """
+        """,
     )
 
     UPDATE_USER_PROFILE = text(
@@ -115,7 +146,7 @@ class UserQueries:
             :avatar_id,
             :profile_image
         );
-        """
+        """,
     )
 
     UPDATE_EMAIL_MOBILE = text(
@@ -126,7 +157,7 @@ class UserQueries:
             :mobile,
             :calling_code
         );
-        """
+        """,
     )
 
     VERIFY_OTP = text(
@@ -138,7 +169,7 @@ class UserQueries:
             :otp,
             :intent
         );
-        """
+        """,
     )
 
     # ==================== SOCIAL / WAITLIST ====================
@@ -148,7 +179,7 @@ class UserQueries:
             :user_id,
             :invited_list
         );
-        """
+        """,
     )
 
     JOIN_WAITLIST = text(
@@ -159,7 +190,7 @@ class UserQueries:
             :mobile,
             :calling_code
         );
-        """
+        """,
     )
 
     WAITLIST_VERIFY_OTP = text(
@@ -171,7 +202,7 @@ class UserQueries:
             :otp,
             :intent
         );
-        """
+        """,
     )
 
     SOCIAL_LOGIN = text(
@@ -182,7 +213,7 @@ class UserQueries:
             :token,
             :device_id
         );
-        """
+        """,
     )
 
     # ==================== ACCOUNT ====================
@@ -192,7 +223,7 @@ class UserQueries:
             :user_id,
             :device_id
         );
-        """
+        """,
     )
 
     DEACTIVATE_USER = text(
@@ -200,5 +231,5 @@ class UserQueries:
         SELECT * FROM user_app.deactivate_user(
             :user_id
         );
-        """
+        """,
     )

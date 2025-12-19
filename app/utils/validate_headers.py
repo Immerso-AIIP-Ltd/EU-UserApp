@@ -1,5 +1,3 @@
-from typing import Optional
-
 from fastapi import Header
 from pydantic import BaseModel, Field
 
@@ -18,11 +16,11 @@ class CommonHeaders(BaseModel):
 
 
 def validate_common_headers(
-    x_api_client = Header(..., description=Headers.X_API_CLIENT),
-    x_device_id = Header(..., description=Headers.X_DEVICE_ID),
-    x_platform = Header(..., description=Headers.X_PLATFORM),
-    x_country = Header(..., description=Headers.X_COUNTRY),
-    x_app_version = Header(..., description=Headers.X_APP_VERSION),
+    x_api_client=Header(..., description=Headers.X_API_CLIENT),
+    x_device_id=Header(..., description=Headers.X_DEVICE_ID),
+    x_platform=Header(..., description=Headers.X_PLATFORM),
+    x_country=Header(..., description=Headers.X_COUNTRY),
+    x_app_version=Header(..., description=Headers.X_APP_VERSION),
 ) -> CommonHeaders:
     """__summary__.
 
@@ -40,6 +38,7 @@ def validate_common_headers(
     x_device_id = x_device_id.strip()
     x_country = x_country.strip()
     x_app_version = x_app_version.strip()
+    x_platform = x_platform.strip()
 
     if not all([x_api_client, x_device_id, x_platform, x_country, x_app_version]):
         raise MissingHeadersError(detail=ErrorMessages.MISSING_HEADERS_DETAILS)
@@ -51,5 +50,5 @@ def validate_common_headers(
             "x-platform": x_platform,
             "x-country": x_country,
             "x-app-version": x_app_version,
-        }
+        },
     )

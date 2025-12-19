@@ -32,9 +32,12 @@ class CacheKeyTemplates:
     """Cache key templates for all endpoints."""
 
     CONFIGURATIONS = "configurations:all:{platform}:{appname}:{api_version}"
-    CACHE_KEY_DEVICE_INVITE_STATUS = "device:invite:status:{device_id}:{platform}:{country}:{version}"
-    CACHE_KEY_DEVICE_INVITE = "device:invite:{device_id}:{coupon_id}:{platform}:{version}:{country}"
-
+    CACHE_KEY_DEVICE_INVITE_STATUS = (
+        "device:invite:status:{device_id}:{platform}:{country}:{version}"
+    )
+    CACHE_KEY_DEVICE_INVITE = (
+        "device:invite:{device_id}:{coupon_id}:{platform}:{version}:{country}"
+    )
 
 
 class CacheTTL:
@@ -144,6 +147,8 @@ class ErrorCodes:
     LANGUAGES_NOT_FOUND_CODE = "US24"
     TRANSLATIONS_NOT_FOUND_CODE = "US25"
     DEVICE_NOT_INVITED = "US100"
+    COUPON_ID_INVALID = "US400"
+    COUPON_EXPIRED = "US200"
 
 
 class ErrorMessages:
@@ -172,6 +177,10 @@ class ErrorMessages:
     UNAUTHORIZED = "Unauthorized access."
     FORBIDDEN = "Forbidden access."
     DEVICE_NOT_INVITED = "Device is Not Invited"
+    DEVICE_ID_REQUIRED = "device_id is required"
+    COUPON_ID_REQUIRED = "coupon_id is required"
+    COUPON_ID_INVALID = "coupon_id is not valid"
+    COUPON_EXPIRED = "Coupon expired or consumed"
 
 
 class Headers:
@@ -182,7 +191,6 @@ class Headers:
     X_PLATFORM = "Platform key identifier."
     X_COUNTRY = "Country code"
     X_APP_VERSION = "Application version (e.g., '1.0.0')"
-
 
 
 class Description(str):
@@ -239,6 +247,7 @@ class Description(str):
     INVITED_LIST = "List of emails or contact objects"
     SOCIAL_USER_ID = "Social User ID"
     OAUTH_TOKEN = "OAuth Token"
+
 
 class LoggerConfigs:
     """Logger setup constants."""
