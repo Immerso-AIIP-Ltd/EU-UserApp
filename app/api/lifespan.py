@@ -1,10 +1,10 @@
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from app.db.factory import DatabaseFactory
 from fastapi import FastAPI
 
 from app.cache.factory import RedisFactory
+from app.db.factory import DatabaseFactory
 from app.settings import settings
 
 
@@ -27,12 +27,12 @@ async def lifespan_setup(
     app.state.redis_factory = redis_factory
     app.middleware_stack = app.build_middleware_stack()
     app.state.db_factory = DatabaseFactory(
-            db_url=str(settings.db_url),
-            db_echo=settings.db_echo,
+        db_url=str(settings.db_url),
+        db_echo=settings.db_echo,
     )
     print("DB factory:", type(app.state.db_factory))
     app.middleware_stack = app.build_middleware_stack()
-    
+
     try:
         yield
     finally:

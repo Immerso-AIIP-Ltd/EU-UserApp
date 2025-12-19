@@ -32,9 +32,12 @@ class CacheKeyTemplates:
     """Cache key templates for all endpoints."""
 
     CONFIGURATIONS = "configurations:all:{platform}:{appname}:{api_version}"
-    CACHE_KEY_DEVICE_INVITE_STATUS = "device:invite:status:{device_id}:{platform}:{country}:{version}"
-    CACHE_KEY_DEVICE_INVITE = "device:invite:{device_id}:{coupon_id}:{platform}:{version}:{country}"
-
+    CACHE_KEY_DEVICE_INVITE_STATUS = (
+        "device:invite:status:{device_id}:{platform}:{country}:{version}"
+    )
+    CACHE_KEY_DEVICE_INVITE = (
+        "device:invite:{device_id}:{coupon_id}:{platform}:{version}:{country}"
+    )
 
 
 class CacheTTL:
@@ -184,7 +187,6 @@ class Headers:
     X_APP_VERSION = "Application version (e.g., '1.0.0')"
 
 
-
 class Description(str):
     """Constants for DESCRIPTION and related string values used in responses.
 
@@ -239,6 +241,7 @@ class Description(str):
     INVITED_LIST = "List of emails or contact objects"
     SOCIAL_USER_ID = "Social User ID"
     OAUTH_TOKEN = "OAuth Token"
+
 
 class LoggerConfigs:
     """Logger setup constants."""

@@ -34,12 +34,14 @@ from app.core.exceptions.exceptions import (
 from app.db.factory import DatabaseFactory
 from app.settings import settings
 
+
 class IntentEnum(enum.Enum):
     """Intent options for OTP verification."""
 
     REGISTRATION = "registration"
     JOIN_WAITLIST = "joinwaitlist"
     UPDATE_PROFILE = "update_profile"
+
 
 class PlatformEnum(enum.Enum):
     """Platform options."""
@@ -48,6 +50,7 @@ class PlatformEnum(enum.Enum):
     IOS = "ios"
     WEB = "web"
 
+
 class GenderEnum(enum.Enum):
     """Gender options."""
 
@@ -55,13 +58,15 @@ class GenderEnum(enum.Enum):
     FEMALE = "F"
     OTHER = "O"
 
+
 class SocialProviderEnum(enum.Enum):
     """Social login provider options."""
 
     GOOGLE = "google"
     APPLE = "apple"
     FACEBOOK = "facebook"
-    
+
+
 @asynccontextmanager
 async def get_celery_db_session() -> AsyncGenerator[AsyncSession, None]:
     """Get database session for Celery tasks.
@@ -249,7 +254,7 @@ async def execute_and_transform(
     """
     step_start = time.perf_counter()
     rows = await execute_query(query, params, db_session, timeout_seconds)
-    print('rrrrrrrrrr', rows)
+    print("rrrrrrrrrr", rows)
     logger.info(f"Step 3.1: Execute query took {time.perf_counter() - step_start:.4f}s")
     step_start = time.perf_counter()
     try:

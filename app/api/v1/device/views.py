@@ -1,29 +1,27 @@
-from uuid import UUID
-from app.api.v1.schemas import DeviceInviteRequest, DeviceInviteResponse, DeviceInviteStatusRequest
-from fastapi import APIRouter, Request, Depends, Path
-from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, Path, Request
 from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.queries import UserQueries
-from app.utils.standard_response import standard_response
-from app.cache.base import build_cache_key, get_cache, query_hash, set_cache
+from app.api.v1.schemas import (
+    DeviceInviteResponse,
+)
+from app.cache.base import build_cache_key, get_cache, set_cache
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import (
     CacheKeyTemplates,
     CacheTTL,
-    Description,
     ErrorMessages,
-    Headers,
-    RequestParams,
     SuccessMessages,
 )
-from app.core.exceptions.exceptions import DeviceNotInvited, ValidationError
+from app.core.exceptions.exceptions import DeviceNotInvited
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import CommonHeaders, validate_common_headers
 
 router = APIRouter()
+
 
 @router.get("/{device_id}")
 async def check_device_invite_status(
@@ -65,4 +63,3 @@ async def check_device_invite_status(
         request=request,
         data=data,
     )
-

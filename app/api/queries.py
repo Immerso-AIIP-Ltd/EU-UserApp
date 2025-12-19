@@ -10,7 +10,7 @@ class UserQueries:
         SELECT * FROM user_app.check_device_invite_status(
             :device_id
         );
-        """
+        """,
     )
 
     INVITE_DEVICE_WITH_COUPON = text(
@@ -19,7 +19,7 @@ class UserQueries:
             :device_id,
             :coupon_id
         );
-        """
+        """,
     )
 
     # ==================== REGISTRATION ====================
@@ -35,7 +35,7 @@ class UserQueries:
             :birth_date,
             :profile_image
         );
-        """
+        """,
     )
 
     VERIFY_OTP_REGISTER = text(
@@ -48,7 +48,7 @@ class UserQueries:
             :password,
             :intent
         );
-        """
+        """,
     )
 
     RESEND_OTP = text(
@@ -59,7 +59,7 @@ class UserQueries:
             :calling_code,
             :intent
         );
-        """
+        """,
     )
 
     # ==================== LOGIN ====================
@@ -71,7 +71,7 @@ class UserQueries:
             :calling_code,
             :password
         );
-        """
+        """,
     )
 
     FORGOT_PASSWORD = text(
@@ -81,7 +81,7 @@ class UserQueries:
             :mobile,
             :calling_code
         );
-        """
+        """,
     )
 
     CHANGE_PASSWORD = text(
@@ -90,7 +90,7 @@ class UserQueries:
             :user_id,
             :new_password
         );
-        """
+        """,
     )
 
     # ==================== PROFILE ====================
@@ -99,7 +99,7 @@ class UserQueries:
         SELECT * FROM user_app.get_user_profile(
             :user_id
         );
-        """
+        """,
     )
 
     UPDATE_USER_PROFILE = text(
@@ -115,7 +115,7 @@ class UserQueries:
             :avatar_id,
             :profile_image
         );
-        """
+        """,
     )
 
     UPDATE_EMAIL_MOBILE = text(
@@ -126,7 +126,7 @@ class UserQueries:
             :mobile,
             :calling_code
         );
-        """
+        """,
     )
 
     VERIFY_OTP = text(
@@ -138,7 +138,7 @@ class UserQueries:
             :otp,
             :intent
         );
-        """
+        """,
     )
 
     # ==================== SOCIAL / WAITLIST ====================
@@ -148,7 +148,7 @@ class UserQueries:
             :user_id,
             :invited_list
         );
-        """
+        """,
     )
 
     JOIN_WAITLIST = text(
@@ -159,7 +159,7 @@ class UserQueries:
             :mobile,
             :calling_code
         );
-        """
+        """,
     )
 
     WAITLIST_VERIFY_OTP = text(
@@ -171,7 +171,7 @@ class UserQueries:
             :otp,
             :intent
         );
-        """
+        """,
     )
 
     SOCIAL_LOGIN = text(
@@ -182,7 +182,7 @@ class UserQueries:
             :token,
             :device_id
         );
-        """
+        """,
     )
 
     # ==================== ACCOUNT ====================
@@ -192,7 +192,7 @@ class UserQueries:
             :user_id,
             :device_id
         );
-        """
+        """,
     )
 
     DEACTIVATE_USER = text(
@@ -200,5 +200,5 @@ class UserQueries:
         SELECT * FROM user_app.deactivate_user(
             :user_id
         );
-        """
+        """,
     )
