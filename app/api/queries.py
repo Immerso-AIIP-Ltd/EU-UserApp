@@ -7,9 +7,8 @@ class UserQueries:
     # ==================== DEVICE INVITE ====================
     CHECK_DEVICE_INVITE_STATUS = text(
         """
-        SELECT * FROM user_app.check_device_invite(
-            :device_id,
-            :coupon_id
+        SELECT * FROM user_app.check_device_invite_status(
+            :device_id
         );
         """
     )

@@ -4,7 +4,7 @@ from typing import Any, ClassVar, Dict, List, Optional, Union
 
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
-from app.core.constants import Description
+from app.core.constants import Description, SuccessMessages
 
 class CacheStats(BaseModel):
     """
@@ -190,7 +190,7 @@ class UpdateProfileRequest(BaseModel):
     gender: Optional[GenderEnum] = Field(default=None, description=Description.GENDER)
     about_me: Optional[str] = Field(default=None, description=Description.ABOUT_ME)
     birth_date: Optional[str] = Field(default=None, description=Description.BIRTH_DATE)
-    nick_name: Optional[str] = Field(default=None, description=Description.NICKNAME)
+    nick_name: Optional[str] = Field(default=None, description=Description.NICK_NAME)
     country: Optional[str] = Field(default=None, description=Description.COUNTRY)
     avatar_id: Optional[int] = Field(default=None, description=Description.AVATAR_ID)
     profile_image: Optional[str] = Field(default=None, description=Description.PROFILE_IMAGE)
@@ -271,11 +271,9 @@ class SocialLoginRequest(BaseModel):
 class GenericResponse(BaseModel):
     """Generic response schema matching /components/schemas/GenericResponse."""
 
-    status: Union[bool, str] = Field(..., description=Description.STATUS)
-    message: Optional[str] = Field(default=None, description=Description.MESSAGE)
-    data: Optional[Dict[str, Any]] = Field(default={}, description=Description.DATA)
-    meta: Optional[Dict[str, Any]] = Field(default={}, description=Description.META)
-    error: Optional[Dict[str, Any]] = Field(default={}, description=Description.ERROR)
+    status: Union[bool, str] = Field(..., description=SuccessMessages.SUCCESS)
+    message: Optional[str] = Field(default=None, description=SuccessMessages.MESSAGE)
+    data: Optional[Dict[str, Any]] = Field(default=None, description=SuccessMessages.DATA)
 
 
 class UserProfileData(BaseModel):
@@ -327,7 +325,10 @@ class UserProfileResponse(GenericResponse):
 
 class DeviceInviteData(BaseModel):
     device_id: str
-    coupon_id: Optional[str] = None
+    user_id: Optional[str] = None
+    device_name: Optional[str] = None
+    invited: Optional[bool] = False
+    message: Optional[str] = ""
 
 
 class DeviceInviteResponse(GenericResponse):

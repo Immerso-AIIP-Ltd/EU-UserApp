@@ -10,19 +10,19 @@ from app.core.exceptions.exceptions import MissingHeadersError
 class CommonHeaders(BaseModel):
     """Pydantic model for common request headers."""
 
+    api_client: str = Field(..., alias="x-api-client")
+    device_id: str = Field(..., alias="x-device-id")
     platform: str = Field(..., alias="x-platform")
-    version: str = Field(..., alias="x-version")
-    appname: str = Field(..., alias="x-appname")
-    request_id: Optional[str] = Field(None, alias="x-request-id")
-    user_id: Optional[str] = Field(None, alias="x-user-id")
+    country: str = Field(..., alias="x-country")
+    app_version: str = Field(..., alias="x-app-version")
 
 
 def validate_common_headers(
-    x_platform: str = Header(..., description=Headers.X_PLATFORM),
-    x_version: str = Header(..., description=Headers.X_VERSION),
-    x_appname: str = Header(..., description=Headers.X_APPNAME),
-    x_request_id: Optional[str] = Header(None, description=Headers.X_REQUEST_ID),
-    x_user_id: Optional[str] = Header(None, description=Headers.X_USER_ID),
+    x_api_client = Header(..., description=Headers.X_API_CLIENT),
+    x_device_id = Header(..., description=Headers.X_DEVICE_ID),
+    x_platform = Header(..., description=Headers.X_PLATFORM),
+    x_country = Header(..., description=Headers.X_COUNTRY),
+    x_app_version = Header(..., description=Headers.X_APP_VERSION),
 ) -> CommonHeaders:
     """__summary__.
 
@@ -35,21 +35,21 @@ def validate_common_headers(
     Returns:
         CommonHeaders: A Pydantic model containing the validated headers.
     """
-    # Strip whitespace from required headers
-    x_platform = x_platform.strip()
-    x_version = x_version.strip()
-    x_appname = x_appname.strip()
+    # Strip required headers
+    x_api_client = x_api_client.strip()
+    x_device_id = x_device_id.strip()
+    x_country = x_country.strip()
+    x_app_version = x_app_version.strip()
 
-    # Validate after stripping
-    if not x_platform or not x_version or not x_appname:
+    if not all([x_api_client, x_device_id, x_platform, x_country, x_app_version]):
         raise MissingHeadersError(detail=ErrorMessages.MISSING_HEADERS_DETAILS)
 
     return CommonHeaders.model_validate(
         {
+            "x-api-client": x_api_client,
+            "x-device-id": x_device_id,
             "x-platform": x_platform,
-            "x-version": x_version,
-            "x-appname": x_appname,
-            "x-request-id": x_request_id.strip() if x_request_id else None,
-            "x-user-id": x_user_id.strip() if x_user_id else None,
-        },
+            "x-country": x_country,
+            "x-app-version": x_app_version,
+        }
     )

@@ -160,3 +160,10 @@ class ForbiddenError(AppError):
     http_code = status.HTTP_403_FORBIDDEN
     message = ErrorMessages.FORBIDDEN
     error_code = ErrorCodes.FORBIDDEN_CODE
+
+class DeviceNotInvited(AppError):
+    """Device ID not invited"""
+    
+    http_code = status.HTTP_200_OK
+    message = ErrorMessages.DEVICE_NOT_INVITED
+    error_code = ErrorCodes.DEVICE_NOT_INVITED
