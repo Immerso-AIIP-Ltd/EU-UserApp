@@ -3,6 +3,7 @@ import enum
 import uuid
 from datetime import datetime
 from datetime import timezone as dt_timezone
+from tokenize import String
 from typing import ClassVar
 
 from sqlalchemy import (
@@ -498,3 +499,18 @@ class SocialIdentityProvider(Base):
 
     # Relationships
     user = relationship("User", back_populates="social_identities")
+
+
+class InviteCoupon(Base):
+    __tablename__ = "invite_coupon"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid)
+    code = Column(String, unique=True, nullable=False)
+    consumed_at = Column(DateTime(timezone=True), nullable=True)  # track usage
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+
+class DeviceInvite(Base):
+    __tablename__ = "device_invite"
+    device_id = Column(UUID(as_uuid=True), primary_key=True)
+    coupon_id = Column(UUID(as_uuid=True), ForeignKey("invite_coupon.id"))
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)

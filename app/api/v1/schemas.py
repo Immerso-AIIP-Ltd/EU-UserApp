@@ -8,9 +8,7 @@ from app.core.constants import Description, SuccessMessages
 
 
 class CacheStats(BaseModel):
-    """
-    Schema for Redis cache statistics.
-    """
+    """Schema for Redis cache statistics."""
 
     used_memory_human: Optional[str] = None
     connected_clients: Optional[Any] = None
@@ -77,6 +75,7 @@ class DeviceInviteStatusRequest(BaseModel):
     """Request schema for /user/v1/device/invite-status."""
 
     device_id: str = Field(..., description=Description.DEVICE_ID)
+    coupon_id: str = Field(..., description=Description.COUPON_ID)
 
 
 class DeviceInviteRequest(BaseModel):
@@ -379,10 +378,7 @@ class UserProfileResponse(GenericResponse):
 
 class DeviceInviteData(BaseModel):
     device_id: str
-    user_id: Optional[str] = None
-    device_name: Optional[str] = None
-    invited: Optional[bool] = False
-    message: Optional[str] = ""
+    coupon_id: Optional[str] = None
 
 
 class DeviceInviteResponse(GenericResponse):

@@ -39,6 +39,7 @@ def validate_common_headers(
     x_device_id = x_device_id.strip()
     x_country = x_country.strip()
     x_app_version = x_app_version.strip()
+    x_platform = x_platform.strip()
 
     if not all([x_api_client, x_device_id, x_platform, x_country, x_app_version]):
         raise MissingHeadersError(detail=ErrorMessages.MISSING_HEADERS_DETAILS)

@@ -30,7 +30,7 @@ async def lifespan_setup(
         db_url=str(settings.db_url),
         db_echo=settings.db_echo,
     )
-    print("DB factory:", type(app.state.db_factory))
+
     app.middleware_stack = app.build_middleware_stack()
 
     try:

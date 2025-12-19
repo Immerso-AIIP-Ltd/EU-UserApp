@@ -147,6 +147,8 @@ class ErrorCodes:
     LANGUAGES_NOT_FOUND_CODE = "US24"
     TRANSLATIONS_NOT_FOUND_CODE = "US25"
     DEVICE_NOT_INVITED = "US100"
+    COUPON_ID_INVALID = "US400"
+    COUPON_EXPIRED = "US200"
 
 
 class ErrorMessages:
@@ -175,6 +177,10 @@ class ErrorMessages:
     UNAUTHORIZED = "Unauthorized access."
     FORBIDDEN = "Forbidden access."
     DEVICE_NOT_INVITED = "Device is Not Invited"
+    DEVICE_ID_REQUIRED = "device_id is required"
+    COUPON_ID_REQUIRED = "coupon_id is required"
+    COUPON_ID_INVALID = "coupon_id is not valid"
+    COUPON_EXPIRED = "Coupon expired or consumed"
 
 
 class Headers:

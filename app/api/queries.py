@@ -13,8 +13,44 @@ class UserQueries:
         """,
     )
 
-    INVITE_DEVICE_WITH_COUPON = text(
+    GET_COUPON = text(
         """
+    SELECT id,
+        status = 'used' AS is_consumed,
+        expiry_date < NOW() AS is_expired
+    FROM user_app.invite_coupon
+    WHERE code = :coupon_id
+    """,
+    )
+
+    CHECK_DEVICE_INVITED = text(
+        """
+        SELECT 1
+        FROM user_app.invite_device
+        WHERE device_id = :device_id
+          AND coupon_id IS NOT NULL
+    """,
+    )
+
+    UPSERT_DEVICE_INVITE = text(
+        """
+        INSERT INTO user_app.invite_device (device_id, coupon_id, invited_at)
+        VALUES (:device_id, :coupon_uuid, NOW())
+        ON CONFLICT (device_id)
+        DO UPDATE SET
+            coupon_id = EXCLUDED.coupon_id,
+            invited_at = NOW()
+        RETURNING device_id
+    """,
+    )
+
+    CONSUME_COUPON = text(
+        """
+        UPDATE user_app.invite_coupon
+        SET is_consumed = TRUE,
+            consumed_at = NOW()
+        WHERE id = :coupon_uuid
+    """,
         SELECT * FROM user_app.invite_device_with_coupon(
             :device_id,
             :coupon_id
@@ -53,7 +89,7 @@ class UserQueries:
 
     RESEND_OTP = text(
         """
-        SELECT * FROM user_app.resend_otp( 
+        SELECT * FROM user_app.resend_otp(
             :email,
             :mobile,
             :calling_code,
