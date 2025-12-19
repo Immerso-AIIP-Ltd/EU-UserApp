@@ -51,6 +51,11 @@ class UserQueries:
             consumed_at = NOW()
         WHERE id = :coupon_uuid
     """,
+        SELECT * FROM user_app.invite_device_with_coupon(
+            :device_id,
+            :coupon_id
+        );
+        """,
     )
 
     # ==================== REGISTRATION ====================

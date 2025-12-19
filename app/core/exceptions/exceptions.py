@@ -168,19 +168,3 @@ class DeviceNotInvited(AppError):
     http_code = status.HTTP_200_OK
     message = ErrorMessages.DEVICE_NOT_INVITED
     error_code = ErrorCodes.DEVICE_NOT_INVITED
-
-
-class InvalidCoupon(AppError):
-    """Coupon ID not valid"""
-
-    http_code = status.HTTP_200_OK
-    message = ErrorMessages.COUPON_ID_INVALID
-    error_code = ErrorCodes.COUPON_ID_INVALID
-
-
-class CouponExpried(AppError):
-    """Coupon ID not valid"""
-
-    http_code = status.HTTP_200_OK
-    message = ErrorMessages.COUPON_EXPIRED
-    error_code = ErrorCodes.COUPON_EXPIRED
