@@ -50,12 +50,16 @@ class UserQueries:
         SET is_consumed = TRUE,
             consumed_at = NOW()
         WHERE id = :coupon_uuid
-    """,
+        """    
+    )
+
+    INVITE_DEVICE_WITH_COUPON = text(
+        """
         SELECT * FROM user_app.invite_device_with_coupon(
             :device_id,
             :coupon_id
-        );
-        """,
+        )
+        """
     )
 
     # ==================== REGISTRATION ====================
