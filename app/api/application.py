@@ -28,8 +28,8 @@ def get_app() -> FastAPI:
         title="app",
         version=metadata.version("app"),
         lifespan=lifespan_setup,
-        docs_url=None,
-        redoc_url=None,
+        docs_url="/docs",
+        redoc_url="/redoc",
         openapi_url="/api/openapi.json",
         default_response_class=UJSONResponse,
     )

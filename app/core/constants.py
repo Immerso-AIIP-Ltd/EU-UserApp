@@ -32,17 +32,9 @@ class CacheKeyTemplates:
     """Cache key templates for all endpoints."""
 
     CONFIGURATIONS = "configurations:all:{platform}:{appname}:{api_version}"
-    COUNTRIES_ALL = "countries:all:{language}:{page}:{limit}:{active}:{api_version}"
-    COUNTRY_BY_CODE = "countries:code:{country_code}:{language}:{appname}:{api_version}"
-    COUNTRY_LANGUAGES = "countries:lang:{country_code}:{language}:{appname}:{page}:{limit}:{api_version}"  # noqa: E501
-    LANGUAGES_ALL = (
-        "languages:all:{language}:{appname}:{page}:{limit}:{active}:{api_version}"
-    )
-    LANGUAGE_BY_KEY = "languages:key:{language}:{appname}:{api_version}"
-    TRANSLATIONS_BY_LANG = (
-        "translations:lang:{language}:{appname}:{page}:{limit}:{api_version}"
-    )
-    TRANSLATIONS_BY_KEY = "translations:key:{text_key}:{appname}:{api_version}"
+    CACHE_KEY_DEVICE_INVITE_STATUS = "device:invite:status:{device_id}:{platform}:{country}:{version}"
+    CACHE_KEY_DEVICE_INVITE = "device:invite:{device_id}:{coupon_id}:{platform}:{version}:{country}"
+
 
 
 class CacheTTL:
@@ -52,6 +44,7 @@ class CacheTTL:
     TTL_STANDARD = 3600  # 1 hour
     TTL_EXTENDED = 43200  # 12 hours
     TTL_MAX = 86400  # 24 hours
+    TTL_INVITE_DEVICE = 60
 
 
 class QueryTimeouts:
@@ -114,42 +107,43 @@ class SuccessMessages:
     COUNTRIES_FETCHED = "Countries fetched successfully."
     COUNTRY_FETCHED = "Country fetched successfully."
     COUNTRY_LOCALES_FETCHED = "Country locales fetched successfully."
-    TRANSLATION_LANGUAGE = "Translations retrieved successfully."
-    TRANSLATION_TEXTKEY = "Text translations retrieved successfully."
-    LANGUAGES_RETRIEVED = "Languages retrieved successfully."
-    LANGUAGE_RETRIEVED = "Language retrieved successfully."
     HEALTH_CHECKUP = "Service is healthy."
+    SUCCESS = "true"
+    MESSAGE = "Information retrived successdully"
+    DATA = "null"
+    DEVICE_INVITED = "Device is already invited"
 
 
 class ErrorCodes:
     """Error codes."""
 
-    GENERAL_ERROR_CODE = "EU00"
-    HEALTH_CHECK_FAILED_CODE = "EU01"
-    INTERNAL_SERVER_ERROR_CODE = "EU02"
-    MISSING_HEADERS_CODE = "EU03"
-    MISSING_HEADERS_DETAILS_CODE = "EU04"
-    DB_CONNECTION_ERROR_CODE = "EU05"
-    DB_QUERY_ERROR_CODE = "EU06"
-    DB_TIMEOUT_ERROR_CODE = "EU07"
-    DB_INTEGRITY_ERROR_CODE = "EU08"
-    DB_DATA_ERROR_CODE = "EU09"
-    DB_OPERATION_ERROR_CODE = "EU10"
-    DATA_VALIDATION_ERROR_CODE = "EU11"
-    CACHE_ERROR_CODE = "EU12"
-    CACHE_SERIALIZATION_ERROR_CODE = "EU13"
-    CACHE_OPERATION_ERROR_CODE = "EU14"
-    CACHE_CONNECTION_ERROR_CODE = "EU15"
-    COUNTRY_NOT_FOUND_CODE = "EU16"
-    COUNTRY_LOCALES_FETCHED_CODE = "EU17"
-    LANGUAGE_NOT_FOUND_CODE = "EU18"
-    BAD_REQUEST_CODE = "EU19"
-    UNAUTHORIZED_CODE = "EU20"
-    FORBIDDEN_CODE = "EU21"
-    CONFIGURATIONS_NOT_FOUND_CODE = "EU22"
-    COUNTRY_DATA_NOT_FOUND_CODE = "EU23"
-    LANGUAGES_NOT_FOUND_CODE = "EU24"
-    TRANSLATIONS_NOT_FOUND_CODE = "EU25"
+    GENERAL_ERROR_CODE = "US00"
+    HEALTH_CHECK_FAILED_CODE = "US01"
+    INTERNAL_SERVER_ERROR_CODE = "US02"
+    MISSING_HEADERS_CODE = "US03"
+    MISSING_HEADERS_DETAILS_CODE = "US04"
+    DB_CONNECTION_ERROR_CODE = "US05"
+    DB_QUERY_ERROR_CODE = "US06"
+    DB_TIMEOUT_ERROR_CODE = "US07"
+    DB_INTEGRITY_ERROR_CODE = "US08"
+    DB_DATA_ERROR_CODE = "US09"
+    DB_OPERATION_ERROR_CODE = "US10"
+    DATA_VALIDATION_ERROR_CODE = "US11"
+    CACHE_ERROR_CODE = "US12"
+    CACHE_SERIALIZATION_ERROR_CODE = "US13"
+    CACHE_OPERATION_ERROR_CODE = "US14"
+    CACHE_CONNECTION_ERROR_CODE = "US15"
+    COUNTRY_NOT_FOUND_CODE = "US16"
+    COUNTRY_LOCALES_FETCHED_CODE = "US17"
+    LANGUAGE_NOT_FOUND_CODE = "US18"
+    BAD_REQUEST_CODE = "US19"
+    UNAUTHORIZED_CODE = "US20"
+    FORBIDDEN_CODE = "US21"
+    CONFIGURATIONS_NOT_FOUND_CODE = "US22"
+    COUNTRY_DATA_NOT_FOUND_CODE = "US23"
+    LANGUAGES_NOT_FOUND_CODE = "US24"
+    TRANSLATIONS_NOT_FOUND_CODE = "US25"
+    DEVICE_NOT_INVITED = "US100"
 
 
 class ErrorMessages:
@@ -174,22 +168,21 @@ class ErrorMessages:
     COUNTRY_NOT_FOUND = "Requested country not found"
     COUNTRY_LOCALES_FETCHED = "Country locales fetched successfully."
     COUNTRY_DATA_NOT_FOUND = "Country data not found."
-    LANGUAGE_NOT_FOUND = "Language not found."
-    LANGUAGES_NOT_FOUND = "Languages not found."
-    TRANSLATIONS_NOT_FOUND = "Translations not found."
     BAD_REQUEST = "Bad request."
     UNAUTHORIZED = "Unauthorized access."
     FORBIDDEN = "Forbidden access."
+    DEVICE_NOT_INVITED = "Device is Not Invited"
 
 
 class Headers:
     """HTTP Headers."""
 
-    X_PLATFORM = "x-platform"
-    X_VERSION = "x-version"
-    X_APPNAME = "x-appname"
-    X_REQUEST_ID = "x-request-id"
-    X_USER_ID = "x-user-id"
+    X_API_CLIENT = "ID identifying the application (e.g., 'android', 'ios', 'web')."
+    X_DEVICE_ID = "Unique device ID"
+    X_PLATFORM = "Platform key identifier."
+    X_COUNTRY = "Country code"
+    X_APP_VERSION = "Application version (e.g., '1.0.0')"
+
 
 
 class Description(str):
@@ -199,7 +192,6 @@ class Description(str):
     message handling and API responses.
     """
 
-    PLATFORM = "Platform key identifier."
     PAGE = "Page number for paginated response."
     COUNT = "Number of records per page."
     ORDER = "Sort order."
@@ -225,8 +217,6 @@ class Description(str):
     COUNTRY_CODE = "countries:code"
     LANGUAGE_KEY = "languages:key"
     LANGUAGE_ALL = "languages:all"
-    TRANSLATIONS_LANGUAGE = "translations:lang"
-    TRANSLATIONS_KEY = "translations:textkey"
 
     # User App Constants
     DEVICE_ID = "Unique device identifier"
