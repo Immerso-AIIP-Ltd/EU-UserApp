@@ -2,6 +2,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Path, Request
 from fastapi.responses import JSONResponse
+from numpy import insert
 from redis.asyncio import Redis
 from sqlalchemy import insert, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +11,6 @@ from app.api.queries import UserQueries
 from app.api.v1.schemas import (
     DeviceInviteData,
     DeviceInviteRequest,
-    DeviceInviteResponse,
 )
 from app.cache.base import build_cache_key, get_cache, set_cache
 from app.cache.dependencies import get_redis_connection

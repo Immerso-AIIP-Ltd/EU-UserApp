@@ -74,6 +74,30 @@ class Settings(BaseSettings):
     celery_broker_url: Optional[str] = None
     celery_backend_url: Optional[str] = None
 
+    # Register block timeout
+    block_duration_seconds: str = "240000"
+    brevo_forgot_password_template_id: str = "8"
+    brevo_registration_success_template_id: str = "9"
+    brevo_email_verification_template_id: str = "10"
+    brevo_otp_resend_template_id: str = "11"
+    brevo_password_change_success_template_id: str = "14"
+    brevo_profile_update_success_template_id: str = "15"
+    erosuniverse_website_url: str = "https://dev.erosuniverse.com/"
+    brevo_reset_url: str = "https://dev.erosuniverse.com/forgotPwd"
+    forgot_mobile_password_response: str = "OTP sent you successfully"
+
+    # Communication Service settings
+    comm_service_x_api_client: str = "CZgbPYnmcj5iyEH9tg0GYvB4lm9gGQ9qs6jQwllV"
+    comm_service_x_service_token: str = (
+        "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.e30.TWUdmzGEToMw7xpFthorSm9Os5qdl-SU0XAg3qGLRM4"
+    )
+    communication_api_url: str = "https://dev-apigateway.erosuniverse.com"
+
+    # Legacy API settings
+    legacy_api_url: str = "https://dev-apigateway.erosuniverse.com"
+    legacy_oauth_consumer_key: str = "4e297e55a0600bb031c03b579f3151d3050220d41"
+    legacy_oauth_consumer_secret: str = "8fadbc16ca36f3d2165a33f43be07411"
+
     @property
     def db_url(self) -> URL:
         """
