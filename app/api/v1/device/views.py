@@ -1,11 +1,9 @@
 from datetime import datetime
-from turtle import update
 
 from fastapi import APIRouter, Depends, Path, Request
 from fastapi.responses import JSONResponse
-from numpy import insert
-from fastapi import APIRouter, Depends, Path, Request
 from redis.asyncio import Redis
+from sqlalchemy import insert, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
@@ -26,7 +24,6 @@ from app.core.exceptions.exceptions import (
     DeviceNotInvited,
     ValidationError,
 )
-from app.core.exceptions.exceptions import DeviceNotInvited
 from app.db.dependencies import get_db_session
 from app.db.models.user_app import DeviceInvite, InviteCoupon
 from app.db.utils import execute_and_transform, execute_query

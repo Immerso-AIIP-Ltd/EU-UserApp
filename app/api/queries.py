@@ -136,9 +136,33 @@ class UserQueries:
     # ==================== PROFILE ====================
     GET_USER_PROFILE = text(
         """
-        SELECT * FROM user_app.get_user_profile(
-            :user_id
-        );
+        SELECT
+            u.id AS uuid,
+            u.email,
+            CONCAT(p.firstname, ' ', COALESCE(p.lastname, '')) AS name,
+            p.firstname,
+            p.lastname,
+            u.mobile,
+            u.calling_code,
+            p.image_url AS image,
+            p.country_code AS country,
+            p.gender,
+            p.about_me,
+            TO_CHAR(p.birth_date, 'DD') AS birth_day,
+            TO_CHAR(p.birth_date, 'MM') AS birth_month,
+            EXTRACT(YEAR FROM p.birth_date)::INTEGER AS birth_year,
+            p.avatar_id,
+            u.is_password_set,
+            p.nick_name,
+            TO_CHAR(p.birth_date, 'DD/MM/YYYY') AS birth_date,
+            JSONB_BUILD_OBJECT(
+                'facebook', (SELECT provider FROM user_app.social_identity_provider WHERE user_id = u.id AND provider = 'facebook' LIMIT 1),
+                'apple', (SELECT provider FROM user_app.social_identity_provider WHERE user_id = u.id AND provider = 'apple' LIMIT 1),
+                'google', (SELECT provider FROM user_app.social_identity_provider WHERE user_id = u.id AND provider = 'google' LIMIT 1)
+            ) AS identity_providers
+        FROM user_app.user u
+        LEFT JOIN user_app.user_profile p ON u.id = p.id
+        WHERE u.id = :user_id;
         """,
     )
 

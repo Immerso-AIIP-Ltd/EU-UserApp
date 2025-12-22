@@ -6,6 +6,23 @@ from starlette import status
 from app.core.constants import ErrorCodes, ErrorMessages
 
 
+
+class AppException(Exception):
+    """Base exception class for application errors."""
+    
+    def __init__(
+        self,
+        status_code: int,
+        error_code: str,
+        error_type: str,
+        detail: str,
+    ):
+        self.status_code = status_code
+        self.error_code = error_code
+        self.error_type = error_type
+        self.detail = detail
+        super().__init__(self.detail)
+
 class AppError(Exception):
     """Base application exception."""
 
@@ -15,6 +32,7 @@ class AppError(Exception):
 
     def __init__(self, detail: str | None = None) -> None:
         self.detail = detail or self.message
+        super().__init__(self.detail)
 
     def to_response(self) -> JSONResponse:
         """Convert the error to a FastAPI JSONResponse.
@@ -168,3 +186,28 @@ class DeviceNotInvited(AppError):
     http_code = status.HTTP_200_OK
     message = ErrorMessages.DEVICE_NOT_INVITED
     error_code = ErrorCodes.DEVICE_NOT_INVITED
+
+# Add to existing exceptions file
+
+class UserNotFoundException(AppException):
+    """Raised when user profile is not found."""
+    
+    def __init__(self, detail: str = ErrorMessages.USER_NOT_FOUND):
+        super().__init__(
+            status_code=404,
+            error_code="US404",
+            error_type="NotFound",
+            detail=detail,
+        )
+
+
+class ProfileFetchException(AppException):
+    """Raised when profile fetch fails."""
+    
+    def __init__(self, detail: str = ErrorMessages.PROFILE_FETCH_FAILED):
+        super().__init__(
+            status_code=403,
+            error_code="US403",
+            error_type="InternalServerError",
+            detail=detail,
+        )

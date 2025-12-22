@@ -38,6 +38,7 @@ class CacheKeyTemplates:
     CACHE_KEY_DEVICE_INVITE = (
         "device:invite:{device_id}:{coupon_id}:{platform}:{version}:{country}"
     )
+    CACHE_KEY_USER_PROFILE = "user_profile:{user_id}:platform:{platform}:version:{version}:country:{country}"
 
 
 class CacheTTL:
@@ -48,6 +49,7 @@ class CacheTTL:
     TTL_EXTENDED = 43200  # 12 hours
     TTL_MAX = 86400  # 24 hours
     TTL_INVITE_DEVICE = 60
+    TTL_USER_PROFILE = 3600 
 
 
 class QueryTimeouts:
@@ -64,6 +66,7 @@ class RequestParams:
     PLATFORM = "platform"
     APPNAME = "appname"
     API_VERSION = "api_version"
+    USER_ID = "user_id"
     PAGE = "page"
     PAGES = "pages"
     LIMIT = "limit"
@@ -115,6 +118,7 @@ class SuccessMessages:
     MESSAGE = "Information retrived successdully"
     DATA = "null"
     DEVICE_INVITED = "Device is already invited"
+    USER_PROFILE_RETRIEVED = "User Information Retrieved"
 
 
 class ErrorCodes:
@@ -181,17 +185,19 @@ class ErrorMessages:
     COUPON_ID_REQUIRED = "coupon_id is required"
     COUPON_ID_INVALID = "coupon_id is not valid"
     COUPON_EXPIRED = "Coupon expired or consumed"
+    USER_NOT_FOUND = "User not found"
+    PROFILE_FETCH_FAILED = "Failed to fetch user profile"
 
 
 class Headers:
     """HTTP Headers."""
 
-    X_API_CLIENT = "ID identifying the application (e.g., 'android', 'ios', 'web')."
-    X_DEVICE_ID = "Unique device ID"
-    X_PLATFORM = "Platform key identifier."
-    X_COUNTRY = "Country code"
-    X_APP_VERSION = "Application version (e.g., '1.0.0')"
-
+    X_API_CLIENT = "ID identifying the application (x-client-key)."
+    X_DEVICE_ID = "UUID"
+    X_PLATFORM = "Platform key identifier (eg. android, ios, web)."
+    X_COUNTRY = "Country code (eg. IN, US, UK)."
+    X_APP_VERSION = "Application version (eg. 1.0.0)"
+    X_API_TOKEN = "API token (x-api-token)."
 
 class Description(str):
     """Constants for DESCRIPTION and related string values used in responses.

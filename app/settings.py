@@ -65,6 +65,11 @@ class Settings(BaseSettings):
     redis_pass: Optional[str] = None
     redis_base: Optional[int] = None
 
+    # JWT Settings
+    jwt_secret_key: str = "your-secret-key"  # Should be set via environment variable
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 30
+
     # Celery settings
     celery_broker_url: Optional[str] = None
     celery_backend_url: Optional[str] = None
