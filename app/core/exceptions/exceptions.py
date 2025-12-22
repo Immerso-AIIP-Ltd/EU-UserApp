@@ -168,6 +168,7 @@ class DeviceNotInvited(AppError):
     http_code = status.HTTP_200_OK
     message = ErrorMessages.DEVICE_NOT_INVITED
     error_code = ErrorCodes.DEVICE_NOT_INVITED
+<<<<<<< HEAD
 
 
 class InvalidCoupon(AppError):
@@ -280,3 +281,5 @@ class ForgotPassword(AppError):
     http_code = status.HTTP_400_BAD_REQUEST
     message = ErrorMessages.FORGOT_PASSWORD
     error_code = ErrorCodes.FORGOT_PASSWORD
+=======
+>>>>>>> 7a31e846a77d180e26d48f6c04876e3c836d43ff
