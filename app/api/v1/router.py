@@ -5,7 +5,7 @@ from app.api.v1 import (
     docs,
     internal,
     monitoring,
-    user,
+    register,
 )
 
 api_router = APIRouter()
@@ -16,5 +16,5 @@ api_router.include_router(
 )
 api_router.include_router(internal.router, prefix="/internal/redis", tags=["internal"])
 api_router.include_router(device.router, prefix="/device", tags=["Device Invite"])
-api_router.include_router(user.router, prefix="/user", tags=["Registration"])
+api_router.include_router(register.router, prefix="/register", tags=["Registration"])
 api_router.include_router(docs.router)

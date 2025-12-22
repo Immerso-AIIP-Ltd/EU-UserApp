@@ -184,3 +184,99 @@ class CouponExpried(AppError):
     http_code = status.HTTP_200_OK
     message = ErrorMessages.COUPON_EXPIRED
     error_code = ErrorCodes.COUPON_EXPIRED
+
+
+class EmailMobileRequired(AppError):
+    """Email or MObile required"""
+
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = ErrorMessages.EMAIL_OR_MOBILE_REQUIRED
+    error_code = ErrorCodes.EMAIL_OR_MOBILE_REQUIRED
+
+
+class CallingCodeRequired(AppError):
+    """Calling code required"""
+
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = ErrorMessages.CALLING_CODE_REQUIRED
+    error_code = ErrorCodes.CALLING_CODE_REQUIRED
+
+
+class PasswordRequired(AppError):
+    """Password Required"""
+
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = ErrorMessages.PASSWORD_REQUIRED
+    error_code = ErrorCodes.PASSWORD_REQUIRED
+
+
+class UserExits(AppError):
+    """Password Required"""
+
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = ErrorMessages.USER_ALREADY_REGISTERED
+    error_code = ErrorCodes.USER_ALREADY_REGISTERED
+
+
+class CommServiceAPICallFailed(AppError):
+    """Commservice Failure"""
+
+    http_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    message = ErrorMessages.COMM_SERVICE_API_CALL_FAILED
+    error_code = ErrorCodes.COMM_SERVICE_API_CALL_FAILED
+
+
+class RedisServerDown(AppError):
+    """Redis Server Down"""
+
+    http_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    message = ErrorMessages.REDIS_DOWN
+    error_code = ErrorCodes.REDIS_DOWN
+
+
+class ClientIpNotProvided(AppError):
+    """Client IP not provided"""
+
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = ErrorMessages.IP_MISSING
+    error_code = ErrorCodes.IP_MISSING
+
+
+class IpBlocked(AppError):
+    """IP Blocked"""
+
+    http_code = status.HTTP_403_FORBIDDEN
+    message = ErrorMessages.IP_BLOCKED
+    error_code = ErrorCodes.IP_BLOCKED
+
+
+class OtpExpired(AppError):
+    """OTP Expired"""
+
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = ErrorMessages.OTP_EXPIRED
+    error_code = ErrorCodes.OTP_EXPIRED
+
+
+class OtpTooManyAttempts(AppError):
+    """Too many OTP attempts"""
+
+    http_code = status.HTTP_429_TOO_MANY_REQUESTS
+    message = ErrorMessages.OTP_TOO_MANY_ATTEMPTS
+    error_code = ErrorCodes.OTP_TOO_MANY_ATTEMPTS
+
+
+class MobileInvalid(AppError):
+    """Mobile Invalid"""
+
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = ErrorMessages.MOBILE_INVALID
+    error_code = ErrorCodes.MOBILE_INVALID
+
+
+class ForgotPassword(AppError):
+    """Forgot Password"""
+
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = ErrorMessages.FORGOT_PASSWORD
+    error_code = ErrorCodes.FORGOT_PASSWORD

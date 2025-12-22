@@ -510,7 +510,7 @@ class InviteCoupon(Base):
 
 
 class DeviceInvite(Base):
-    __tablename__ = "device_invite"
+    __tablename__ = "invite_device"
     device_id = Column(UUID(as_uuid=True), primary_key=True)
     coupon_id = Column(UUID(as_uuid=True), ForeignKey("invite_coupon.id"))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)

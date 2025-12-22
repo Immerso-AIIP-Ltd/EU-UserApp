@@ -34,12 +34,11 @@ class UserQueries:
 
     UPSERT_DEVICE_INVITE = text(
         """
-        INSERT INTO user_app.invite_device (device_id, coupon_id, invited_at)
-        VALUES (:device_id, :coupon_uuid, NOW())
+        INSERT INTO user_app.invite_device (device_id, coupon_id)
+        VALUES (:device_id, :coupon_id, NOW())
         ON CONFLICT (device_id)
         DO UPDATE SET
             coupon_id = EXCLUDED.coupon_id,
-            invited_at = NOW()
         RETURNING device_id
     """,
     )
@@ -54,18 +53,64 @@ class UserQueries:
     )
 
     # ==================== REGISTRATION ====================
+    CHECK_USER_EXISTS = text(
+        """
+        SELECT id
+        FROM user_app.user
+        WHERE 
+            (CAST(:email AS VARCHAR) IS NOT NULL AND email = :email)
+            OR
+            (CAST(:mobile AS VARCHAR) IS NOT NULL AND mobile = :mobile AND calling_code = :calling_code)
+        LIMIT 1;
+        """,
+    )
+
+    GET_USERNAME_BY_EMAIL = text(
+        """
+        SELECT up.firstname 
+        FROM user_app.user u
+        JOIN user_app.user_profile up ON u.id = up.id
+        WHERE u.email = :email
+        LIMIT 1;
+        """,
+    )
+
     REGISTER_WITH_PROFILE = text(
         """
         SELECT * FROM user_app.register_with_profile(
+            CAST(:email AS VARCHAR),
+            CAST(:mobile AS VARCHAR),
+            CAST(:calling_code AS VARCHAR),
+            CAST(:password AS VARCHAR),
+            CAST(:name AS VARCHAR),
+            CAST(:avatar_id AS VARCHAR),
+            CAST(:birth_date AS DATE),
+            CAST(:profile_image AS VARCHAR)
+        );
+        """,
+    )
+
+    INSERT_USER = text(
+        """
+        INSERT INTO user_app.user (
+            email,
+            mobile,
+            calling_code,
+            password,
+            login_type,
+            status,
+            created_at
+        )
+        VALUES (
             :email,
             :mobile,
             :calling_code,
             :password,
-            :name,
-            :avatar_id,
-            :birth_date,
-            :profile_image
-        );
+            :login_type,
+            :status,
+            NOW()
+        )
+        RETURNING id;
         """,
     )
 

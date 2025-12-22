@@ -38,6 +38,7 @@ class CacheKeyTemplates:
     CACHE_KEY_DEVICE_INVITE = (
         "device:invite:{device_id}:{coupon_id}:{platform}:{version}:{country}"
     )
+    CACHE_KEY_REGISTRATION_DATA = "registration:data:{identifier}"
 
 
 class CacheTTL:
@@ -115,6 +116,7 @@ class SuccessMessages:
     MESSAGE = "Information retrived successdully"
     DATA = "null"
     DEVICE_INVITED = "Device is already invited"
+    USER_CREATED_REDIRECT_OTP = "User Created. Redirect to OTP verification"
 
 
 class ErrorCodes:
@@ -149,6 +151,18 @@ class ErrorCodes:
     DEVICE_NOT_INVITED = "US100"
     COUPON_ID_INVALID = "US400"
     COUPON_EXPIRED = "US200"
+    EMAIL_OR_MOBILE_REQUIRED = "US004"
+    CALLING_CODE_REQUIRED = "US018"
+    PASSWORD_REQUIRED = "US017"
+    USER_ALREADY_REGISTERED = "US001"
+    COMM_SERVICE_API_CALL_FAILED = "US021"
+    MOBILE_INVALID = "US022"
+    FORGOT_PASSWORD = "US023"
+    OTP_EXPIRED = "US024"
+    OTP_TOO_MANY_ATTEMPTS = "US025"
+    IP_BLOCKED = "US026"
+    IP_MISSING = "US027"
+    REDIS_DOWN = "US028"
 
 
 class ErrorMessages:
@@ -178,9 +192,22 @@ class ErrorMessages:
     FORBIDDEN = "Forbidden access."
     DEVICE_NOT_INVITED = "Device is Not Invited"
     DEVICE_ID_REQUIRED = "device_id is required"
+    DEVICE_ALREADY_INVITED = "Device already invited"
     COUPON_ID_REQUIRED = "coupon_id is required"
     COUPON_ID_INVALID = "coupon_id is not valid"
     COUPON_EXPIRED = "Coupon expired or consumed"
+    EMAIL_OR_MOBILE_REQUIRED = "Either email or mobile number is required"
+    CALLING_CODE_REQUIRED = "Calling code is required when mobile number is provided"
+    PASSWORD_REQUIRED = "Password is required"
+    USER_ALREADY_REGISTERED = "User already registered"
+    COMM_SERVICE_API_CALL_FAILED = "Not able to send or validate OTP, please try again"
+    MOBILE_INVALID = "Mobile number is not valid"
+    FORGOT_PASSWORD = "Forgot Password"
+    OTP_EXPIRED = "OTP Expired"
+    OTP_TOO_MANY_ATTEMPTS = "OTP Too Many Attempts"
+    IP_BLOCKED = "IP is blocked"
+    IP_MISSING = "Client IP not provided"
+    REDIS_DOWN = "Redis server is down"
 
 
 class Headers:
@@ -191,6 +218,13 @@ class Headers:
     X_PLATFORM = "Platform key identifier."
     X_COUNTRY = "Country code"
     X_APP_VERSION = "Application version (e.g., '1.0.0')"
+
+
+class Intent:
+    REGISTRATION = "registration"
+    FORGOT_PASSWORD = "forgot_password"
+    UPDATE_EMAIL = "update_email"
+    UPDATE_MOBILE = "update_mobile"
 
 
 class Description(str):
