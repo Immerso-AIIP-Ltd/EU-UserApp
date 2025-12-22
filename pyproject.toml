@@ -29,6 +29,7 @@ loguru = "^0.7.3"
 aiosqlite = "^0.21.0"
 celery = {extras = ["redis"], version = "^5.5.3"}
 locust = "^2.42.5"
+pyjwt = "^2.10.1"
 
 
 
