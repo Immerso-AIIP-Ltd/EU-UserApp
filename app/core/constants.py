@@ -296,3 +296,9 @@ class LoggerConfigs:
     RETENTION_PERIOD = "10 days"
     LOG_LEVEL_ERROR = "ERROR"
     LOG_LEVEL_DEBUG = "DEBUG"
+
+class AuthConfig:
+    "Authorization constants"
+    
+    ALGORITHM = "HS256"
+    DECODE_CODE = "utf-8"

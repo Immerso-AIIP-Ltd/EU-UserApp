@@ -298,7 +298,7 @@ class ForgotPassword(AppError):
     http_code = status.HTTP_400_BAD_REQUEST
     message = ErrorMessages.FORGOT_PASSWORD
     error_code = ErrorCodes.FORGOT_PASSWORD
-=======
+
 
 # Add to existing exceptions file
 
