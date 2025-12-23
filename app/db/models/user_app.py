@@ -514,3 +514,30 @@ class DeviceInvite(Base):
     device_id = Column(UUID(as_uuid=True), primary_key=True)
     coupon_id = Column(UUID(as_uuid=True), ForeignKey("invite_coupon.id"))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class UserAuthToken(Base):
+    uuid = Column(UUID(as_uuid=True), primary_key=True)
+    token = Column(Text)
+    app_consumer = Column(UUID(as_uuid=True), ForeignKey("app_consumer.id"))
+    device_id = Column(VARCHAR(128))
+    expires_at = Column(DateTime(timezone=True))
+    oauth1_token = Column(VARCHAR(128))
+    oauth1_token_secret = Column(VARCHAR(128))
+    partner_id = Column(VARCHAR(255))
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class AppConsumer(Base):
+    client_name = Column(VARCHAR(128))
+    client_id = Column(VARCHAR(40), default=get_random_string)
+    client_secret = Column(VARCHAR(40), default=get_random_string)
+    description = Column(Text)
+    legacy_consumer_key = Column(VARCHAR(128))
+    legacy_consumer_secret = Column(VARCHAR(128))
+    is_internal = Column(Boolean, default=False)
+    partner_code = Column(VARCHAR(40), nullable=True, blank=True, default='EROS')
+
+    # Relationships
+    user_auth_tokens = relationship("UserAuthToken", back_populates="app_consumer")
