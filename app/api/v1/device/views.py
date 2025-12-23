@@ -2,7 +2,6 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Path, Request
 from fastapi.responses import JSONResponse
-from numpy import insert
 from redis.asyncio import Redis
 from sqlalchemy import insert, update
 from sqlalchemy.ext.asyncio import AsyncSession

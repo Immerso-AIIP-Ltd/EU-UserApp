@@ -30,7 +30,19 @@ class AppError(Exception):
     message: str = ErrorMessages.INTERNAL_SERVER_ERROR
     error_code: str = ErrorCodes.GENERAL_ERROR_CODE
 
-    def __init__(self, detail: str | None = None) -> None:
+    def __init__(
+        self,
+        detail: str | None = None,
+        http_code: int | None = None,
+        message: str | None = None,
+        error_code: str | None = None,
+    ) -> None:
+        if http_code is not None:
+            self.http_code = http_code
+        if message is not None:
+            self.message = message
+        if error_code is not None:
+            self.error_code = error_code
         self.detail = detail or self.message
         super().__init__(self.detail)
 
@@ -325,3 +337,58 @@ class ProfileFetchException(AppException):
             detail=detail,
         )
 
+
+
+
+
+class ClientIdValidationFailed(AppError):
+    """Raised when client ID validation fails."""
+    
+    http_code = status.HTTP_401_UNAUTHORIZED
+    message = ErrorMessages.CLIENT_ID_VALIDATION_FAILED
+    error_code = ErrorCodes.CLIENT_ID_VALIDATION_FAILED_CODE
+
+
+class InvalidInput(AppError):
+    def __init__(self, detail: str):
+        super().__init__(
+            http_code=status.HTTP_400_BAD_REQUEST,
+            message=detail,
+            error_code=ErrorCodes.US400,
+        )
+
+
+class UserNotFound(AppError):
+    def __init__(self):
+        super().__init__(
+            http_code=status.HTTP_404_NOT_FOUND,
+            message=ErrorMessages.USER_NOT_FOUND,
+            error_code=ErrorCodes.US404,
+        )
+
+
+class AccountBlocked(AppError):
+    def __init__(self):
+        super().__init__(
+            http_code=status.HTTP_409_CONFLICT,
+            message=ErrorMessages.ACCOUNT_BLOCKED,
+            error_code=ErrorCodes.US409,
+        )
+
+
+class PasswordsDoNotMatch(AppError):
+    def __init__(self):
+        super().__init__(
+            http_code=status.HTTP_400_BAD_REQUEST,
+            message=ErrorMessages.PASSWORDS_DO_NOT_MATCH,
+            error_code=ErrorCodes.US400,
+        )
+
+
+class InvalidOldPassword(AppError):
+    def __init__(self):
+        super().__init__(
+            http_code=status.HTTP_400_BAD_REQUEST,
+            message=ErrorMessages.INVALID_OLD_PASSWORD,
+            error_code=ErrorCodes.US400,
+        )

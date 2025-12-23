@@ -364,6 +364,20 @@ class AuthTokenData(BaseModel):
     user: Optional[Dict[str, Any]] = None  # Or partial user profile
 
 
+class UpdateEmailMobileData(BaseModel):
+    """Data schema for Update Email/Mobile response."""
+
+    email: Optional[str] = None
+    mobile: Optional[str] = None
+    calling_code: Optional[str] = None
+
+
+class UpdateEmailMobileResponse(GenericResponse):
+    """Response schema for Update Email/Mobile."""
+
+    data: UpdateEmailMobileData
+
+
 class LoginResponse(GenericResponse):
     """Response schema for Login."""
 
@@ -416,3 +430,42 @@ class SocialLoginResponse(GenericResponse):
     """Response schema for Social Login."""
 
     data: AuthTokenData
+
+
+class LoginRequest(BaseModel):
+    email: str | None = None
+    mobile: str | None = None
+    calling_code: str | None = None
+    password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: Optional[EmailStr] = None
+    mobile: Optional[str] = Field(default=None, min_length=8, max_length=15)
+    calling_code: Optional[str] = None
+
+    def validate_email_or_mobile(self):
+        if not self.email and not (self.mobile and self.calling_code):
+            return False
+        return True
+
+
+class ForgotPasswordResponse(BaseModel):
+    status: bool = True
+    message: str
+    data: dict = {}
+    meta: dict = {}
+    error: dict = {}
+
+class ChangePasswordRequest(BaseModel):
+    old_password: Optional[str] = None
+    new_password: str
+    new_password_confirm: str
+
+
+class ChangePasswordResponse(BaseModel):
+    status: bool = True
+    message: str
+    data: dict = {}
+    meta: dict = {}
+    error: dict = {}

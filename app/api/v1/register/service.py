@@ -6,7 +6,7 @@ import traceback
 from asyncio.log import logger
 
 import dns.resolver
-from django.conf import settings
+
 
 from app.api.v1.register import deeplinks
 from app.api.v1.register.commservice import call_communication_api

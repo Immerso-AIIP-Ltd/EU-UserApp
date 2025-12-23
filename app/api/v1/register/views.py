@@ -54,7 +54,7 @@ async def register_with_profile(
     request: Request,
     payload: RegisterWithProfileRequest,
     db_session: AsyncSession = Depends(get_db_session),
-    x_forwarded_for: str | None = Header(None, alias="X-Forwarded-For"),
+    x_forwarded_for: str | None = Header(None, alias="X-Forwarded-For"), #constant
     headers: CommonHeaders = Depends(validate_common_headers),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
@@ -178,10 +178,10 @@ async def verify_otp_register(
     otp = payload.otp
 
     receiver = email if email else f"{calling_code}{mobile}"
-    receiver_type = "email" if email else "mobile"
+    receiver_type = ResponseParams.EMAIL if email else ResponseParams.MOBILE       # constant
 
     # 1. Verify OTP
-    if receiver_type == "email":
+    if receiver_type == ResponseParams.EMAIL:
         redis_key = f"email_otp_{email}_{intent.value}"
         cached_otp = await cache.get(redis_key)
         if not cached_otp or cached_otp != otp:
@@ -196,14 +196,14 @@ async def verify_otp_register(
             "intent": intent.value,
         }
         response = call_communication_api(deeplinks.VERIFY_OTP_URL, verify_payload)
-        if response.get("status") != "success" or not response.get("data"):
-             raise ValidationError(message="Invalid or Expired OTP")
+        if response.get("status") != "success" or not response.get("data"):  # constant
+             raise ValidationError(message=OTP_EXPIRED) 
 
     # 2. Retrieve Cached Registration Data
     cache_key = build_cache_key(CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=receiver)
     cached_data = await get_cache(cache, cache_key)
     if not cached_data:
-        raise ValidationError(message="Registration session expired. Please try again.")
+       raise ValidationError(message="Registration session expired. Please try again.")  # constant
 
     # 3. Register User in DB
     # cached_data contains: email, mobile, calling_code, password (hashed), name, ...

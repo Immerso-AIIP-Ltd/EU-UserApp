@@ -148,14 +148,50 @@ class UserQueries:
     )
 
     # ==================== LOGIN ====================
-    LOGIN_USER = text(
+    GET_USER_FOR_LOGIN = text(
         """
-        SELECT * FROM user_app.login_user(
-            :email,
-            :mobile,
-            :calling_code,
-            :password
-        );
+        SELECT 
+            u.id, 
+            u.email, 
+            u.mobile, 
+            u.calling_code, 
+            u.password, 
+            u.state, 
+            u.is_password_set,
+            u.failed_login_attempts,
+            u.account_locked_until,
+            p.firstname || ' ' || COALESCE(p.lastname, '') AS name,
+            p.image_url AS image
+        FROM user_app.user u
+        LEFT JOIN user_app.user_profile p ON u.id = p.id
+        WHERE (u.email = :email AND :email IS NOT NULL)
+           OR (u.mobile = :mobile AND u.calling_code = :calling_code AND :mobile IS NOT NULL);
+        """,
+    )
+
+    RECORD_LOGIN_SUCCESS = text(
+        """
+        UPDATE user_app.user
+        SET 
+            failed_login_attempts = 0,
+            account_locked_until = NULL,
+            last_login_at = NOW(),
+            login_count = login_count + 1
+        WHERE id = :user_id;
+        """,
+    )
+
+    RECORD_LOGIN_FAILURE = text(
+        """
+        UPDATE user_app.user
+        SET 
+            failed_login_attempts = failed_login_attempts + 1,
+            account_locked_until = CASE 
+                WHEN failed_login_attempts + 1 >= :max_attempts THEN NOW() + INTERVAL '1 hour'
+                ELSE NULL
+            END
+        WHERE id = :user_id
+        RETURNING failed_login_attempts, account_locked_until;
         """,
     )
 
@@ -310,4 +346,107 @@ class UserQueries:
             :user_id
         );
         """,
+    )
+    # ==================== AUTHENTICATION ====================
+    GET_APP_CONSUMER = text(
+        """
+        SELECT id, client_id, client_secret, partner_code
+        FROM user_app.app_consumer
+        WHERE client_id = :client_id
+        LIMIT 1;
+        """
+    )
+
+    INSERT_USER_AUTH_TOKEN = text(
+        """
+        INSERT INTO user_app.user_auth_token (
+            uuid,
+            token,
+            app_consumer_id,
+            device_id,
+            expires_at,
+            partner_id,
+            is_active,
+            created_at
+        )
+        VALUES (
+            :uuid,
+            :token,
+            :app_consumer_id,
+            :device_id,
+            :expires_at,
+            :partner_id,
+            TRUE,
+            NOW()
+        );
+        """
+    )
+
+
+    GET_USER_FOR_LOGIN = text(
+        """
+        SELECT id, email, mobile, calling_code, password, state
+        FROM user_app.user
+        WHERE 
+            (email = :email OR mobile = :mobile)
+        """
+    )
+
+    INSERT_USER = text(
+        """
+        INSERT INTO user_app.user (id, email, mobile, calling_code, password, name)
+        VALUES (:user_id, :email, :mobile, :calling_code, :password, :name)
+        """
+    )
+
+    GET_CLIENT_SECRET = text(
+        """
+        SELECT client_secret
+        FROM user_app.app_consumer
+        WHERE client_id = :client_id
+        LIMIT 1
+        """
+    )
+
+    GET_USER_PROFILE = text(
+        """
+        SELECT 
+            id AS user_id,
+            email,
+            CONCAT(firstname, ' ', lastname) AS name,
+            image_url AS image
+        FROM user_app.user_profile
+        WHERE id = :user_id
+        """
+    )
+
+    GET_USER_BY_EMAIL = text(
+        """
+        SELECT id, email, mobile, calling_code, state
+        FROM user_app.user
+        WHERE email = :email
+        """
+    )
+
+    GET_USER_BY_MOBILE = text(
+        """
+        SELECT id, email, mobile, calling_code, state
+        FROM user_app.user
+        WHERE mobile = :mobile AND calling_code = :calling_code
+        """
+    )
+    UPDATE_USER_PASSWORD = text(
+        """
+        UPDATE user_app.user
+        SET password = :password
+        WHERE id = :user_id
+        """
+    )
+
+    GET_USER_PASSWORD_HASH = text(
+        """
+        SELECT password
+        FROM user_app.user
+        WHERE id = :user_id
+        """
     )

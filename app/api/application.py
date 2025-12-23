@@ -4,6 +4,8 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, UJSONResponse
 from fastapi.staticfiles import StaticFiles
+from loguru import logger
+from starlette import status
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.lifespan import lifespan_setup
@@ -50,6 +52,25 @@ def get_app() -> FastAPI:
                     "code": exc.error_code,
                     "error_type": exc.error_type,
                     "message": exc.detail,
+                },
+            },
+        )
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        logger.exception(f"Unhandled exception: {exc}")
+        from app.core.constants import ErrorCodes, ErrorMessages
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "success": False,
+                "data": {},
+                "meta": {},
+                "error": {
+                    "code": 500,
+                    "error_code": ErrorCodes.INTERNAL_SERVER_ERROR_CODE,
+                    "message": ErrorMessages.INTERNAL_SERVER_ERROR,
+                    "type": exc.__class__.__name__,
                 },
             },
         )

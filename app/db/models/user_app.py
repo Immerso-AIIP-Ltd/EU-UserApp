@@ -519,10 +519,11 @@ class DeviceInvite(Base):
 
 class UserAuthToken(Base):
     __tablename__ = "user_auth_token"
-    
+    __table_args__: ClassVar = {"schema": "user_app"}
+
     uuid = Column(UUID(as_uuid=True), primary_key=True)
     token = Column(Text)
-    app_consumer = Column(UUID(as_uuid=True), ForeignKey("app_consumer.id"))
+    app_consumer_id = Column(UUID(as_uuid=True), ForeignKey("user_app.app_consumer.id"))
     device_id = Column(VARCHAR(128))
     expires_at = Column(DateTime(timezone=True))
     oauth1_token = Column(VARCHAR(128))
@@ -534,8 +535,9 @@ class UserAuthToken(Base):
 
 class AppConsumer(Base):
     __tablename__ = "app_consumer"
+    __table_args__: ClassVar = {"schema": "user_app"}
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_name = Column(VARCHAR(128))
     client_id = Column(VARCHAR(40), default=get_random_string)
     client_secret = Column(VARCHAR(40), default=get_random_string)

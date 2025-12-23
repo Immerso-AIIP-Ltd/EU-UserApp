@@ -7,7 +7,12 @@ from loguru import logger
 from redis.asyncio import Redis
 
 from app.api.queries import UserQueries
-from app.api.v1.schemas import UserProfileData, UpdateProfileRequest
+from app.api.v1.schemas import (
+    UserProfileData,
+    UpdateProfileRequest,
+    UpdateEmailMobileRequest,
+    UpdateEmailMobileData,
+)
 from app.cache.base import build_cache_key, get_cache, set_cache
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import (
@@ -146,6 +151,73 @@ async def update_user_profile(
             message="Profile Updated",
             request=request,
             data=user_profile,
+        )
+
+    except UserNotFoundException:
+        raise
+    except Exception as e:
+        logger.exception(e)
+        raise ProfileFetchException(
+            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {str(e)}"
+        )
+
+
+@router.post("/update_email_mobile")
+async def update_email_mobile(
+    request: Request,
+    contact_update: UpdateEmailMobileRequest,
+    db_session: AsyncSession = Depends(get_db_session),
+    headers: dict = Depends(validate_common_headers),
+    cache: Redis = Depends(get_redis_connection),
+    current_user: dict = Depends(get_current_user),
+) -> JSONResponse:
+    """
+    Update authenticated user's email or mobile.
+    """
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+
+    # Invalidate cache
+    cache_key = build_cache_key(
+        CacheKeyTemplates.CACHE_KEY_USER_PROFILE,
+        **{
+            RequestParams.USER_ID: user_id,
+            "platform": headers.get("platform"),
+            "version": headers.get("app_version"),
+            "country": headers.get("country"),
+        },
+    )
+    await cache.delete(cache_key)
+
+    query = UserQueries.UPDATE_EMAIL_MOBILE
+    params = {
+        RequestParams.USER_ID: user_id,
+        "email": contact_update.email,
+        "mobile": contact_update.mobile,
+        "calling_code": contact_update.calling_code,
+    }
+
+    try:
+        data = await execute_and_transform(
+            query, params, UpdateEmailMobileData, db_session
+        )
+
+        if not data or len(data) == 0:
+            raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+
+        updated_contact = data[0]
+
+        message = (
+            "User Email updated successfully."
+            if contact_update.email
+            else "User Mobile updated successfully."
+        )
+
+        return standard_response(
+            message=message,
+            request=request,
+            data=updated_contact,
         )
 
     except UserNotFoundException:

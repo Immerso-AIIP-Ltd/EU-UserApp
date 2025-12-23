@@ -81,6 +81,9 @@ class RequestParams:
     TRANSLATIONS = "translations"
     DATA = "data"
     TRANSLATED_TEXT = "translated_text"
+    EMAIL = "email"
+    MOBILE = "mobile"
+    
 
 
 class ResponseParams:
@@ -121,6 +124,13 @@ class SuccessMessages:
     DEVICE_INVITED = "Device is already invited"
     USER_CREATED_REDIRECT_OTP = "User Created. Redirect to OTP verification"
     USER_PROFILE_RETRIEVED = "User Information Retrieved"
+    USER_LOGGED_IN = "User logged in successfully"
+    OTP_SENT = "OTP sent successfully"
+    EMAIL_OR_MOBILE_REQUIRED = "Either email or mobile number is required."
+    USER_NOT_FOUND = "User not found."
+    ACCOUNT_LOCKED = "Your account is temporarily locked due to multiple failed attempts."
+    PASSWORD_CHANGED_SUCCESS = "Password changed successfully."
+
 
 
 class ErrorCodes:
@@ -167,6 +177,21 @@ class ErrorCodes:
     IP_BLOCKED = "US026"
     IP_MISSING = "US027"
     REDIS_DOWN = "US028"
+    VALIDATION = "US004"
+    USER_NOT_FOUND = "US002"
+    BLOCKED = "US003"
+
+
+    # Login Specific
+    USER_NOT_FOUND_LOGIN_CODE = "US002"
+    INCORRECT_PASSWORD_CODE = "US021"
+    ACCOUNT_LOCKED_CODE = "US003"
+    UNAUTHORIZED_LOGIN_CODE = "US401"
+    INVALID_INPUT_CODE = "US029"
+    CLIENT_ID_VALIDATION_FAILED_CODE = "US030"
+    US400 = "US400"
+    US404 = "US404"
+    US409 = "US409"
 
 
 class ErrorMessages:
@@ -214,6 +239,19 @@ class ErrorMessages:
     REDIS_DOWN = "Redis server is down"
     USER_NOT_FOUND = "User not found"
     PROFILE_FETCH_FAILED = "Failed to fetch user profile"
+    INVALID_INPUT = "Invalid input data"
+    CLIENT_ID_VALIDATION_FAILED = "Invalid Client ID"
+    FORGOT_PASSWORD = "FORGOT_PASSWORD"
+
+    # Login Specific
+    INCORRECT_PASSWORD = "Incorrect password."
+    USER_NOT_FOUND_LOGIN = "User not found."
+    ACCOUNT_LOCKED = "Your account is temporarily locked due to multiple failed login attempts."
+    ACCOUNT_LOCKED_DETAILS = "Please try again after some time."
+    INCORRECT_PASSWORD_DETAILS = "The password entered is incorrect."
+    USER_NOT_FOUND_DETAILS = "No user exists with the provided email or mobile."
+    PASSWORDS_DO_NOT_MATCH = "New passwords do not match."
+    INVALID_OLD_PASSWORD = "The old password provided is incorrect."
 
 
 class Headers:
@@ -226,7 +264,7 @@ class Headers:
     X_APP_VERSION = "Application version (eg. 1.0.0)"
     X_API_TOKEN = "API token (x-api-token)."
 
-class Intent:
+class Intents:
     REGISTRATION = "registration"
     FORGOT_PASSWORD = "forgot_password"
     UPDATE_EMAIL = "update_email"
@@ -302,3 +340,6 @@ class AuthConfig:
     
     ALGORITHM = "HS256"
     DECODE_CODE = "utf-8"
+Messages = SuccessMessages
+
+Intent = Intents
