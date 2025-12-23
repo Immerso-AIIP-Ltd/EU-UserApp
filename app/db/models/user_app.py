@@ -6,6 +6,7 @@ from datetime import timezone as dt_timezone
 from tokenize import String
 from typing import ClassVar
 
+from app.db.utils import get_random_string
 from sqlalchemy import (
     CHAR,
     UUID,
@@ -517,6 +518,8 @@ class DeviceInvite(Base):
 
 
 class UserAuthToken(Base):
+    __tablename__ = "user_auth_token"
+    
     uuid = Column(UUID(as_uuid=True), primary_key=True)
     token = Column(Text)
     app_consumer = Column(UUID(as_uuid=True), ForeignKey("app_consumer.id"))
@@ -530,6 +533,9 @@ class UserAuthToken(Base):
 
 
 class AppConsumer(Base):
+    __tablename__ = "app_consumer"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid)
     client_name = Column(VARCHAR(128))
     client_id = Column(VARCHAR(40), default=get_random_string)
     client_secret = Column(VARCHAR(40), default=get_random_string)
@@ -537,7 +543,7 @@ class AppConsumer(Base):
     legacy_consumer_key = Column(VARCHAR(128))
     legacy_consumer_secret = Column(VARCHAR(128))
     is_internal = Column(Boolean, default=False)
-    partner_code = Column(VARCHAR(40), nullable=True, blank=True, default='EROS')
+    partner_code = Column(VARCHAR(40), nullable=True, default='EROS')
 
     # Relationships
     user_auth_tokens = relationship("UserAuthToken", back_populates="app_consumer")

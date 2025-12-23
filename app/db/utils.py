@@ -1,5 +1,7 @@
 import asyncio
 import enum
+import random
+import string
 import time
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, List, Optional, Sequence, Type
@@ -272,3 +274,7 @@ async def execute_and_transform(
         raise ValidationError(detail=error_msg) from e
 
     return validated_data
+
+
+async def get_random_string(length=40):
+    return "".join([random.choice(string.ascii_letters + string.digits) for _ in range(length)])
