@@ -130,6 +130,8 @@ class SuccessMessages:
     USER_NOT_FOUND = "User not found."
     ACCOUNT_LOCKED = "Your account is temporarily locked due to multiple failed attempts."
     PASSWORD_CHANGED_SUCCESS = "Password changed successfully."
+    USER_LOGGED_OUT_SUCCESS = "User was logged out successfully."
+    USER_DEACTIVATED_SUCCESS = "Your account has been successfully deactivated."
 
 
 
@@ -192,6 +194,7 @@ class ErrorCodes:
     US400 = "US400"
     US404 = "US404"
     US409 = "US409"
+    USER_TOKEN_NOT_FOUND_CODE = "US401"
 
 
 class ErrorMessages:
@@ -248,6 +251,9 @@ class ErrorMessages:
     USER_NOT_FOUND_LOGIN = "User not found."
     ACCOUNT_LOCKED = "Your account is temporarily locked due to multiple failed login attempts."
     ACCOUNT_LOCKED_DETAILS = "Please try again after some time."
+    USER_TOKEN_NOT_FOUND = "Authentication token not found or invalid."
+    INVALID_OLD_PASSWORD = "The old password provided is incorrect."
+    PASSWORDS_DO_NOT_MATCH = "New passwords do not match."
     INCORRECT_PASSWORD_DETAILS = "The password entered is incorrect."
     USER_NOT_FOUND_DETAILS = "No user exists with the provided email or mobile."
     PASSWORDS_DO_NOT_MATCH = "New passwords do not match."

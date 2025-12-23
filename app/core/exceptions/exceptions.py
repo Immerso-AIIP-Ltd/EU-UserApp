@@ -392,3 +392,12 @@ class InvalidOldPassword(AppError):
             message=ErrorMessages.INVALID_OLD_PASSWORD,
             error_code=ErrorCodes.US400,
         )
+
+
+class UserTokenNotFound(AppError):
+    def __init__(self):
+        super().__init__(
+            http_code=status.HTTP_401_UNAUTHORIZED,
+            message=ErrorMessages.USER_TOKEN_NOT_FOUND,
+            error_code=ErrorCodes.USER_TOKEN_NOT_FOUND_CODE,
+        )

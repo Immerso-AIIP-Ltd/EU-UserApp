@@ -450,3 +450,11 @@ class UserQueries:
         WHERE id = :user_id
         """
     )
+
+    DEACTIVATE_USER_TOKEN = text(
+        """
+        UPDATE user_app.user_auth_token
+        SET is_active = False
+        WHERE token = :token AND device_id = :device_id
+        """
+    )

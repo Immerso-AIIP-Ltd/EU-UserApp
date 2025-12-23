@@ -8,6 +8,7 @@ from .exceptions import (
     MissingHeadersError,
     PasswordsDoNotMatch,
     InvalidOldPassword,
+    UserTokenNotFound,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "MissingHeadersError",
     "PasswordsDoNotMatch",
     "InvalidOldPassword",
+    "UserTokenNotFound",
 ]
