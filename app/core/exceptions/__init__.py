@@ -13,6 +13,7 @@ from .exceptions import (
     InvalidSocialUID,
     InvalidSocialToken,
     AppleKeyFetchError,
+    FacebookAuthError,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "InvalidSocialUID",
     "InvalidSocialToken",
     "AppleKeyFetchError",
+    "FacebookAuthError",
 ]

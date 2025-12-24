@@ -111,6 +111,10 @@ class Settings(BaseSettings):
     apple_key_id: str = "YOUR_APPLE_KEY_ID"
     apple_private_key: str = "YOUR_APPLE_PRIVATE_KEY"  # Multiline string recommended to be passed as env var with \n escaped
 
+    # Facebook Social Login Settings
+    facebook_client_id: str = "YOUR_FACEBOOK_CLIENT_ID"
+    facebook_client_secret: str = "YOUR_FACEBOOK_CLIENT_SECRET"
+
     @property
     def db_url(self) -> URL:
         """

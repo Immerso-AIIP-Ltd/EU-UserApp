@@ -7,6 +7,7 @@ from app.db.utils import execute_query
 from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.google_oauth_service import GoogleOAuthService
 from app.api.v1.service.apple_oauth_service import AppleOAuthService
+from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
 
 
 class SocialLoginService:
@@ -178,6 +179,103 @@ class SocialLoginService:
                 "provider": provider,
                 "social_id": social_id,
                 "token": apple_service.get_token(),
+            },
+            db_session,
+        )
+
+        # 5. Generate Auth Token
+        token, expires_at = await AuthService.generate_token(
+            user_uuid=user_id,
+            client_id=request_data["client_id"],
+            db_session=db_session,
+            cache=cache,
+            device_id=request_data["device_id"],
+        )
+
+        # Get user details for response
+        profile_rows = await execute_query(
+            UserQueries.GET_USER_PROFILE, {"user_id": user_id}, db_session
+        )
+        user_profile = dict(profile_rows[0]) if profile_rows else {}
+
+        return {
+            "auth_token": token,
+            "user": {
+                "user_id": str(user_id),
+                "email": user_profile.get("email"),
+                "name": user_profile.get("name"),
+                "image": user_profile.get("image"),
+            },
+        }
+
+    @staticmethod
+    async def facebook_login(
+        facebook_service: FacebookOAuthService,
+        request_data: dict,
+        db_session: AsyncSession,
+        cache: Redis,
+    ):
+        """
+        Handle Facebook Social Login business logic.
+        """
+        # 1. Verify Facebook Access Token
+        # Facebook verification matches ID against UID inside verify_access_token so we pass uid
+        facebook_service.verify_access_token(request_data["uid"])
+
+        # 2. Get user by social login
+        social_id = facebook_service.get_uid()
+        provider = facebook_service.NAME
+
+        rows = await execute_query(
+            UserQueries.GET_USER_BY_SOCIAL_IDENTITY,
+            {"provider": provider, "social_id": social_id},
+            db_session,
+        )
+
+        user = None
+        if rows:
+            user = dict(rows[0])
+        else:
+            # 3. New user, signup with social
+            email = facebook_service.get_email()
+            
+            if email:
+                email_rows = await execute_query(
+                    UserQueries.GET_USER_BY_EMAIL, {"email": email}, db_session
+                )
+                if email_rows:
+                    user = dict(email_rows[0])
+            
+            if not user:
+                signup_rows = await execute_query(
+                    UserQueries.SIGNUP_WITH_SOCIAL_DATA,
+                    {
+                        "provider": provider,
+                        "social_id": social_id,
+                        "email": email,
+                        "name": facebook_service.get_name(),
+                        "country": request_data.get("country"),
+                        "platform": request_data.get("platform"),
+                        "user_agent": request_data.get("user_agent"),
+                    },
+                    db_session,
+                )
+                if signup_rows:
+                    user = dict(signup_rows[0])
+
+        if not user:
+             raise Exception("Failed to find or create user via social login")
+
+        user_id = user["id"]
+
+        # 4. Create or update identity provider
+        await execute_query(
+            UserQueries.UPSERT_SOCIAL_IDENTITY_PROVIDER,
+            {
+                "user_id": user_id,
+                "provider": provider,
+                "social_id": social_id,
+                "token": facebook_service.get_token(),
             },
             db_session,
         )

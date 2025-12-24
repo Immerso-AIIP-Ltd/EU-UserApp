@@ -1,0 +1,61 @@
+import requests
+from typing import Optional, Dict
+from loguru import logger
+from datetime import datetime
+from app.core.exceptions import FacebookAuthError, InvalidSocialUID
+
+class FacebookOAuthService:
+    """Service to handle Facebook OAuth verification."""
+
+    NAME = "facebook"
+    GRAPH_API_URL = "https://graph.facebook.com/me"
+
+    def __init__(self, access_token: str):
+        self.access_token = access_token
+        self.uid: Optional[str] = None
+        self.email: Optional[str] = None
+        self.name: Optional[str] = None
+
+    def verify_access_token(self, uid: str):
+        """
+        Verify the Facebook Access Token and match UID.
+        """
+        try:
+            params = {
+                "access_token": self.access_token,
+                "fields": "id,name,email"
+            }
+            response = requests.get(self.GRAPH_API_URL, params=params)
+            
+            if response.status_code != 200:
+                logger.error(f"Facebook Graph API Error: {response.text}")
+                raise FacebookAuthError()
+
+            data = response.json()
+            
+            if data.get("id") != uid:
+                raise InvalidSocialUID()
+
+            self.uid = data.get("id")
+            self.name = data.get("name")
+            self.email = data.get("email")
+
+        except FacebookAuthError:
+            raise
+        except InvalidSocialUID:
+            raise
+        except Exception as e:
+            logger.exception(f"Unexpected error during Facebook verification: {e}")
+            raise FacebookAuthError()
+
+    def get_email(self):
+        return self.email
+
+    def get_name(self):
+        return self.name
+
+    def get_uid(self):
+        return self.uid
+
+    def get_token(self):
+        return self.access_token

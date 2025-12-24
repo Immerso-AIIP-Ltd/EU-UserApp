@@ -438,3 +438,12 @@ class AppleKeyFetchError(AppError):
             message=ErrorMessages.APPLE_KEY_FETCH_ERROR,
             error_code=ErrorCodes.APPLE_KEY_FETCH_ERROR_CODE,
         )
+
+
+class FacebookAuthError(AppError):
+    def __init__(self):
+        super().__init__(
+            http_code=status.HTTP_401_UNAUTHORIZED,
+            message=ErrorMessages.FACEBOOK_AUTH_ERROR,
+            error_code=ErrorCodes.FACEBOOK_AUTH_ERROR_CODE,
+        )
