@@ -182,7 +182,8 @@ class Platform(Base):
     )
 
     # Relationships
-    devices = relationship("Device", back_populates="platform")
+    #devices = relationship("Device", back_populates="platform")
+    devices = relationship("Device", back_populates="platform_ref", primaryjoin="Platform.platform_name==Device.platform")
 
 
 class Device(Base):
@@ -465,7 +466,7 @@ class InviteDevice(Base):
 
     # Relationships
     device = relationship("Device", back_populates="invite_device")
-    coupon = relationship("InviteCoupon", back_populates="invite_devices")
+    coupon = relationship("InviteCoupon", back_populates="invite_devices", primaryjoin="InviteDevice.coupon_id==InviteCoupon.id")
     user = relationship("User", back_populates="invite_device")
 
 
@@ -502,7 +503,7 @@ class SocialIdentityProvider(Base):
     user = relationship("User", back_populates="social_identities")
 
 
-class InviteCoupon(Base):
+class CouponInvite(Base): # InviteCoupon
     __tablename__ = "invite_coupon"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid)
     code = Column(String, unique=True, nullable=False)
@@ -510,7 +511,7 @@ class InviteCoupon(Base):
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
 
-class DeviceInvite(Base):
+class DeviceInviteCoupon(Base): # DeviceInvite
     __tablename__ = "invite_device"
     device_id = Column(UUID(as_uuid=True), primary_key=True)
     coupon_id = Column(UUID(as_uuid=True), ForeignKey("invite_coupon.id"))
@@ -519,10 +520,11 @@ class DeviceInvite(Base):
 
 class UserAuthToken(Base):
     __tablename__ = "user_auth_token"
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
     
     uuid = Column(UUID(as_uuid=True), primary_key=True)
     token = Column(Text)
-    app_consumer = Column(UUID(as_uuid=True), ForeignKey("app_consumer.id"))
+    app_consumer_id = Column(Integer, ForeignKey("user_app.app_consumer.id"))
     device_id = Column(VARCHAR(128))
     expires_at = Column(DateTime(timezone=True))
     oauth1_token = Column(VARCHAR(128))
@@ -530,12 +532,15 @@ class UserAuthToken(Base):
     partner_id = Column(VARCHAR(255))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
-
+    updated_at = Column(DateTime(timezone=True), default=datetime.now(dt_timezone.utc), onupdate=datetime.now(dt_timezone.utc))
+    
+    app_consumer = relationship("AppConsumer", back_populates="user_auth_tokens")
 
 class AppConsumer(Base):
     __tablename__ = "app_consumer"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid)
+    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_name = Column(VARCHAR(128))
     client_id = Column(VARCHAR(40), default=get_random_string)
     client_secret = Column(VARCHAR(40), default=get_random_string)

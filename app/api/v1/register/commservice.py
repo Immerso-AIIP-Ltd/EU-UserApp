@@ -17,8 +17,13 @@ def call_communication_api(url, payload, method="POST"):
 
     response = requests.request(method, url, data=json.dumps(payload), headers=headers)
     if response.status_code != 200:
-        logger.info("COMM API CALL",
-                    extra={"server_response": response.text, "server_response_code": response.status_code})
+        logger.info(
+            "COMM API CALL",
+            extra={
+                "server_response": response.text,
+                "server_response_code": response.status_code,
+            },
+        )
         raise CommServiceAPICallFailed()
     logger.info("COMM API CALL", extra={"server_response": response.json()})
     return response.json()

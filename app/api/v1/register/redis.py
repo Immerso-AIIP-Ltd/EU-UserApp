@@ -3,9 +3,10 @@ import json
 import logging
 import traceback
 
-from django_redis import get_redis_connection
+from app.cache.dependencies import get_redis_connection
 
-logger = logging.getLogger("django")
+
+logger = logging.getLogger("redis")
 
 def remove_uuid_device_token(uuid, platform, device_token):
     """

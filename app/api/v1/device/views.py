@@ -25,7 +25,7 @@ from app.core.exceptions.exceptions import (
     ValidationError,
 )
 from app.db.dependencies import get_db_session
-from app.db.models.user_app import DeviceInvite, InviteCoupon
+from app.db.models.user_app import DeviceInviteCoupon, CouponInvite
 from app.db.utils import execute_and_transform, execute_query
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import CommonHeaders, validate_common_headers
@@ -135,16 +135,16 @@ async def invite_device(
 
     async with db_session.begin():
         await db_session.execute(
-            insert(DeviceInvite).values(
+            insert(DeviceInviteCoupon).values(
                 device_id=payload.device_id,
                 coupon_id=coupon["id"],
                 created_at=datetime.utcnow(),
             ),
         )
         await db_session.execute(
-            update(InviteCoupon)
-            .where(InviteCoupon.id == coupon["id"])
-            .where(InviteCoupon.consumed_at.is_(None))
+            update(CouponInvite)
+            .where(CouponInvite.id == coupon["id"])
+            .where(CouponInvite.consumed_at.is_(None))
             .values(consumed_at=datetime.utcnow()),
         )
 

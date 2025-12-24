@@ -5,7 +5,7 @@ from app.settings import settings
 LOGIN_SCREEN = "erosnowapp://login?{}"
 OTP_SCREEN = "erosnowapp://verify_otp?{}"
 SET_PASSWORD = "erosnowapp://set_password?{}"
-LINK_ACCOUNT =  "erosnowapp://link_account"
+LINK_ACCOUNT = "erosnowapp://link_account"
 
 VERIFY_OTP_URL = settings.communication_api_url + "/api/v1/comm/otp/validate/"
 GENERATE_OTP_URL = settings.communication_api_url + "/api/v1/comm/otp/generate/"

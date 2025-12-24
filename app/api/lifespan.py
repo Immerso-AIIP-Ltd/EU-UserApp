@@ -25,6 +25,7 @@ async def lifespan_setup(
     app.middleware_stack = None
     redis_factory = RedisFactory(str(settings.redis_url))
     app.state.redis_factory = redis_factory
+    app.state.block_redis = redis_factory
     app.middleware_stack = app.build_middleware_stack()
     app.state.db_factory = DatabaseFactory(
         db_url=str(settings.db_url),

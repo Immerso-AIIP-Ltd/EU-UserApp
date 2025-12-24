@@ -121,6 +121,7 @@ class SuccessMessages:
     DEVICE_INVITED = "Device is already invited"
     USER_CREATED_REDIRECT_OTP = "User Created. Redirect to OTP verification"
     USER_PROFILE_RETRIEVED = "User Information Retrieved"
+    USER_REGISTERED_VERIFIED = "User verified and registered successfully"
 
 
 class ErrorCodes:
@@ -163,10 +164,14 @@ class ErrorCodes:
     MOBILE_INVALID = "US022"
     FORGOT_PASSWORD = "US023"
     OTP_EXPIRED = "US024"
+    OTP_INVALID = "US029"
     OTP_TOO_MANY_ATTEMPTS = "US025"
     IP_BLOCKED = "US026"
     IP_MISSING = "US027"
     REDIS_DOWN = "US028"
+    EMAIL_NOT_REGISTERED = "US030"
+    MOBILE_NOT_REGISTERED = "US031"
+    REGISTRATION_SESSION_CLOSED = "US032"
 
 
 class ErrorMessages:
@@ -208,13 +213,16 @@ class ErrorMessages:
     MOBILE_INVALID = "Mobile number is not valid"
     FORGOT_PASSWORD = "Forgot Password"
     OTP_EXPIRED = "OTP Expired"
+    OTP_INVALID = "Invalid OTP"
     OTP_TOO_MANY_ATTEMPTS = "OTP Too Many Attempts"
     IP_BLOCKED = "IP is blocked"
     IP_MISSING = "Client IP not provided"
     REDIS_DOWN = "Redis server is down"
     USER_NOT_FOUND = "User not found"
     PROFILE_FETCH_FAILED = "Failed to fetch user profile"
-
+    EMAIL_NOT_REGISTERED = "Email is not registered"
+    MOBILE_NOT_REGISTERED = "Mobile is not registered"
+    REGISTRATION_SESSION_CLOSED = "Registration session expired. Please try again"    
 
 class Headers:
     """HTTP Headers."""
