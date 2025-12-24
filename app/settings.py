@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "your-secret-key"  # Should be set via environment variable
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
+    user_token_days_to_expire: int = 600
+    skip_partner_auth_redis_check: str = "MXXF"
+    token_leeway_threshold_in_days: int = 10
 
     # Celery settings
     celery_broker_url: Optional[str] = None

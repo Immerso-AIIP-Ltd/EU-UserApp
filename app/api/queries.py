@@ -49,7 +49,7 @@ class UserQueries:
         SET is_consumed = TRUE,
             consumed_at = NOW()
         WHERE id = :coupon_uuid
-        """    
+        """,
     )
 
     INVITE_DEVICE_WITH_COUPON = text(
@@ -58,7 +58,7 @@ class UserQueries:
             :device_id,
             :coupon_id
         )
-        """
+        """,
     )
 
     # ==================== REGISTRATION ====================

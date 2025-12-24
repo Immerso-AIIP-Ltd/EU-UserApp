@@ -91,7 +91,8 @@ class LoginRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
     password: Optional[str] = Field(default=None, description=Description.PASSWORD)
 
@@ -111,14 +112,16 @@ class RegisterWithProfileRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
     password: str = Field(..., description=Description.PASSWORD)
     name: Optional[str] = Field(default=None, description=Description.NAME)
     avatar_id: Optional[int] = Field(default=None, description=Description.AVATAR_ID)
     birth_date: Optional[date] = Field(default=None, description=Description.BIRTH_DATE)
     profile_image: Optional[str] = Field(
-        default=None, description=Description.PROFILE_IMAGE,
+        default=None,
+        description=Description.PROFILE_IMAGE,
     )
 
     @model_validator(mode="after")
@@ -137,7 +140,8 @@ class VerifyOTPRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
     otp: str = Field(..., description=Description.OTP)
     intent: IntentEnum = Field(..., description=Description.INTENT)
@@ -157,12 +161,14 @@ class VerifyOTPRegisterRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
     otp: str = Field(..., description=Description.OTP)
     password: str = Field(..., description=Description.PASSWORD)
     intent: IntentEnum = Field(
-        default=IntentEnum.REGISTRATION, description=Description.INTENT,
+        default=IntentEnum.REGISTRATION,
+        description=Description.INTENT,
     )
 
     @model_validator(mode="after")
@@ -180,7 +186,8 @@ class ResendOTPRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
     intent: IntentEnum = Field(..., description=Description.INTENT)
 
@@ -200,7 +207,8 @@ class ForgotPasswordRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
 
     @model_validator(mode="after")
@@ -229,7 +237,8 @@ class UpdateProfileRequest(BaseModel):
     country: Optional[str] = Field(default=None, description=Description.COUNTRY)
     avatar_id: Optional[int] = Field(default=None, description=Description.AVATAR_ID)
     profile_image: Optional[str] = Field(
-        default=None, description=Description.PROFILE_IMAGE,
+        default=None,
+        description=Description.PROFILE_IMAGE,
     )
 
 
@@ -239,7 +248,8 @@ class UpdateEmailMobileRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
 
     @model_validator(mode="after")
@@ -260,7 +270,8 @@ class WaitlistRequest(BaseModel):
     email_id: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
 
     @model_validator(mode="after")
@@ -278,7 +289,8 @@ class FriendInviteObject(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
 
     @model_validator(mode="after")
@@ -297,7 +309,8 @@ class FriendInviteRequest(BaseModel):
     """Request schema for /user/v1/social/friend-invite."""
 
     invited_list: List[FriendInviteItem] = Field(
-        ..., description=Description.INVITED_LIST,
+        ...,
+        description=Description.INVITED_LIST,
     )
 
     @model_validator(mode="after")
@@ -323,7 +336,8 @@ class GenericResponse(BaseModel):
     status: Union[bool, str] = Field(..., description=SuccessMessages.SUCCESS)
     message: Optional[str] = Field(default=None, description=SuccessMessages.MESSAGE)
     data: Optional[Dict[str, Any]] = Field(
-        default=None, description=SuccessMessages.DATA,
+        default=None,
+        description=SuccessMessages.DATA,
     )
 
 

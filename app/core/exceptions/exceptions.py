@@ -275,7 +275,13 @@ class OtpExpired(AppError):
     message = ErrorMessages.OTP_EXPIRED
     error_code = ErrorCodes.OTP_EXPIRED
 
-
+class OtpInvalid(AppError):
+    """invalid OTP"""
+    
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = ErrorMessages.OTP_INVALID
+    error_code = ErrorCodes.OTP_INVALID
+    
 class OtpTooManyAttempts(AppError):
     """Too many OTP attempts"""
 
@@ -298,8 +304,30 @@ class ForgotPassword(AppError):
     http_code = status.HTTP_400_BAD_REQUEST
     message = ErrorMessages.FORGOT_PASSWORD
     error_code = ErrorCodes.FORGOT_PASSWORD
-=======
 
+
+class EmailNotRegistered(AppError):
+    """Email not registered"""
+    
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = ErrorMessages.EMAIL_NOT_REGISTERED
+    error_code = ErrorCodes.EMAIL_NOT_REGISTERED
+    
+class MobileNotRegistered(AppError):
+    """Email not registered"""
+    
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = ErrorMessages.MOBILE_NOT_REGISTERED
+    error_code = ErrorCodes.MOBILE_NOT_REGISTERED
+    
+
+class RegistrationSessionClosed(AppError):
+    """Registration Session Expired"""
+    
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = ErrorMessages.REGISTRATION_SESSION_CLOSED
+    error_code = ErrorCodes.REGISTRATION_SESSION_CLOSED
+    
 # Add to existing exceptions file
 
 class UserNotFoundException(AppException):

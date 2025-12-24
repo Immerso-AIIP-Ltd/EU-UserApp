@@ -1,4 +1,9 @@
-
+import bcrypt
+from asyncio.log import logger
+from datetime import date
+from app import settings
+from app.api.v1.service.auth import AuthService
+from app.db.models.user_app import User
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
@@ -6,9 +11,9 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
-from app.api.v1.register import deeplinks
+from app.api.v1.register import deeplinks, redis
 from app.api.v1.register.commservice import call_communication_api
-from app.api.v1.register.service import UserVerifyService
+from app.api.v1.register.service import UserAuthService, UserVerifyService
 from app.api.v1.schemas import (
     RegisterWithProfileRequest,
     VerifyOTPRegisterRequest,
@@ -25,7 +30,9 @@ from app.core.exceptions.exceptions import (
     CallingCodeRequired,
     EmailMobileRequired,
     OtpExpired,
+    OtpInvalid,
     PasswordRequired,
+    RegistrationSessionClosed,
     UserExits,
     ValidationError,
 )
@@ -35,13 +42,21 @@ from app.utils.standard_response import standard_response
 from app.utils.validate_headers import CommonHeaders, validate_common_headers
 
 pwd_context = CryptContext(
-    schemes=["pbkdf2_sha256"],
+    schemes=["bcrypt"],
     deprecated="auto",
+    bcrypt__rounds=12
 )
 
 def hash_password(password: str) -> str:
+    if len(password.encode("utf-8")) > 72:
+        raise ValueError("Password too long for bcrypt (max 72 bytes)")
     return pwd_context.hash(password)
 
+def get_hashed_password(password: str) -> str:
+    # Convert string to bytes if needed
+    if isinstance(password, str):
+        password = password.encode('utf-8')
+    return bcrypt.hashpw(password, bcrypt.gensalt())
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
@@ -166,6 +181,7 @@ async def verify_otp_register(
     request: Request,
     payload: VerifyOTPRegisterRequest,
     db_session: AsyncSession = Depends(get_db_session),
+    headers: CommonHeaders = Depends(validate_common_headers),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
     """
@@ -180,14 +196,18 @@ async def verify_otp_register(
     receiver = email if email else f"{calling_code}{mobile}"
     receiver_type = "email" if email else "mobile"
 
+
     # 1. Verify OTP
     if receiver_type == "email":
         redis_key = f"email_otp_{email}_{intent.value}"
         cached_otp = await cache.get(redis_key)
+        print("otp",cached_otp)
+        print("validateotp",otp)
         if not cached_otp or cached_otp != otp:
-             raise OtpExpired(message = ErrorMessages.OtpExpired)
+             raise OtpExpired()
         # Consume OTP?
         await cache.delete(redis_key)
+
     else:
         # Verify Mobile OTP via external service
         verify_payload = {
@@ -195,15 +215,30 @@ async def verify_otp_register(
             "otp": otp,
             "intent": intent.value,
         }
-        response = call_communication_api(deeplinks.VERIFY_OTP_URL, verify_payload)
-        if response.get("status") != "success" or not response.get("data"):
-             raise ValidationError(message="Invalid or Expired OTP")
+
+        response = call_communication_api(
+            deeplinks.VERIFY_OTP_URL,
+            verify_payload
+        )
+        logger.info("OTP VERIFIED | receiver=%s | intent=%s",response)
+
+        if not response or response.get("status") != "success":
+            raise OtpInvalid()
+
+        data = response.get("data")
+
+        # Handle strict verification
+        if isinstance(data, dict):
+            if not data.get("verified"):
+                raise OtpExpired()
+        elif data is not True:
+            raise OtpInvalid()
 
     # 2. Retrieve Cached Registration Data
     cache_key = build_cache_key(CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=receiver)
     cached_data = await get_cache(cache, cache_key)
     if not cached_data:
-        raise ValidationError(message="Registration session expired. Please try again.")
+        raise RegistrationSessionClosed()
 
     # 3. Register User in DB
     # cached_data contains: email, mobile, calling_code, password (hashed), name, ...
@@ -213,23 +248,46 @@ async def verify_otp_register(
         "mobile": cached_data.get("mobile"),
         "calling_code": cached_data.get("calling_code"),
         "password": cached_data.get("password"),
-        "name": cached_data.get("name"),
+        "name": cached_data.get("username"),
         "avatar_id": cached_data.get("avatar_id"),
         "birth_date": cached_data.get("birth_date"),
         "profile_image": cached_data.get("profile_image"),
+        "login_type": "email" if email else "mobile", 
+        "type": "regular",
     }
-
+    #date.fromisoformat(params.birth_date)
     user_rows = await execute_query(
-        query=UserQueries.REGISTER_WITH_PROFILE,
+        query=UserQueries.INSERT_USER,
         params=params,
         db_session=db_session,
     )
-
+    await db_session.commit()
+    print("user",user_rows)
     # Clear cache
     await cache.delete(cache_key)
-
     data = user_rows[0] if user_rows else {}
-    return standard_response(message="User verified and registered successfully", data=data)
+
+    # Device Registration
+
+    auth_token, token_expiry = await AuthService.generate_token(
+        user=User(id=data["id"]),
+        client_id=headers['api_client'],
+        device_id=headers['device_id'],
+        db_session=db_session
+    )
+    data = dict(data)
+    # attach token to response
+    data["token"] = auth_token
+    data["token_expiry"] = token_expiry
+    user_id = str(user_rows[0]["id"])
+    data["id"] = user_id
+
+    return standard_response(
+        request=request,
+        message=SuccessMessages.USER_REGISTERED_VERIFIED,
+        data=data,
+    )
+
 
 
 @router.post("/resend_otp")

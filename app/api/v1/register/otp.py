@@ -28,11 +28,21 @@ class GenerateOtpService(object):
             await redis_client.expire(key, 180)
             return count
         except Exception as e:
-            print(f"Redis error during OTP increment for {ip_address}_{receiver}: {e!s}")
+            print(
+                f"Redis error during OTP increment for {ip_address}_{receiver}: {e!s}",
+            )
             raise exceptions.RedisServerDown()
 
     @staticmethod
-    async def generate_otp(redis_client, receiver, receiver_type, intent, x_forwarded_for=None, is_resend=False, db_session=None):
+    async def generate_otp(
+        redis_client,
+        receiver,
+        receiver_type,
+        intent,
+        x_forwarded_for=None,
+        is_resend=False,
+        db_session=None,
+    ):
         if receiver_type == "email":
             otp = "".join(random.choice(string.digits) for _ in range(4))
             # redis.set_val(f"email_otp_{receiver}_{intent}", otp, timeout=180)
@@ -41,7 +51,9 @@ class GenerateOtpService(object):
                 # Use Brevo templates for different intents
                 if intent == "forgot_password":
                     template_id = os.environ.get("BREVO_FORGOT_PASSWORD_TEMPLATE_ID")
-                    reset_url = os.environ.get("BREVO_RESET_URL", "https://dev.erosuniverse.com/forgotPwd")
+                    reset_url = os.environ.get(
+                        "BREVO_RESET_URL", "https://dev.erosuniverse.com/forgotPwd",
+                    )
                     print(f"DEBUG: Intent={intent}, Template ID={template_id}")
                     if template_id:
                         # Get actual username from User model
@@ -101,7 +113,9 @@ class GenerateOtpService(object):
                     print(f"DEBUG: Using Brevo resend template payload: {payload}")
                 elif intent in ["email_verification", "registration"]:
                     # Use Brevo template ID 10 for email verification/registration
-                    template_id = os.environ.get("BREVO_EMAIL_VERIFICATION_TEMPLATE_ID", "10")
+                    template_id = os.environ.get(
+                        "BREVO_EMAIL_VERIFICATION_TEMPLATE_ID", "10",
+                    )
                     print(f"DEBUG: Intent={intent}, Template ID={template_id}")
                     # Get actual username from User model
                     username = receiver.split("@")[0]
@@ -114,7 +128,9 @@ class GenerateOtpService(object):
                             "username": username,
                         },
                     }
-                    print(f"DEBUG: Using Brevo email verification template payload: {payload}")
+                    print(
+                        f"DEBUG: Using Brevo email verification template payload: {payload}",
+                    )
                 else:
                     # For other intents, use regular email format
                     payload = {
@@ -134,15 +150,21 @@ class GenerateOtpService(object):
                 print("Client IP (x_forwarded_for) Missing")
                 raise exceptions.ClientIpNotProvided()
 
-            if await GenerateOtpService._is_ip_blocked(redis_client, x_forwarded_for, receiver):
+            if await GenerateOtpService._is_ip_blocked(
+                redis_client, x_forwarded_for, receiver,
+            ):
                 print(f"IP is blocked: {x_forwarded_for}")
                 raise exceptions.IpBlocked()
 
-            req_count = await GenerateOtpService._increment_otp_request(redis_client, x_forwarded_for, receiver)
+            req_count = await GenerateOtpService._increment_otp_request(
+                redis_client, x_forwarded_for, receiver,
+            )
             print(f"OTP request count for {x_forwarded_for}_{receiver}: {req_count}")
 
             if req_count > 3:
-                print(f"Too many OTP requests, blocking IP: {x_forwarded_for}_{receiver}")
+                print(
+                    f"Too many OTP requests, blocking IP: {x_forwarded_for}_{receiver}",
+                )
                 block_ip_for_24_hours.apply_async(
                     queue="block_ip_queue",
                     args=([x_forwarded_for, receiver]),
@@ -155,13 +177,9 @@ class GenerateOtpService(object):
             "intent": intent,
         }
 
-        response = call_communication_api(
-            GENERATE_OTP_URL, payload)
+        response = call_communication_api(GENERATE_OTP_URL, payload)
         if "status" in response and response["status"] == "success":
             is_otp_sent = response["data"]
             if not is_otp_sent:
                 print("OTP not sent")
                 raise exceptions.OtpTooManyAttempts()
-
-
-
