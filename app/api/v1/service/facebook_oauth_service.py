@@ -1,8 +1,10 @@
+from typing import Optional
+
 import requests
-from typing import Optional, Dict
 from loguru import logger
-from datetime import datetime
+
 from app.core.exceptions import FacebookAuthError, InvalidSocialUID
+
 
 class FacebookOAuthService:
     """Service to handle Facebook OAuth verification."""
@@ -23,16 +25,16 @@ class FacebookOAuthService:
         try:
             params = {
                 "access_token": self.access_token,
-                "fields": "id,name,email"
+                "fields": "id,name,email",
             }
             response = requests.get(self.GRAPH_API_URL, params=params)
-            
+
             if response.status_code != 200:
                 logger.error(f"Facebook Graph API Error: {response.text}")
                 raise FacebookAuthError()
 
             data = response.json()
-            
+
             if data.get("id") != uid:
                 raise InvalidSocialUID()
 

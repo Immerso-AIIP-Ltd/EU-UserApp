@@ -197,7 +197,7 @@ async def verify_otp_register(
         }
         response = call_communication_api(deeplinks.VERIFY_OTP_URL, verify_payload)
         if response.get("status") != "success" or not response.get("data"):  # constant
-             raise ValidationError(message=OTP_EXPIRED) 
+             raise ValidationError(message=OTP_EXPIRED)
 
     # 2. Retrieve Cached Registration Data
     cache_key = build_cache_key(CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=receiver)

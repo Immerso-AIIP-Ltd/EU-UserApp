@@ -1,19 +1,19 @@
-from datetime import datetime, timedelta
-import jwt
-from typing import Optional, Dict, List
-import requests
-from loguru import logger
-from jwt.algorithms import RSAAlgorithm
 import json
+from datetime import datetime
+from typing import Dict, List, Optional
+
+import jwt
+import requests
+from jwt.algorithms import RSAAlgorithm
+from loguru import logger
 
 from app.core.exceptions import (
+    AppleKeyFetchError,
     InvalidSocialToken,
     InvalidSocialUID,
-    AppleKeyFetchError,
 )
 from app.settings import settings
-from app.api.queries import UserQueries # Not used here but typically services use queries
-from app.core.constants import ErrorMessages
+
 
 class AppleOAuthService:
     """Service to handle Apple OAuth verification."""
@@ -42,7 +42,7 @@ class AppleOAuthService:
         try:
             response = requests.get(self.APPLE_PUBLIC_KEY_URL)
             response.raise_for_status()
-            return response.json().get('keys', [])
+            return response.json().get("keys", [])
         except Exception as e:
             logger.error(f"Failed to fetch Apple public keys: {e}")
             raise AppleKeyFetchError()
@@ -73,7 +73,7 @@ class AppleOAuthService:
                 raise InvalidSocialToken()
 
             public_key = RSAAlgorithm.from_jwk(json.dumps(key_data))
-            
+
             # Verify token
             decoded = jwt.decode(
                 self.id_token,
@@ -81,7 +81,7 @@ class AppleOAuthService:
                 algorithms=["RS256"],
                 audience=self.get_client_id(),
                 issuer=self.ISSUER,
-                options={"verify_exp": True}
+                options={"verify_exp": True},
             )
 
             if decoded.get("sub") != uid:
@@ -100,7 +100,7 @@ class AppleOAuthService:
         except Exception as e:
             logger.exception(f"Unexpected error during Apple verification: {e}")
             raise InvalidSocialToken()
-    
+
     def get_email(self):
         return self.email
 
@@ -108,7 +108,7 @@ class AppleOAuthService:
         # Apple ID token does not contain name.
         # Name is sent only on first login in a separate JSON object.
         # Since our schema doesn't capture it currenty, we return None or email prefix.
-        return None 
+        return None
 
     def get_uid(self):
         return self.uid

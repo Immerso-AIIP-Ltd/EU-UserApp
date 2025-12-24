@@ -1,13 +1,12 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
-from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
-from app.db.utils import execute_query
-from app.api.v1.service.auth_service import AuthService
-from app.api.v1.service.google_oauth_service import GoogleOAuthService
 from app.api.v1.service.apple_oauth_service import AppleOAuthService
+from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
+from app.api.v1.service.google_oauth_service import GoogleOAuthService
+from app.db.utils import execute_query
 
 
 class SocialLoginService:
@@ -39,12 +38,12 @@ class SocialLoginService:
             user = dict(rows[0])
         else:
             # 3. New user, signup with social
-            # We check if user exists with the same email first (optional based on requirements, 
+            # We check if user exists with the same email first (optional based on requirements,
             # but usually social login should link to existing account if email matches)
             email = google_service.get_email()
             if email:
                 email_rows = await execute_query(
-                    UserQueries.GET_USER_BY_EMAIL, {"email": email}, db_session
+                    UserQueries.GET_USER_BY_EMAIL, {"email": email}, db_session,
                 )
                 if email_rows:
                     user = dict(email_rows[0])
@@ -97,7 +96,7 @@ class SocialLoginService:
 
         # Get user details for response
         profile_rows = await execute_query(
-            UserQueries.GET_USER_PROFILE, {"user_id": user_id}, db_session
+            UserQueries.GET_USER_PROFILE, {"user_id": user_id}, db_session,
         )
         user_profile = dict(profile_rows[0]) if profile_rows else {}
 
@@ -140,15 +139,15 @@ class SocialLoginService:
         else:
             # 3. New user, signup with social
             email = apple_service.get_email()
-            
+
             # Note: Apple sometimes hides email (private relay), so email could be None or a privaterelay email.
             if email:
                 email_rows = await execute_query(
-                    UserQueries.GET_USER_BY_EMAIL, {"email": email}, db_session
+                    UserQueries.GET_USER_BY_EMAIL, {"email": email}, db_session,
                 )
                 if email_rows:
                     user = dict(email_rows[0])
-            
+
             if not user:
                 signup_rows = await execute_query(
                     UserQueries.SIGNUP_WITH_SOCIAL_DATA,
@@ -194,7 +193,7 @@ class SocialLoginService:
 
         # Get user details for response
         profile_rows = await execute_query(
-            UserQueries.GET_USER_PROFILE, {"user_id": user_id}, db_session
+            UserQueries.GET_USER_PROFILE, {"user_id": user_id}, db_session,
         )
         user_profile = dict(profile_rows[0]) if profile_rows else {}
 
@@ -238,14 +237,14 @@ class SocialLoginService:
         else:
             # 3. New user, signup with social
             email = facebook_service.get_email()
-            
+
             if email:
                 email_rows = await execute_query(
-                    UserQueries.GET_USER_BY_EMAIL, {"email": email}, db_session
+                    UserQueries.GET_USER_BY_EMAIL, {"email": email}, db_session,
                 )
                 if email_rows:
                     user = dict(email_rows[0])
-            
+
             if not user:
                 signup_rows = await execute_query(
                     UserQueries.SIGNUP_WITH_SOCIAL_DATA,
@@ -291,7 +290,7 @@ class SocialLoginService:
 
         # Get user details for response
         profile_rows = await execute_query(
-            UserQueries.GET_USER_PROFILE, {"user_id": user_id}, db_session
+            UserQueries.GET_USER_PROFILE, {"user_id": user_id}, db_session,
         )
         user_profile = dict(profile_rows[0]) if profile_rows else {}
 

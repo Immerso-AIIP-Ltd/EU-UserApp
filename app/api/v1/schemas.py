@@ -434,7 +434,7 @@ class SocialLoginResponse(GenericResponse):
 
 class ForgotPasswordResponse(BaseModel):
     """Response schema for Forgot Password."""
-    
+
     status: bool = True
     message: str
     data: dict = {}
@@ -444,7 +444,7 @@ class ForgotPasswordResponse(BaseModel):
 
 class ChangePasswordResponse(BaseModel):
     """Response schema for Change Password."""
-    
+
     status: bool = True
     message: str
     data: dict = {}

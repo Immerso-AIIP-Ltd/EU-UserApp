@@ -49,7 +49,7 @@ class UserQueries:
         SET is_consumed = TRUE,
             consumed_at = NOW()
         WHERE id = :coupon_uuid
-        """    
+        """,
     )
 
     INVITE_DEVICE_WITH_COUPON = text(
@@ -58,7 +58,7 @@ class UserQueries:
             :device_id,
             :coupon_id
         )
-        """
+        """,
     )
 
     # ==================== REGISTRATION ====================
@@ -337,7 +337,7 @@ class UserQueries:
         JOIN user_app.social_identity_provider sip ON u.id = sip.user_id
         WHERE sip.provider = :provider AND sip.provider_user_id = :social_id
         LIMIT 1;
-        """
+        """,
     )
 
     SIGNUP_WITH_SOCIAL_DATA = text(
@@ -351,7 +351,7 @@ class UserQueries:
             :platform,
             :user_agent
         );
-        """
+        """,
     )
 
     UPSERT_SOCIAL_IDENTITY_PROVIDER = text(
@@ -362,7 +362,7 @@ class UserQueries:
             provider_user_id = EXCLUDED.provider_user_id,
             provider_token = EXCLUDED.provider_token,
             updated_at = NOW();
-        """
+        """,
     )
 
     # ==================== ACCOUNT ====================
@@ -389,7 +389,7 @@ class UserQueries:
         FROM user_app.app_consumer
         WHERE client_id = :client_id
         LIMIT 1;
-        """
+        """,
     )
 
     INSERT_USER_AUTH_TOKEN = text(
@@ -414,7 +414,7 @@ class UserQueries:
             TRUE,
             NOW()
         );
-        """
+        """,
     )
 
 
@@ -424,14 +424,14 @@ class UserQueries:
         FROM user_app.user
         WHERE 
             (email = :email OR mobile = :mobile)
-        """
+        """,
     )
 
     INSERT_USER = text(
         """
         INSERT INTO user_app.user (id, email, mobile, calling_code, password, name)
         VALUES (:user_id, :email, :mobile, :calling_code, :password, :name)
-        """
+        """,
     )
 
     GET_CLIENT_SECRET = text(
@@ -440,7 +440,7 @@ class UserQueries:
         FROM user_app.app_consumer
         WHERE client_id = :client_id
         LIMIT 1
-        """
+        """,
     )
 
     GET_USER_PROFILE = text(
@@ -452,7 +452,7 @@ class UserQueries:
             image_url AS image
         FROM user_app.user_profile
         WHERE id = :user_id
-        """
+        """,
     )
 
     GET_USER_BY_EMAIL = text(
@@ -460,7 +460,7 @@ class UserQueries:
         SELECT id, email, mobile, calling_code, state
         FROM user_app.user
         WHERE email = :email
-        """
+        """,
     )
 
     GET_USER_BY_MOBILE = text(
@@ -468,14 +468,14 @@ class UserQueries:
         SELECT id, email, mobile, calling_code, state
         FROM user_app.user
         WHERE mobile = :mobile AND calling_code = :calling_code
-        """
+        """,
     )
     UPDATE_USER_PASSWORD = text(
         """
         UPDATE user_app.user
         SET password = :password
         WHERE id = :user_id
-        """
+        """,
     )
 
     GET_USER_PASSWORD_HASH = text(
@@ -483,7 +483,7 @@ class UserQueries:
         SELECT password
         FROM user_app.user
         WHERE id = :user_id
-        """
+        """,
     )
 
     DEACTIVATE_USER_TOKEN = text(
@@ -491,5 +491,5 @@ class UserQueries:
         UPDATE user_app.user_auth_token
         SET is_active = False
         WHERE token = :token AND device_id = :device_id
-        """
+        """,
     )

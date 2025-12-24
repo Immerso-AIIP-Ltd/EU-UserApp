@@ -1,12 +1,15 @@
 from typing import Optional
+
 from fastapi import Header
 from pydantic import BaseModel, Field
+
 from app.core.constants import ErrorMessages, Headers
 from app.core.exceptions.exceptions import MissingHeadersError
 
 
 class CommonHeaders(BaseModel):
     """Pydantic model for common request headers."""
+
     api_client: str = Field(..., alias="x-api-client")
     device_id: str = Field(..., alias="x-device-id")
     platform: str = Field(..., alias="x-platform")

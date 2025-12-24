@@ -1,17 +1,16 @@
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.schemas import (
-    UserProfileData,
-    UpdateProfileRequest,
-    UpdateEmailMobileRequest,
     UpdateEmailMobileData,
+    UpdateEmailMobileRequest,
+    UpdateProfileRequest,
+    UserProfileData,
 )
 from app.cache.base import build_cache_key, get_cache, set_cache
 from app.cache.dependencies import get_redis_connection
@@ -23,15 +22,14 @@ from app.core.constants import (
     SuccessMessages,
 )
 from app.core.exceptions.exceptions import (
-    UserNotFoundException,
     ProfileFetchException,
+    UserNotFoundException,
 )
+from app.core.middleware.auth import get_current_user
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform
-from app.settings import settings
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import validate_common_headers
-from app.core.middleware.auth import get_current_user
 
 router = APIRouter()
 
@@ -91,7 +89,7 @@ async def get_user_profile(
     except Exception as e:
         logger.exception(e)
         raise ProfileFetchException(
-            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {str(e)}"
+            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {e!s}",
         )
 
 
@@ -158,7 +156,7 @@ async def update_user_profile(
     except Exception as e:
         logger.exception(e)
         raise ProfileFetchException(
-            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {str(e)}"
+            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {e!s}",
         )
 
 
@@ -200,7 +198,7 @@ async def update_email_mobile(
 
     try:
         data = await execute_and_transform(
-            query, params, UpdateEmailMobileData, db_session
+            query, params, UpdateEmailMobileData, db_session,
         )
 
         if not data or len(data) == 0:
@@ -225,5 +223,5 @@ async def update_email_mobile(
     except Exception as e:
         logger.exception(e)
         raise ProfileFetchException(
-            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {str(e)}"
+            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {e!s}",
         )

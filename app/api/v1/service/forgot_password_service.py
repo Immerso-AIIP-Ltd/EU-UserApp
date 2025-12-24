@@ -1,10 +1,11 @@
-from app.api.queries import UserQueries
-from app.core.exceptions import UserNotFound, AccountBlocked
-from app.core.constants import Intents, Messages
-from app.api.v1.register.otp import GenerateOtpService
-from app.db.utils import execute_query
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.queries import UserQueries
+from app.api.v1.register.otp import GenerateOtpService
+from app.core.constants import Intents, Messages
+from app.core.exceptions import AccountBlocked, UserNotFound
+from app.db.utils import execute_query
 
 
 class ForgotPasswordService:
@@ -24,7 +25,7 @@ class ForgotPasswordService:
             receiver=email,
             receiver_type="email",
             intent=Intents.FORGOT_PASSWORD,
-            db_session=db
+            db_session=db,
         )
 
         return Messages.OTP_SENT
@@ -46,7 +47,7 @@ class ForgotPasswordService:
             receiver_type="mobile",
             intent=Intents.FORGOT_PASSWORD,
             x_forwarded_for=ip,
-            db_session=db
+            db_session=db,
         )
 
         return Messages.OTP_SENT

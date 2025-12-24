@@ -33,4 +33,4 @@ async def get_current_user(
     except jwt.InvalidTokenError:
         raise UnauthorizedError(detail="Invalid token")
     except Exception as e:
-        raise UnauthorizedError(detail=f"Could not validate credentials: {str(e)}")
+        raise UnauthorizedError(detail=f"Could not validate credentials: {e!s}")

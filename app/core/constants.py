@@ -50,7 +50,7 @@ class CacheTTL:
     TTL_EXTENDED = 43200  # 12 hours
     TTL_MAX = 86400  # 24 hours
     TTL_INVITE_DEVICE = 60
-    TTL_USER_PROFILE = 3600 
+    TTL_USER_PROFILE = 3600
 
 
 class QueryTimeouts:
@@ -83,7 +83,7 @@ class RequestParams:
     TRANSLATED_TEXT = "translated_text"
     EMAIL = "email"
     MOBILE = "mobile"
-    
+
 
 
 class ResponseParams:
@@ -352,8 +352,8 @@ class LoggerConfigs:
     LOG_LEVEL_DEBUG = "DEBUG"
 
 class AuthConfig:
-    "Authorization constants"
-    
+    """Authorization constants"""
+
     ALGORITHM = "HS256"
     DECODE_CODE = "utf-8"
 Messages = SuccessMessages

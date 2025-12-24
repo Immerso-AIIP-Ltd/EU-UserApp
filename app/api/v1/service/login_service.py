@@ -1,12 +1,12 @@
 # app/api/v1/service/login_service.py
 
-from datetime import datetime, timezone
-from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.queries import UserQueries
-from app.db.utils import execute_query
-from app.core.exceptions.exceptions import UserNotFoundException, UnauthorizedError
 from app.api.v1.service.auth_service import AuthService
+from app.core.exceptions.exceptions import UnauthorizedError, UserNotFoundException
+from app.db.utils import execute_query
 
 
 class LoginService:
@@ -17,7 +17,7 @@ class LoginService:
         rows = await execute_query(UserQueries.GET_USER_FOR_LOGIN, {
             "email": login_data.email,
             "mobile": login_data.mobile,
-            "calling_code": login_data.calling_code
+            "calling_code": login_data.calling_code,
         }, db_session)
 
         if not rows:
@@ -36,7 +36,7 @@ class LoginService:
             client_id=client_id,
             db_session=db_session,
             cache=cache,
-            device_id=device_id
+            device_id=device_id,
         )
 
         return user, token, expires_at

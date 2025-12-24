@@ -6,7 +6,6 @@ from datetime import timezone as dt_timezone
 from tokenize import String
 from typing import ClassVar
 
-from app.db.utils import get_random_string
 from sqlalchemy import (
     CHAR,
     UUID,
@@ -24,6 +23,7 @@ from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.utils import get_random_string
 
 
 class UserState(str, enum.Enum):
@@ -545,7 +545,7 @@ class AppConsumer(Base):
     legacy_consumer_key = Column(VARCHAR(128))
     legacy_consumer_secret = Column(VARCHAR(128))
     is_internal = Column(Boolean, default=False)
-    partner_code = Column(VARCHAR(40), nullable=True, default='EROS')
+    partner_code = Column(VARCHAR(40), nullable=True, default="EROS")
 
     # Relationships
     user_auth_tokens = relationship("UserAuthToken", back_populates="app_consumer")

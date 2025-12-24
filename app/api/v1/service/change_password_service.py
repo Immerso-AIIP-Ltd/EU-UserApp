@@ -1,11 +1,12 @@
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.queries import UserQueries
 from app.api.v1.service.auth_service import AuthService
 from app.core.exceptions import (
-    PasswordsDoNotMatch,
     InvalidOldPassword,
+    PasswordsDoNotMatch,
 )
 from app.db.utils import execute_query
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class ChangePasswordService:
@@ -27,11 +28,11 @@ class ChangePasswordService:
             rows = await execute_query(
                 UserQueries.GET_USER_PASSWORD_HASH,
                 {"user_id": user_uuid},
-                db_session
+                db_session,
             )
             if not rows:
                 raise InvalidOldPassword()
-            
+
             stored_hash = rows[0]["password"]
             if not AuthService.verify_password(old_password, stored_hash):
                 raise InvalidOldPassword()
@@ -43,5 +44,5 @@ class ChangePasswordService:
         await execute_query(
             UserQueries.UPDATE_USER_PASSWORD,
             {"user_id": user_uuid, "password": new_hash},
-            db_session
+            db_session,
         )

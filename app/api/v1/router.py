@@ -1,19 +1,16 @@
 from fastapi.routing import APIRouter
-from app.api.v1.user_profile.views import router as user_profile_router
 
 from app.api.v1 import (
     device,
     docs,
     internal,
-    monitoring,
-    register,
-    user,
-    user,
-    user_profile,
     login,
     logout,
+    monitoring,
+    register,
     social_login,
-    docs,
+    user,
+    user_profile,
 )
 
 api_router = APIRouter()

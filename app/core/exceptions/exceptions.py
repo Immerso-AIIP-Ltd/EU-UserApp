@@ -1,16 +1,16 @@
 """Custom exceptions for the application."""
 
 from typing import Optional
+
 from fastapi.responses import JSONResponse
 from starlette import status
 
 from app.core.constants import ErrorCodes, ErrorMessages
 
 
-
 class AppException(Exception):
     """Base exception class for application errors."""
-    
+
     def __init__(
         self,
         status_code: int,
@@ -317,7 +317,7 @@ class ForgotPassword(AppError):
 
 class UserNotFoundException(AppException):
     """Raised when user profile is not found."""
-    
+
     def __init__(self, detail: str = ErrorMessages.USER_NOT_FOUND):
         super().__init__(
             status_code=404,
@@ -329,7 +329,7 @@ class UserNotFoundException(AppException):
 
 class ProfileFetchException(AppException):
     """Raised when profile fetch fails."""
-    
+
     def __init__(self, detail: str = ErrorMessages.PROFILE_FETCH_FAILED):
         super().__init__(
             status_code=403,
@@ -344,7 +344,7 @@ class ProfileFetchException(AppException):
 
 class ClientIdValidationFailed(AppError):
     """Raised when client ID validation fails."""
-    
+
     http_code = status.HTTP_401_UNAUTHORIZED
     message = ErrorMessages.CLIENT_ID_VALIDATION_FAILED
     error_code = ErrorCodes.CLIENT_ID_VALIDATION_FAILED_CODE
