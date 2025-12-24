@@ -1,5 +1,6 @@
 """Custom exceptions for the application."""
 
+from typing import Optional
 from fastapi.responses import JSONResponse
 from starlette import status
 
@@ -32,10 +33,10 @@ class AppError(Exception):
 
     def __init__(
         self,
-        detail: str | None = None,
-        http_code: int | None = None,
-        message: str | None = None,
-        error_code: str | None = None,
+        detail: Optional[str] = None,
+        http_code: Optional[int] = None,
+        message: Optional[str] = None,
+        error_code: Optional[str] = None,
     ) -> None:
         if http_code is not None:
             self.http_code = http_code
@@ -400,4 +401,40 @@ class UserTokenNotFound(AppError):
             http_code=status.HTTP_401_UNAUTHORIZED,
             message=ErrorMessages.USER_TOKEN_NOT_FOUND,
             error_code=ErrorCodes.USER_TOKEN_NOT_FOUND_CODE,
+        )
+
+
+class GoogleWrongIssuer(AppError):
+    def __init__(self):
+        super().__init__(
+            http_code=status.HTTP_401_UNAUTHORIZED,
+            message=ErrorMessages.GOOGLE_WRONG_ISSUER,
+            error_code=ErrorCodes.GOOGLE_WRONG_ISSUER_CODE,
+        )
+
+
+class InvalidSocialUID(AppError):
+    def __init__(self):
+        super().__init__(
+            http_code=status.HTTP_401_UNAUTHORIZED,
+            message=ErrorMessages.INVALID_SOCIAL_UID,
+            error_code=ErrorCodes.INVALID_SOCIAL_UID_CODE,
+        )
+
+
+class InvalidSocialToken(AppError):
+    def __init__(self):
+        super().__init__(
+            http_code=status.HTTP_401_UNAUTHORIZED,
+            message=ErrorMessages.INVALID_SOCIAL_TOKEN,
+            error_code=ErrorCodes.INVALID_SOCIAL_TOKEN_CODE,
+        )
+
+
+class AppleKeyFetchError(AppError):
+    def __init__(self):
+        super().__init__(
+            http_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=ErrorMessages.APPLE_KEY_FETCH_ERROR,
+            error_code=ErrorCodes.APPLE_KEY_FETCH_ERROR_CODE,
         )

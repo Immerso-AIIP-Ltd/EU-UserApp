@@ -330,6 +330,41 @@ class UserQueries:
         """,
     )
 
+    GET_USER_BY_SOCIAL_IDENTITY = text(
+        """
+        SELECT u.id, u.email, u.mobile, u.calling_code, u.state, sip.provider_user_id as social_id
+        FROM user_app.user u
+        JOIN user_app.social_identity_provider sip ON u.id = sip.user_id
+        WHERE sip.provider = :provider AND sip.provider_user_id = :social_id
+        LIMIT 1;
+        """
+    )
+
+    SIGNUP_WITH_SOCIAL_DATA = text(
+        """
+        SELECT * FROM user_app.signup_with_social(
+            :provider,
+            :social_id,
+            :email,
+            :name,
+            :country,
+            :platform,
+            :user_agent
+        );
+        """
+    )
+
+    UPSERT_SOCIAL_IDENTITY_PROVIDER = text(
+        """
+        INSERT INTO user_app.social_identity_provider (user_id, provider, provider_user_id, provider_token, created_at)
+        VALUES (:user_id, :provider, :social_id, :token, NOW())
+        ON CONFLICT (user_id, provider) DO UPDATE SET
+            provider_user_id = EXCLUDED.provider_user_id,
+            provider_token = EXCLUDED.provider_token,
+            updated_at = NOW();
+        """
+    )
+
     # ==================== ACCOUNT ====================
     LOGOUT_USER = text(
         """

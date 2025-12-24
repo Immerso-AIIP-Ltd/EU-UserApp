@@ -4,7 +4,7 @@ import random
 import string
 import time
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, List, Optional, Sequence, Type
+from typing import Any, AsyncGenerator, Dict, List, Optional, Sequence, Type
 
 from loguru import logger
 from pydantic import BaseModel
@@ -154,7 +154,7 @@ async def drop_database() -> None:
 
 async def execute_query(
     query: Executable,
-    params: dict[str, Any],
+    params: Dict[str, Any],
     db_session: AsyncSession,
     timeout_seconds: Optional[float] = None,
 ) -> Sequence[RowMapping]:
@@ -228,11 +228,11 @@ async def execute_query(
 
 async def execute_and_transform(
     query: TextClause,
-    params: dict[str, Any],
+    params: Dict[str, Any],
     model_class: Type[BaseModel],
     db_session: AsyncSession,
     timeout_seconds: Optional[float] = None,
-) -> List[dict[str, Any]]:
+) -> List[Dict[str, Any]]:
     """Execute query and transform rows to dictionaries.
 
     Args:

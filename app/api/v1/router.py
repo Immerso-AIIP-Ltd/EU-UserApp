@@ -12,6 +12,7 @@ from app.api.v1 import (
     user_profile,
     login,
     logout,
+    social_login,
     docs,
 )
 
@@ -27,5 +28,6 @@ api_router.include_router(register.router, prefix="/register", tags=["Registrati
 api_router.include_router(user.router, prefix="/user", tags=["Registration"])
 api_router.include_router(login.router, prefix="/user", tags=["Login"])
 api_router.include_router(logout.router, prefix="/user", tags=["Logout"])
+api_router.include_router(social_login.router, prefix="/social", tags=["Social Login"])
 api_router.include_router(user_profile.router,prefix="/user_profile",tags=["profile"])
 api_router.include_router(docs.router)

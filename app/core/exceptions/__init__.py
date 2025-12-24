@@ -9,6 +9,10 @@ from .exceptions import (
     PasswordsDoNotMatch,
     InvalidOldPassword,
     UserTokenNotFound,
+    GoogleWrongIssuer,
+    InvalidSocialUID,
+    InvalidSocialToken,
+    AppleKeyFetchError,
 )
 
 __all__ = [
@@ -22,4 +26,8 @@ __all__ = [
     "PasswordsDoNotMatch",
     "InvalidOldPassword",
     "UserTokenNotFound",
+    "GoogleWrongIssuer",
+    "InvalidSocialUID",
+    "InvalidSocialToken",
+    "AppleKeyFetchError",
 ]

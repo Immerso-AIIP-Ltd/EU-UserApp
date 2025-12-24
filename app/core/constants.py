@@ -195,6 +195,10 @@ class ErrorCodes:
     US404 = "US404"
     US409 = "US409"
     USER_TOKEN_NOT_FOUND_CODE = "US401"
+    GOOGLE_WRONG_ISSUER_CODE = "US401"
+    INVALID_SOCIAL_UID_CODE = "US401"
+    INVALID_SOCIAL_TOKEN_CODE = "US401"
+    APPLE_KEY_FETCH_ERROR_CODE = "US500"
 
 
 class ErrorMessages:
@@ -258,6 +262,10 @@ class ErrorMessages:
     USER_NOT_FOUND_DETAILS = "No user exists with the provided email or mobile."
     PASSWORDS_DO_NOT_MATCH = "New passwords do not match."
     INVALID_OLD_PASSWORD = "The old password provided is incorrect."
+    GOOGLE_WRONG_ISSUER = "Invalid Google issuer."
+    INVALID_SOCIAL_UID = "Social UID mismatch."
+    INVALID_SOCIAL_TOKEN = "Invalid social token."
+    APPLE_KEY_FETCH_ERROR = "Failed to fetch Apple auth keys."
 
 
 class Headers:

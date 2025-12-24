@@ -32,6 +32,9 @@ locust = "^2.42.5"
 pyjwt = "^2.10.1"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 bcrypt = "^5.0.0"
+google-auth = "2.41.0"
+google-auth-oauthlib = "1.2.3"
+google-auth-httplib2 = "0.1.1"
 
 
 
