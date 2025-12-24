@@ -366,21 +366,26 @@ class UserQueries:
     )
 
     # ==================== ACCOUNT ====================
-    LOGOUT_USER = text(
+    UPDATE_AUTH_SESSION_LOGOUT = text(
         """
-        SELECT * FROM user_app.logout_user(
-            :user_id,
-            :device_id
-        );
-        """,
+        UPDATE user_app.authentication_session
+        SET 
+            is_active = FALSE,
+            logged_out_at = NOW(),
+            logout_reason = 'user_initiated'
+        WHERE user_id = :user_id AND device_id = :device_id AND is_active = TRUE
+        """
     )
 
-    DEACTIVATE_USER = text(
+    UPDATE_USER_DEACTIVATED = text(
         """
-        SELECT * FROM user_app.deactivate_user(
-            :user_id
-        );
-        """,
+        UPDATE user_app.user
+        SET 
+            state = 'deactivated',
+            deactivated_at = NOW(),
+            modified_at = NOW()
+        WHERE id = :user_id
+        """
     )
     # ==================== AUTHENTICATION ====================
     GET_APP_CONSUMER = text(
@@ -491,5 +496,82 @@ class UserQueries:
         UPDATE user_app.user_auth_token
         SET is_active = False
         WHERE token = :token AND device_id = :device_id
+        """
+    )
+
+    # ==================== DEVICE MANAGEMENT ====================
+    GET_DEVICE_BY_ID = text(
+        """
+        SELECT * FROM user_app.device WHERE device_id = :device_id LIMIT 1
+        """
+    )
+
+    CHECK_DEVICE_EXISTS = text(
+        """
+        SELECT 1 FROM user_app.device WHERE device_id = :device_id LIMIT 1
+        """
+    )
+
+    INSERT_DEVICE = text(
+        """
+        INSERT INTO user_app.device (
+            device_id, device_type, device_name, platform, device_ip, 
+            is_rooted, is_jailbroken, push_token, device_active, created_at
+        ) VALUES (
+            :device_id, :device_type, :device_name, :platform, :device_ip,
+            :is_rooted, :is_jailbroken, :push_token, TRUE, NOW()
+        )
+        RETURNING device_id
+        """
+    )
+
+    UPDATE_DEVICE = text(
+        """
+        UPDATE user_app.device
+        SET 
+            device_type = COALESCE(:device_type, device_type),
+            device_name = COALESCE(:device_name, device_name),
+            push_token = COALESCE(:push_token, push_token),
+            modified_at = NOW()
+        WHERE device_id = :device_id
+        """
+    )
+    
+    LINK_DEVICE_TO_USER = text(
+        """
+        UPDATE user_app.device
+        SET 
+            user_id = :user_id,
+            user_token = :user_token,
+            device_active = TRUE,
+            date_deactivated = NULL,
+            modified_at = NOW()
+        WHERE device_id = :device_id
+        """
+    )
+    
+    DEACTIVATE_DEVICE = text(
+        """
+        UPDATE user_app.device
+        SET 
+            device_active = FALSE,
+            date_deactivated = NOW(),
+            modified_at = NOW()
+        WHERE device_id = :device_id AND user_id = :user_id
+        """
+    )
+    
+    DEACTIVATE_USER_AUTH_TOKEN = text(
+        """
+        UPDATE user_app.user_auth_token
+        SET is_active = FALSE
+        WHERE uuid = :user_id AND token = :token
+        """
+    )
+    
+    GET_ACTIVE_DEVICES_FOR_USER = text(
+        """
+        SELECT * FROM user_app.device 
+        WHERE user_id = :user_id AND device_active = TRUE
         """
     )

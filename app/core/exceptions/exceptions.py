@@ -447,3 +447,21 @@ class FacebookAuthError(AppError):
             message=ErrorMessages.FACEBOOK_AUTH_ERROR,
             error_code=ErrorCodes.FACEBOOK_AUTH_ERROR_CODE,
         )
+
+
+class DeviceAlreadyRegistered(AppError):
+    def __init__(self, detail: str = "Device already registered"):
+        super().__init__(
+            http_code=status.HTTP_409_CONFLICT,
+            message=detail,
+            error_code="US409",
+        )
+
+
+class DeviceNotRegistered(AppError):
+    def __init__(self, detail: str = "Device not registered"):
+        super().__init__(
+            http_code=status.HTTP_404_NOT_FOUND,
+            message=detail,
+            error_code="US404",
+        )

@@ -131,21 +131,20 @@ async def change_password(
     headers: dict = Depends(validate_common_headers),
     db_session: AsyncSession = Depends(get_db_session)
 ):
+
+    print("HEADERS FROM DEPENDENCY:", headers)
+
     """
     Change user password.
     Requires valid x-api-token in headers.
     """
     # 1. Get user UUID from token
-    # Note: validate_common_headers verifies the token and returns the payload if valid
-    user_id = headers.get("user_id")
-    if not user_id:
-        from app.core.exceptions import UnauthorizedError
-        raise UnauthorizedError()
+    # validate_common_headers confirms presence, but does not verify. We verify here.
+    user_id = await AuthService.verify_user_token(headers, db_session)
 
     # 2. Call service
     await ChangePasswordService.change_password(
         user_uuid=user_id,
-        old_password=payload.old_password,
         new_password=payload.new_password,
         new_password_confirm=payload.new_password_confirm,
         db_session=db_session

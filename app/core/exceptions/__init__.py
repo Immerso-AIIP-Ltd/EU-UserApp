@@ -14,6 +14,8 @@ from .exceptions import (
     InvalidSocialToken,
     AppleKeyFetchError,
     FacebookAuthError,
+    DeviceNotRegistered,
+    DeviceAlreadyRegistered,
 )
 
 __all__ = [
@@ -32,4 +34,6 @@ __all__ = [
     "InvalidSocialToken",
     "AppleKeyFetchError",
     "FacebookAuthError",
+    "DeviceNotRegistered",
+    "DeviceAlreadyRegistered",
 ]

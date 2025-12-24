@@ -211,12 +211,18 @@ class ForgotPasswordRequest(BaseModel):
             )
         return self
 
+    def validate_email_or_mobile(self):
+        """Check if email or mobile+calling_code is provided."""
+        if not self.email and not (self.mobile and self.calling_code):
+            return False
+        return True
+
 
 class ChangePasswordRequest(BaseModel):
     """Request schema for /user/v1/user/change_password."""
 
     new_password: str = Field(..., description=Description.NEW_PASSWORD)
-
+    new_password_confirm: str = Field(..., description=Description.NEW_PASSWORD_CONFIRM)
 
 class UpdateProfileRequest(BaseModel):
     """Request schema for /user/v1/user/profile PUT."""

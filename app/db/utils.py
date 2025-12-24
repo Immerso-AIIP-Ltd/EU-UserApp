@@ -188,9 +188,14 @@ async def execute_query(
             db_session.execute(query, params),
             timeout=timeout_seconds,
         )
-        rows = result.mappings().all()
-        logger.debug(f"Query returned {len(rows)} rows")
-        return rows
+        
+        if result.returns_rows:
+            rows = result.mappings().all()
+            logger.debug(f"Query returned {len(rows)} rows")
+            return rows
+            
+        logger.debug("Query returned no rows (non-SELECT statement)")
+        return []
 
     except SQLAlchemyTimeoutError as e:
         error_msg = f"Query timeout after {timeout_seconds}s: {e!s}"

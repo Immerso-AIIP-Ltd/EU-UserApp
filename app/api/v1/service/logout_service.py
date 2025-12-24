@@ -17,27 +17,36 @@ class UserLogoutService:
     ) -> None:
         """
         Logs out the user by invalidating the token in Redis and updating the database.
+        And deactivates the device.
         """
-        # 1. Invalidate token in Redis
-        cache_key = f"auth:{user_uuid}:{device_id}"
-        await cache.delete(cache_key)
-        logger.info(f"Invalidated Redis token for user {user_uuid} on device {device_id}")
+        from app.api.v1.service.device_service import DeviceService
+        from app.api.v1.service.auth_service import AuthService
 
-        # 2. Update token status in Database
-        await execute_query(
-            UserQueries.DEACTIVATE_USER_TOKEN,
-            {"token": token, "device_id": device_id},
-            db_session,
+        # 1. Deactivate device (covers redis token removal for device flow)
+        if device_id:
+            await DeviceService.deactivate_device(
+                device_id=device_id,
+                user_uuid=user_uuid,
+                db_session=db_session,
+                cache=cache
+            )
+
+        # 2. Free auth token (DB + Redis)
+        await AuthService.free_token(
+            user_uuid=user_uuid,
+            token=token,
+            db_session=db_session,
+            cache=cache,
+            device_id=device_id
         )
-        logger.info(f"Deactivated token in DB for device {device_id}")
-
-        # 3. Call stored procedure for additional cleanup if needed
+        
+        # 3. Update authentication session (replace stored procedure)
         await execute_query(
-            UserQueries.LOGOUT_USER,
+            UserQueries.UPDATE_AUTH_SESSION_LOGOUT,
             {"user_id": user_uuid, "device_id": device_id},
             db_session,
         )
-        logger.info(f"Executed logout stored procedure for user {user_uuid}")
+        logger.info(f"Executed logout for user {user_uuid} on device {device_id}")
 
     @staticmethod
     async def deactivate_account(
@@ -50,13 +59,13 @@ class UserLogoutService:
         """
         Deactivates the user account and logs them out of the current device.
         """
-        # 1. Call deactivation stored procedure
+        # 1. Mark user as deactivated in DB
         await execute_query(
-            UserQueries.DEACTIVATE_USER,
+            UserQueries.UPDATE_USER_DEACTIVATED,
             {"user_id": user_uuid},
             db_session,
         )
-        logger.info(f"Executed deactivation stored procedure for user {user_uuid}")
+        logger.info(f"Deactivated user account {user_uuid}")
 
         # 2. Perform logout for current session
         await UserLogoutService.logout(

@@ -328,6 +328,7 @@ class Description(str):
     CALLING_CODE = "International calling code"
     PASSWORD = "User password"
     NEW_PASSWORD = "New password"
+    NEW_PASSWORD_CONFIRM = "New password confirmation"
     NAME = "Full name of the user"
     AVATAR_ID = "Avatar ID"
     BIRTH_DATE = "Birth date (YYYY-MM-DD)"

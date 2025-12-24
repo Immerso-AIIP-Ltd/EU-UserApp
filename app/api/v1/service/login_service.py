@@ -39,4 +39,14 @@ class LoginService:
             device_id=device_id
         )
 
+        # Link device to user
+        from app.api.v1.service.device_service import DeviceService
+        await DeviceService.link_device_to_user(
+            device_id=device_id,
+            user_uuid=user_id,
+            db_session=db_session,
+            cache=cache,
+            auth_token=token
+        )
+
         return user, token, expires_at
