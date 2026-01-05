@@ -1,26 +1,20 @@
-from app.api.v1.register.task import get_device_info
+
 import bcrypt
-from asyncio.log import logger
-from datetime import date
-from app import settings
-from app.api.v1.service.auth_service import AuthService
-from app.db.models.user_app import User
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse
-from app.api.v1.service.auth_service import AuthService
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
-from app.api.v1.register import deeplinks
-from app.api.v1.register.commservice import call_communication_api
-from app.api.v1.register.service import UserVerifyService, DeviceService
+from app.api.v1.register.otp import GenerateOtpService
+from app.api.v1.register.service import UserVerifyService
+from app.api.v1.register.task import get_device_info
 from app.api.v1.schemas import (
     RegisterWithProfileRequest,
     ResendOTPRequest,
     VerifyOTPRegisterRequest,
 )
-from app.api.v1.register.otp import GenerateOtpService
+from app.api.v1.service.auth_service import AuthService
 from app.cache.base import build_cache_key, get_cache, set_cache
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import (
@@ -28,23 +22,23 @@ from app.core.constants import (
     CacheTTL,
     ErrorMessages,
     Intents,
-    RedirectTemplates,
-    SuccessMessages,
     LoginParams,
-    RequestParams,
     ProcessParams,
+    RedirectTemplates,
+    RequestParams,
+    SuccessMessages,
 )
 from app.core.exceptions.exceptions import (
     CallingCodeRequired,
     EmailMobileRequired,
     OtpExpired,
-    OtpInvalid,
     PasswordRequired,
     RegistrationSessionClosed,
     UserExits,
     ValidationError,
 )
 from app.db.dependencies import get_db_session
+from app.db.models.user_app import User
 from app.db.utils import execute_query
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import (
@@ -126,7 +120,7 @@ async def register_with_profile(
         if user_exists:
             raise UserExits()
         state = await UserVerifyService.get_user_state_by_email(
-            cache, email, db_session
+            cache, email, db_session,
         )
 
     elif mobile and calling_code:
@@ -144,7 +138,7 @@ async def register_with_profile(
                 message=ErrorMessages.USER_ALREADY_REGISTERED,
             )
         state = await UserVerifyService.get_user_state_by_mobile(
-            cache, mobile, calling_code, client_ip, db_session
+            cache, mobile, calling_code, client_ip, db_session,
         )
 
     else:
@@ -180,7 +174,7 @@ async def register_with_profile(
     registration_data = payload.model_dump(mode=RequestParams.JSON)
     registration_data[LoginParams.PASSWORD] = hashed_password
     cache_key = build_cache_key(
-        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=identifier
+        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=identifier,
     )
     await set_cache(cache, cache_key, registration_data, ttl=CacheTTL.TTL_FAST)
 
@@ -237,7 +231,7 @@ async def verify_otp_register(
 
     # 2. Retrieve Cached Registration Data
     cache_key = build_cache_key(
-        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=receiver
+        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=receiver,
     )
     cached_data = await get_cache(cache, cache_key)
     if not cached_data:
@@ -345,7 +339,7 @@ async def resend_otp(
 
     # Check if registration session exists
     cache_key = build_cache_key(
-        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=receiver
+        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=receiver,
     )
     cached_data = await get_cache(cache, cache_key)
     if not cached_data:

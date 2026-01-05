@@ -3,15 +3,14 @@ from fastapi.routing import APIRouter
 from app.api.v1 import (
     device,
     docs,
+    friend_invite_joinwaitlist,
     internal,
     login,
     logout,
     monitoring,
     register,
     social_login,
-    user,
     user_profile,
-    friend_invite_joinwaitlist,
 )
 
 api_router = APIRouter()

@@ -1,10 +1,8 @@
-from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, Path, Request
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
-from sqlalchemy import insert, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
@@ -18,16 +16,15 @@ from app.core.constants import (
     CacheKeyTemplates,
     CacheTTL,
     ErrorMessages,
-    SuccessMessages,
-    RequestParams,
     ProcessParams,
+    RequestParams,
+    SuccessMessages,
 )
 from app.core.exceptions.exceptions import (
     DeviceNotInvited,
     ValidationError,
 )
 from app.db.dependencies import get_db_session
-from app.db.models.user_app import DeviceInvite, InviteDeviceCoupon
 from app.db.utils import execute_and_transform, execute_query
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import validate_headers_without_auth

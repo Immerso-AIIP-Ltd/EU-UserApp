@@ -38,9 +38,9 @@ def bootstrap_all(environment, **_):
         )
 
         # NOTE: The User App currently does not have external endpoints for countries/languages.
-        # This structure is kept as per requirements, but the actual network calls are skipped 
+        # This structure is kept as per requirements, but the actual network calls are skipped
         # or commented out until such endpoints exist.
-        
+
         # 1. Bootstrap for countries
         # resp_countries = session.get(
         #     "/v1/external/countries/",

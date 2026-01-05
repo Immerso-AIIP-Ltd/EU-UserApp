@@ -23,6 +23,7 @@ class UserProfileService:
         else:
             return None, None
 
+
 class UserRegisterService:
 
     @staticmethod
@@ -46,6 +47,7 @@ class UserRegisterService:
         # Note: 'get_random_bigint' was in service.py. implementing locally or importing if needed.
         # Simple random implementation
         import random
+
         BIGINT_LIMIT = 2**63
         activation_code = random.randint(0, BIGINT_LIMIT)
 

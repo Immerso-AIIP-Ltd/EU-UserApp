@@ -1,4 +1,5 @@
 from typing import Any, Dict
+
 from fastapi import Header
 from pydantic import BaseModel, Field
 
@@ -53,7 +54,7 @@ async def validate_common_headers(
     x_api_token = x_api_token.strip()
 
     if not all(
-        [x_api_client, x_device_id, x_platform, x_country, x_app_version, x_api_token]
+        [x_api_client, x_device_id, x_platform, x_country, x_app_version, x_api_token],
     ):
         raise MissingHeadersError(detail=ErrorMessages.MISSING_HEADERS_DETAILS)
 

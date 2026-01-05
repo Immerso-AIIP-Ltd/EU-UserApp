@@ -1,21 +1,20 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 import bcrypt
-import pytz
 import jwt
+import pytz
 from loguru import logger
+from redis.asyncio import Redis
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from redis.asyncio import Redis
-from app.cache.utils import lpush
-from app.core.constants import AuthConfig
-from app.db.models.user_app import AppConsumer, User, UserAuthToken
-from app.settings import settings
-from sqlalchemy import select
 from app.api.queries import UserQueries
+from app.core.constants import AuthConfig
 from app.core.exceptions.exceptions import InvalidServiceToken
+from app.db.models.user_app import AppConsumer, User, UserAuthToken
 from app.db.utils import execute_query
+from app.settings import settings
 
 
 class AuthService:
@@ -44,7 +43,7 @@ class AuthService:
     ) -> tuple[str, int]:
         # Fetch AppConsumer using SQLAlchemy
         result = await db_session.execute(
-            select(AppConsumer).where(AppConsumer.client_id == client_id)
+            select(AppConsumer).where(AppConsumer.client_id == client_id),
         )
         application = result.scalars().first()
         if not application:

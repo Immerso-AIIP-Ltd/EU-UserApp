@@ -2,14 +2,14 @@ import hashlib
 import logging
 import time
 import uuid
-from typing import Any
+from typing import Any, Dict
 
 import bcrypt
 import httpx
 import oauthlib.oauth1
 from celery import shared_task
 from fastapi import Request
-from typing import Dict
+
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
