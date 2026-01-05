@@ -62,7 +62,7 @@ class GoogleOAuthService:
             self.expiry = datetime.utcfromtimestamp(int(id_info["exp"]))
 
         except ValueError as e:
-            logger.warning(f"Google Token Verification Failed (Client Error): {e!s}")
+            logger.error(f"Google Token Verification Error: {e!s}")
             raise InvalidSocialToken()
         except Exception as e:
             logger.exception(f"Unexpected error during Google verification: {e!s}")
