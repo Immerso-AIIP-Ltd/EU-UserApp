@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 import jwt
 from passlib.context import CryptContext
@@ -20,15 +20,16 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(
-    data: dict[str, Any], expires_delta: Optional[timedelta] = None
+    data: dict[str, Any],
+    expires_delta: Optional[timedelta] = None,
 ) -> str:
     """
     Create a JWT access token.
-    
+
     Args:
         data: The payload to include in the token.
         expires_delta: Optional expiration time delta.
-        
+
     Returns:
         The encoded JWT token.
     """
@@ -37,10 +38,12 @@ def create_access_token(
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(
-            minutes=settings.jwt_access_token_expire_minutes
+            minutes=settings.jwt_access_token_expire_minutes,
         )
     to_encode.update({"exp": int(expire.timestamp())})
     encoded_jwt = jwt.encode(
-        to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+        to_encode,
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
     )
     return encoded_jwt

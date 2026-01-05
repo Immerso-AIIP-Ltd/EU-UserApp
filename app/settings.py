@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "your-secret-key"  # Should be set via environment variable
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
-    user_token_days_to_expire: str = "90"
+    user_token_days_to_expire: int = 90
 
     # Celery settings
     celery_broker_url: Optional[str] = None
@@ -93,6 +93,7 @@ class Settings(BaseSettings):
         "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.e30.TWUdmzGEToMw7xpFthorSm9Os5qdl-SU0XAg3qGLRM4"
     )
     communication_api_url: str = "https://dev-apigateway.erosuniverse.com"
+    web_url: str = "https://dev.erosuniverse.com/"
 
     # Legacy API settings
     legacy_api_url: str = "https://dev-apigateway.erosuniverse.com"
@@ -106,14 +107,21 @@ class Settings(BaseSettings):
 
     # Apple Social Login Settings
     apple_client_id: str = "YOUR_APPLE_CLIENT_ID"
-    apple_ios_client_id: str = "YOUR_APPLE_IOS_CLIENT_ID" 
+    apple_ios_client_id: str = "YOUR_APPLE_IOS_CLIENT_ID"
     apple_team_id: str = "YOUR_APPLE_TEAM_ID"
     apple_key_id: str = "YOUR_APPLE_KEY_ID"
-    apple_private_key: str = "YOUR_APPLE_PRIVATE_KEY"  # Multiline string recommended to be passed as env var with \n escaped
+    apple_private_key: str = (
+        "YOUR_APPLE_PRIVATE_KEY"  # Multiline string recommended to be passed as env var with \n escaped
+    )
 
     # Facebook Social Login Settings
     facebook_client_id: str = "YOUR_FACEBOOK_CLIENT_ID"
     facebook_client_secret: str = "YOUR_FACEBOOK_CLIENT_SECRET"
+
+    # Other settings
+    CACHE_TIMEOUT_FOR_EMAIL_DNS: int = 300
+    skip_partner_auth_redis_check: list[str] = []
+    token_leeway_threshold_in_days: int = 15
 
     @property
     def db_url(self) -> URL:

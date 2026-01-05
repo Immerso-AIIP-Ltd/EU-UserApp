@@ -1,6 +1,6 @@
 from datetime import date
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Generic, List, Optional, Self, TypeVar, Union
 
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
@@ -40,7 +40,7 @@ class IntentEnum(str, Enum):
     """Intent options for OTP verification."""
 
     REGISTRATION = "registration"
-    JOIN_WAITLIST = "joinwaitlist"
+    WAITLIST = "waitlist"
     UPDATE_PROFILE = "update_profile"
 
 
@@ -91,12 +91,13 @@ class LoginRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
     password: Optional[str] = Field(default=None, description=Description.PASSWORD)
 
     @model_validator(mode="after")
-    def validate_login_credentials(self):
+    def validate_login_credentials(self) -> Self:
         """Validate that either email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
@@ -111,18 +112,20 @@ class RegisterWithProfileRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
     password: str = Field(..., description=Description.PASSWORD)
     name: Optional[str] = Field(default=None, description=Description.NAME)
     avatar_id: Optional[int] = Field(default=None, description=Description.AVATAR_ID)
     birth_date: Optional[date] = Field(default=None, description=Description.BIRTH_DATE)
     profile_image: Optional[str] = Field(
-        default=None, description=Description.PROFILE_IMAGE,
+        default=None,
+        description=Description.PROFILE_IMAGE,
     )
 
     @model_validator(mode="after")
-    def validate_contact_info(self):
+    def validate_contact_info(self) -> Self:
         """Validate that either email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
@@ -137,13 +140,14 @@ class VerifyOTPRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
     otp: str = Field(..., description=Description.OTP)
     intent: IntentEnum = Field(..., description=Description.INTENT)
 
     @model_validator(mode="after")
-    def validate_contact_info(self):
+    def validate_contact_info(self) -> Self:
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
                 "Either email or mobile with calling_code must be provided.",
@@ -157,16 +161,18 @@ class VerifyOTPRegisterRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
     otp: str = Field(..., description=Description.OTP)
     password: str = Field(..., description=Description.PASSWORD)
     intent: IntentEnum = Field(
-        default=IntentEnum.REGISTRATION, description=Description.INTENT,
+        default=IntentEnum.REGISTRATION,
+        description=Description.INTENT,
     )
 
     @model_validator(mode="after")
-    def validate_contact_info(self):
+    def validate_contact_info(self) -> Self:
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
                 "Either email or mobile with calling_code must be provided.",
@@ -180,12 +186,13 @@ class ResendOTPRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
     intent: IntentEnum = Field(..., description=Description.INTENT)
 
     @model_validator(mode="after")
-    def validate_contact_info(self):
+    def validate_contact_info(self) -> Self:
         """Validate that either email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
@@ -200,22 +207,25 @@ class ForgotPasswordRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
 
     @model_validator(mode="after")
-    def validate_contact_info(self):
+    def validate_contact_info(self) -> Self:
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
                 "Either email or mobile with calling_code must be provided.",
             )
         return self
 
-    def validate_email_or_mobile(self):
+    def validate_email_or_mobile(self) -> Self:
         """Check if email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
-            return False
-        return True
+            raise ValueError(
+                "Either email or mobile with calling_code must be provided.",
+            )
+        return self
 
 
 class ChangePasswordRequest(BaseModel):
@@ -223,6 +233,7 @@ class ChangePasswordRequest(BaseModel):
 
     new_password: str = Field(..., description=Description.NEW_PASSWORD)
     new_password_confirm: str = Field(..., description=Description.NEW_PASSWORD_CONFIRM)
+
 
 class UpdateProfileRequest(BaseModel):
     """Request schema for /user/v1/user/profile PUT."""
@@ -235,7 +246,8 @@ class UpdateProfileRequest(BaseModel):
     country: Optional[str] = Field(default=None, description=Description.COUNTRY)
     avatar_id: Optional[int] = Field(default=None, description=Description.AVATAR_ID)
     profile_image: Optional[str] = Field(
-        default=None, description=Description.PROFILE_IMAGE,
+        default=None,
+        description=Description.PROFILE_IMAGE,
     )
 
 
@@ -245,11 +257,12 @@ class UpdateEmailMobileRequest(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
 
     @model_validator(mode="after")
-    def validate_one_field(self):
+    def validate_one_field(self) -> Self:
         if self.email and (self.mobile or self.calling_code):
             raise ValueError("Provide only one contact method (email OR mobile).")
         if not self.email and not (self.mobile and self.calling_code):
@@ -264,13 +277,55 @@ class WaitlistRequest(BaseModel):
 
     device_id: str = Field(..., description=Description.DEVICE_ID)
     email_id: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
+    name: Optional[str] = Field(default=None, description=Description.NAME)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
 
     @model_validator(mode="after")
-    def validate_contact_info(self):
+    def validate_contact_info(self) -> Self:
+        if not self.email_id and not (self.mobile and self.calling_code):
+            raise ValueError(
+                "Either email_id or mobile with calling_code must be provided.",
+            )
+        return self
+
+
+class VerifyWaitlistRequest(BaseModel):
+    """Request schema for /user/v1/social/waitlist/verify."""
+
+    device_id: Optional[str] = Field(None, description=Description.DEVICE_ID)
+    email_id: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
+    mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
+    calling_code: Optional[str] = Field(
+        default=None,
+        description=Description.CALLING_CODE,
+    )
+    otp: str = Field(..., description=Description.OTP)
+
+    @model_validator(mode="after")
+    def validate_contact_info(self) -> Self:
+        if not self.email_id and not (self.mobile and self.calling_code):
+            raise ValueError(
+                "Either email_id or mobile with calling_code must be provided.",
+            )
+        return self
+
+
+class ResendWaitlistOtpRequest(BaseModel):
+    """Request schema for /user/v1/social/waitlist/resend_otp."""
+
+    email_id: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
+    mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
+    calling_code: Optional[str] = Field(
+        default=None,
+        description=Description.CALLING_CODE,
+    )
+
+    @model_validator(mode="after")
+    def validate_contact_info(self) -> Self:
         if not self.email_id and not (self.mobile and self.calling_code):
             raise ValueError(
                 "Either email_id or mobile with calling_code must be provided.",
@@ -284,11 +339,12 @@ class FriendInviteObject(BaseModel):
     email: Optional[EmailStr] = Field(default=None, description=Description.EMAIL)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
-        default=None, description=Description.CALLING_CODE,
+        default=None,
+        description=Description.CALLING_CODE,
     )
 
     @model_validator(mode="after")
-    def validate_contact_info(self):
+    def validate_contact_info(self) -> Self:
         """Ensure either email or mobile+calling_code is present."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError("Either email or mobile with calling_code is required.")
@@ -303,11 +359,12 @@ class FriendInviteRequest(BaseModel):
     """Request schema for /user/v1/social/friend-invite."""
 
     invited_list: List[FriendInviteItem] = Field(
-        ..., description=Description.INVITED_LIST,
+        ...,
+        description=Description.INVITED_LIST,
     )
 
     @model_validator(mode="after")
-    def validate_list(self):
+    def validate_list(self) -> Self:
         if not self.invited_list:
             raise ValueError("invited_list cannot be empty.")
         return self
@@ -322,14 +379,17 @@ class SocialLoginRequest(BaseModel):
 
 # ==================== RESPONSE SCHEMAS ====================
 
+T = TypeVar("T", bound=BaseModel)
 
-class GenericResponse(BaseModel):
+
+class GenericResponse(BaseModel, Generic[T]):
     """Generic response schema matching /components/schemas/GenericResponse."""
 
     status: Union[bool, str] = Field(..., description=SuccessMessages.SUCCESS)
     message: Optional[str] = Field(default=None, description=SuccessMessages.MESSAGE)
-    data: Optional[Dict[str, Any]] = Field(
-        default=None, description=SuccessMessages.DATA,
+    data: Optional[T] = Field(
+        default=None,
+        description=SuccessMessages.DATA,
     )
 
 
@@ -378,22 +438,16 @@ class UpdateEmailMobileData(BaseModel):
     calling_code: Optional[str] = None
 
 
-class UpdateEmailMobileResponse(GenericResponse):
+class UpdateEmailMobileResponse(GenericResponse[UpdateEmailMobileData]):
     """Response schema for Update Email/Mobile."""
 
-    data: UpdateEmailMobileData
 
-
-class LoginResponse(GenericResponse):
+class LoginResponse(GenericResponse[AuthTokenData]):
     """Response schema for Login."""
 
-    data: AuthTokenData
 
-
-class UserProfileResponse(GenericResponse):
+class UserProfileResponse(GenericResponse[UserProfileData]):
     """Response schema for Get/Update Profile."""
-
-    data: UserProfileData
 
 
 class DeviceInviteData(BaseModel):
@@ -401,10 +455,8 @@ class DeviceInviteData(BaseModel):
     coupon_id: Optional[str] = None
 
 
-class DeviceInviteResponse(GenericResponse):
+class DeviceInviteResponse(GenericResponse[DeviceInviteData]):
     """Response schema for Device Invite."""
-
-    data: DeviceInviteData
 
 
 class WaitlistData(BaseModel):
@@ -413,10 +465,8 @@ class WaitlistData(BaseModel):
     status: Optional[str] = None
 
 
-class WaitlistResponse(GenericResponse):
+class WaitlistResponse(GenericResponse[WaitlistData]):
     """Response schema for Waitlist."""
-
-    data: WaitlistData
 
 
 class FriendInviteData(BaseModel):
@@ -426,33 +476,29 @@ class FriendInviteData(BaseModel):
     failed: List[Any] = []
 
 
-class FriendInviteResponse(GenericResponse):
+class FriendInviteResponse(GenericResponse[FriendInviteData]):
     """Response schema for Friend Invite."""
 
-    data: FriendInviteData
 
-
-class SocialLoginResponse(GenericResponse):
+class SocialLoginResponse(GenericResponse[AuthTokenData]):
     """Response schema for Social Login."""
-
-    data: AuthTokenData
 
 
 class ForgotPasswordResponse(BaseModel):
     """Response schema for Forgot Password."""
-    
+
     status: bool = True
     message: str
-    data: dict = {}
-    meta: dict = {}
-    error: dict = {}
+    data: Dict[str, Any] = {}
+    meta: Dict[str, Any] = {}
+    error: Dict[str, Any] = {}
 
 
 class ChangePasswordResponse(BaseModel):
     """Response schema for Change Password."""
-    
+
     status: bool = True
     message: str
-    data: dict = {}
-    meta: dict = {}
-    error: dict = {}
+    data: Dict[str, Any] = {}
+    meta: Dict[str, Any] = {}
+    error: Dict[str, Any] = {}

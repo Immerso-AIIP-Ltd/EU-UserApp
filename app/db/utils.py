@@ -4,13 +4,13 @@ import random
 import string
 import time
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Dict, List, Optional, Sequence, Type
+from typing import Any, AsyncGenerator, Dict, List, Optional, Sequence, Type, cast
 
 from loguru import logger
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import text
-from sqlalchemy.engine import RowMapping, make_url
+from sqlalchemy.engine import Result, RowMapping, make_url
 from sqlalchemy.exc import (
     DataError,
     DBAPIError,
@@ -184,16 +184,19 @@ async def execute_query(
             )
 
         logger.debug(f"Executing query with params: {params}")
-        result = await asyncio.wait_for(
-            db_session.execute(query, params),
-            timeout=timeout_seconds,
+        result = cast(
+            Result[Any],
+            await asyncio.wait_for(
+                db_session.execute(query, params),
+                timeout=timeout_seconds,
+            ),
         )
-        
-        if result.returns_rows:
+
+        if result:
             rows = result.mappings().all()
             logger.debug(f"Query returned {len(rows)} rows")
             return rows
-            
+
         logger.debug("Query returned no rows (non-SELECT statement)")
         return []
 
@@ -281,5 +284,7 @@ async def execute_and_transform(
     return validated_data
 
 
-async def get_random_string(length=40):
-    return "".join([random.choice(string.ascii_letters + string.digits) for _ in range(length)])
+async def get_random_string(length: int = 40) -> str:
+    return "".join(
+        [random.choice(string.ascii_letters + string.digits) for _ in range(length)],
+    )

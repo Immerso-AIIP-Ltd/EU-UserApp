@@ -1,10 +1,11 @@
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.queries import UserQueries
 from app.api.v1.service.auth_service import AuthService
 from app.core.exceptions import (
     PasswordsDoNotMatch,
 )
 from app.db.utils import execute_query
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class ChangePasswordService:
@@ -15,7 +16,7 @@ class ChangePasswordService:
         new_password: str,
         new_password_confirm: str,
         db_session: AsyncSession,
-    ):
+    ) -> None:
         # 1. Verify new passwords match
         if new_password != new_password_confirm:
             raise PasswordsDoNotMatch()
@@ -27,5 +28,5 @@ class ChangePasswordService:
         await execute_query(
             UserQueries.UPDATE_USER_PASSWORD,
             {"user_id": user_uuid, "password": new_hash},
-            db_session
+            db_session,
         )

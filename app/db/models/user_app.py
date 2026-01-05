@@ -3,10 +3,8 @@ import enum
 import uuid
 from datetime import datetime
 from datetime import timezone as dt_timezone
-from tokenize import String
 from typing import ClassVar
 
-from app.db.utils import get_random_string
 from sqlalchemy import (
     CHAR,
     UUID,
@@ -20,10 +18,12 @@ from sqlalchemy import (
     Integer,
     Text,
 )
+from sqlalchemy import String as SAString
 from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.db.utils import get_random_string
 
 
 class UserState(str, enum.Enum):
@@ -182,7 +182,12 @@ class Platform(Base):
     )
 
     # Relationships
-    devices = relationship("Device", back_populates="platform")
+    # devices = relationship("Device", back_populates="platform")
+    devices = relationship(
+        "Device",
+        back_populates="platform_ref",
+        primaryjoin="Platform.platform_name==Device.platform",
+    )
 
 
 class Device(Base):
@@ -334,7 +339,7 @@ class Waitlist(Base):
     calling_code = Column(VARCHAR(10), nullable=False)
     device_id = Column(
         VARCHAR(255),
-        ForeignKey("user_app.device.id"),
+        ForeignKey("user_app.device.device_id"),
         unique=True,
         index=True,
     )
@@ -465,7 +470,11 @@ class InviteDevice(Base):
 
     # Relationships
     device = relationship("Device", back_populates="invite_device")
-    coupon = relationship("InviteCoupon", back_populates="invite_devices")
+    coupon = relationship(
+        "InviteCoupon",
+        back_populates="invite_devices",
+        primaryjoin="InviteDevice.coupon_id==InviteCoupon.id",
+    )
     user = relationship("User", back_populates="invite_device")
 
 
@@ -502,10 +511,15 @@ class SocialIdentityProvider(Base):
     user = relationship("User", back_populates="social_identities")
 
 
-class InviteCoupon(Base):
+class InviteDeviceCoupon(Base):
     __tablename__ = "invite_coupon"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid)
-    code = Column(String, unique=True, nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code: Mapped[str] = mapped_column(
+        SAString,
+        unique=True,
+        nullable=False,
+    )
+
     consumed_at = Column(DateTime(timezone=True), nullable=True)  # track usage
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
@@ -519,11 +533,11 @@ class DeviceInvite(Base):
 
 class UserAuthToken(Base):
     __tablename__ = "user_auth_token"
-    __table_args__: ClassVar = {"schema": "user_app"}
+    __table_args__ = {"schema": "user_app"}
 
     uuid = Column(UUID(as_uuid=True), primary_key=True)
     token = Column(Text)
-    app_consumer_id = Column(UUID(as_uuid=True), ForeignKey("user_app.app_consumer.id"))
+    app_consumer_id = Column(Integer, ForeignKey("user_app.app_consumer.id"))
     device_id = Column(VARCHAR(128))
     expires_at = Column(DateTime(timezone=True))
     oauth1_token = Column(VARCHAR(128))
@@ -531,11 +545,18 @@ class UserAuthToken(Base):
     partner_id = Column(VARCHAR(255))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=datetime.now(dt_timezone.utc),
+        onupdate=datetime.now(dt_timezone.utc),
+    )
+
+    app_consumer = relationship("AppConsumer", back_populates="user_auth_tokens")
 
 
 class AppConsumer(Base):
     __tablename__ = "app_consumer"
-    __table_args__: ClassVar = {"schema": "user_app"}
+    __table_args__ = {"schema": "user_app"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_name = Column(VARCHAR(128))
@@ -545,7 +566,7 @@ class AppConsumer(Base):
     legacy_consumer_key = Column(VARCHAR(128))
     legacy_consumer_secret = Column(VARCHAR(128))
     is_internal = Column(Boolean, default=False)
-    partner_code = Column(VARCHAR(40), nullable=True, default='EROS')
+    partner_code = Column(VARCHAR(40), nullable=True, default="EROS")
 
     # Relationships
     user_auth_tokens = relationship("UserAuthToken", back_populates="app_consumer")

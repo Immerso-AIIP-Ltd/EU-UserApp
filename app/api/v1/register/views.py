@@ -1,50 +1,91 @@
-
+from app.api.v1.register.task import get_device_info
+import bcrypt
+from asyncio.log import logger
+from datetime import date
+from app import settings
+from app.api.v1.service.auth_service import AuthService
+from app.db.models.user_app import User
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse
-from passlib.context import CryptContext
+from app.api.v1.service.auth_service import AuthService
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.register import deeplinks
 from app.api.v1.register.commservice import call_communication_api
-from app.api.v1.register.service import UserVerifyService
+from app.api.v1.register.service import UserVerifyService, DeviceService
 from app.api.v1.schemas import (
     RegisterWithProfileRequest,
+    ResendOTPRequest,
     VerifyOTPRegisterRequest,
 )
+from app.api.v1.register.otp import GenerateOtpService
 from app.cache.base import build_cache_key, get_cache, set_cache
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import (
     CacheKeyTemplates,
     CacheTTL,
     ErrorMessages,
+    Intents,
+    RedirectTemplates,
     SuccessMessages,
+    LoginParams,
+    RequestParams,
+    ProcessParams,
 )
 from app.core.exceptions.exceptions import (
     CallingCodeRequired,
     EmailMobileRequired,
     OtpExpired,
+    OtpInvalid,
     PasswordRequired,
+    RegistrationSessionClosed,
     UserExits,
     ValidationError,
 )
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_query
 from app.utils.standard_response import standard_response
-from app.utils.validate_headers import CommonHeaders, validate_common_headers
-
-pwd_context = CryptContext(
-    schemes=["pbkdf2_sha256"],
-    deprecated="auto",
+from app.utils.validate_headers import (
+    CommonHeadersWithoutAuth,
+    validate_headers_without_auth,
 )
 
+
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    password_bytes: bytes
+    if isinstance(password, str):
+        password_bytes = password.encode(LoginParams.UTF8)
+    else:
+        password_bytes = password
+
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode(LoginParams.UTF8)
+
+
+def get_hashed_password(password: str) -> str:
+    password_bytes: bytes
+    if isinstance(password, str):
+        password_bytes = password.encode(LoginParams.UTF8)
+    else:
+        password_bytes = password
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode(LoginParams.UTF8)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    plain_bytes: bytes = (
+        plain_password.encode(LoginParams.UTF8)
+        if isinstance(plain_password, str)
+        else plain_password
+    )
+    hashed_bytes: bytes = (
+        hashed_password.encode(LoginParams.UTF8)
+        if isinstance(hashed_password, str)
+        else hashed_password
+    )
+
+    return bcrypt.checkpw(plain_bytes, hashed_bytes)
+
 
 router = APIRouter()
 
@@ -54,57 +95,47 @@ async def register_with_profile(
     request: Request,
     payload: RegisterWithProfileRequest,
     db_session: AsyncSession = Depends(get_db_session),
-    x_forwarded_for: str | None = Header(None, alias="X-Forwarded-For"), #constant
-    headers: CommonHeaders = Depends(validate_common_headers),
+    x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
+    headers: CommonHeadersWithoutAuth = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
     """Sign Up - Step 1 (Check Existence and Register)"""
-    """cache_key = build_cache_key(
-        CacheKeyTemplates.CACHE_KEY_DEVICE_INVITE_STATUS,
-        payload=payload,
-        platform=headers.platform,
-        version=headers.app_version,
-        country=headers.country,
-    )
-
-    cached_data = await get_cache(cache, cache_key)
-    if cached_data:
-        return standard_response(
-            message=SuccessMessages.USER_CREATED_REDIRECT_OTP,
-            request=request,
-            data=cached_data,
-        )"""
-
     email = payload.email
     mobile = payload.mobile
     calling_code = payload.calling_code
 
-    # x_forwarded = headers.get("x-forwarded-for") # CommonHeaders has no get method
+    # x_forwarded = headers.get("x-forwarded-for") # CommonHeadersWithoutAuth has no get method
     # Use the injected header or request header
-    x_forwarded = x_forwarded_for or request.headers.get("x-forwarded-for")
-    client_ip = x_forwarded.split(",")[0].strip() if x_forwarded else request.client.host
-    print("client", client_ip)
+    x_forwarded = x_forwarded_for or request.headers.get(RequestParams.X_FORWARDED_FOR)
+    client_ip = (
+        x_forwarded.split(",")[0].strip()
+        if x_forwarded
+        else (request.client.host if request.client else RequestParams.LOCALHOST)
+    )
+
     if email:
         user_exists = await execute_query(
             query=UserQueries.CHECK_USER_EXISTS,
             params={
-                "email": email,
-                "mobile": None,
-                "calling_code": None,
+                RequestParams.EMAIL: email,
+                RequestParams.MOBILE: None,
+                RequestParams.CALLING_CODE: None,
             },
             db_session=db_session,
         )
         if user_exists:
             raise UserExits()
-        state = await UserVerifyService.get_user_state_by_email(cache, email, db_session)
+        state = await UserVerifyService.get_user_state_by_email(
+            cache, email, db_session
+        )
 
     elif mobile and calling_code:
         user_exists = await execute_query(
             query=UserQueries.CHECK_USER_EXISTS,
             params={
-                "email": None,
-                "mobile": mobile,
-                "calling_code": calling_code,
+                RequestParams.EMAIL: None,
+                RequestParams.MOBILE: mobile,
+                RequestParams.CALLING_CODE: calling_code,
             },
             db_session=db_session,
         )
@@ -112,7 +143,9 @@ async def register_with_profile(
             raise UserExits(
                 message=ErrorMessages.USER_ALREADY_REGISTERED,
             )
-        state = await UserVerifyService.get_user_state_by_mobile(cache, mobile, calling_code, client_ip, db_session)
+        state = await UserVerifyService.get_user_state_by_mobile(
+            cache, mobile, calling_code, client_ip, db_session
+        )
 
     else:
         raise ValidationError(
@@ -138,26 +171,29 @@ async def register_with_profile(
         )
 
     # Cache Registration Data for Verification step
-    identifier = payload.email if payload.email else f"{payload.calling_code}{payload.mobile}"
+    identifier = (
+        payload.email
+        if payload.email
+        else f"{payload.calling_code}{payload.mobile}".lstrip("+")
+    )
     hashed_password = hash_password(payload.password)
-    registration_data = payload.model_dump(mode="json")
-    registration_data["password"] = hashed_password
-    cache_key = build_cache_key(CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=identifier)
+    registration_data = payload.model_dump(mode=RequestParams.JSON)
+    registration_data[LoginParams.PASSWORD] = hashed_password
+    cache_key = build_cache_key(
+        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=identifier
+    )
     await set_cache(cache, cache_key, registration_data, ttl=CacheTTL.TTL_FAST)
 
-
-    redirect_url = (
-        f"erosnowapp://verify_otp?"
-        f"email={payload.email}&intent=registration"
-        if payload.email
-        else f"erosnowapp://verify_otp?"
-             f"mobile={payload.mobile}&intent=registration"
+    redirect_url = RedirectTemplates.VERIFY_OTP.format(
+        type=RequestParams.EMAIL if payload.email else RequestParams.MOBILE,
+        receiver=payload.email if payload.email else payload.mobile,
+        intent=Intents.REGISTRATION,
     )
 
     return standard_response(
         message=SuccessMessages.USER_CREATED_REDIRECT_OTP,
         request=request,
-        data={"redirect_url": redirect_url},
+        data={LoginParams.REDIRECT_URL: redirect_url},
     )
 
 
@@ -166,6 +202,7 @@ async def verify_otp_register(
     request: Request,
     payload: VerifyOTPRegisterRequest,
     db_session: AsyncSession = Depends(get_db_session),
+    headers: CommonHeadersWithoutAuth = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
     """
@@ -177,64 +214,164 @@ async def verify_otp_register(
     intent = payload.intent
     otp = payload.otp
 
-    receiver = email if email else f"{calling_code}{mobile}"
-    receiver_type = ResponseParams.EMAIL if email else ResponseParams.MOBILE       # constant
+    receiver = email if email else f"{calling_code}{mobile}".lstrip("+")
+    receiver_type = RequestParams.EMAIL if email else RequestParams.MOBILE
 
     # 1. Verify OTP
-    if receiver_type == ResponseParams.EMAIL:
-        redis_key = f"email_otp_{email}_{intent.value}"
-        cached_otp = await cache.get(redis_key)
-        if not cached_otp or cached_otp != otp:
-             raise OtpExpired(message = ErrorMessages.OtpExpired)
-        # Consume OTP?
-        await cache.delete(redis_key)
-    else:
-        # Verify Mobile OTP via external service
-        verify_payload = {
-            "receiver": receiver,
-            "otp": otp,
-            "intent": intent.value,
-        }
-        response = call_communication_api(deeplinks.VERIFY_OTP_URL, verify_payload)
-        if response.get("status") != "success" or not response.get("data"):  # constant
-             raise ValidationError(message=OTP_EXPIRED) 
+    template = (
+        CacheKeyTemplates.OTP_EMAIL
+        if receiver_type == RequestParams.EMAIL
+        else CacheKeyTemplates.OTP_MOBILE
+    )
+    redis_key = template.format(receiver=receiver, intent=intent.value)
+    cached_otp = await cache.get(redis_key)
+
+    if (
+        not cached_otp
+        or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
+        or (isinstance(cached_otp, str) and cached_otp != otp)
+    ):
+        raise OtpExpired()
+
+    await cache.delete(redis_key)
 
     # 2. Retrieve Cached Registration Data
-    cache_key = build_cache_key(CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=receiver)
+    cache_key = build_cache_key(
+        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=receiver
+    )
     cached_data = await get_cache(cache, cache_key)
     if not cached_data:
-       raise ValidationError(message="Registration session expired. Please try again.")  # constant
+        raise RegistrationSessionClosed()
 
     # 3. Register User in DB
     # cached_data contains: email, mobile, calling_code, password (hashed), name, ...
     # Ensure all required params for query are present
     params = {
-        "email": cached_data.get("email"),
-        "mobile": cached_data.get("mobile"),
-        "calling_code": cached_data.get("calling_code"),
-        "password": cached_data.get("password"),
-        "name": cached_data.get("name"),
-        "avatar_id": cached_data.get("avatar_id"),
-        "birth_date": cached_data.get("birth_date"),
-        "profile_image": cached_data.get("profile_image"),
+        RequestParams.EMAIL: cached_data.get(RequestParams.EMAIL),
+        RequestParams.MOBILE: cached_data.get(RequestParams.MOBILE),
+        RequestParams.CALLING_CODE: cached_data.get(RequestParams.CALLING_CODE),
+        LoginParams.PASSWORD: cached_data.get(LoginParams.PASSWORD),
+        LoginParams.NAME: cached_data.get(LoginParams.NAME),
+        LoginParams.AVATAR_ID: cached_data.get(LoginParams.AVATAR_ID),
+        LoginParams.BIRTH_DATE: cached_data.get(LoginParams.BIRTH_DATE),
+        LoginParams.PROFILE_IMAGE: cached_data.get(LoginParams.PROFILE_IMAGE),
+        LoginParams.LOGIN_TYPE: receiver_type,
+        LoginParams.TYPE: LoginParams.REGULAR,
     }
 
+    # date.fromisoformat(params.birth_date)
     user_rows = await execute_query(
-        query=UserQueries.REGISTER_WITH_PROFILE,
-        params=params,
+        query=UserQueries.INSERT_USER,
         db_session=db_session,
+        params=params,
     )
+    await db_session.commit()
 
     # Clear cache
     await cache.delete(cache_key)
-
     data = user_rows[0] if user_rows else {}
-    return standard_response(message="User verified and registered successfully", data=data)
+
+    device_id = headers[RequestParams.DEVICE_ID]
+
+    auth_token, token_expiry = await AuthService.generate_token(
+        user=User(id=data[ProcessParams.ID]),
+        client_id=headers[RequestParams.API_CLIENT],
+        cache=cache,
+        device_id=device_id,
+        db_session=db_session,
+    )
+
+    # Device Registration
+    device_info = await get_device_info(request)
+    device_params = {
+        RequestParams.DEVICE_ID: device_id,
+        RequestParams.USER_ID: data[ProcessParams.ID],
+        RequestParams.DEVICE_NAME: device_info[RequestParams.DEVICE_NAME],
+        RequestParams.DEVICE_TYPE: device_info[RequestParams.DEVICE_TYPE],
+        RequestParams.PLATFORM: device_info[RequestParams.PLATFORM],
+        RequestParams.USER_TOKEN: auth_token,
+    }
+    if device_id:
+        # if device id is not registered than we will register it
+        device_attrs = await execute_query(
+            query=UserQueries.CHECK_DEVICE_EXISTS,
+            db_session=db_session,
+            params={RequestParams.DEVICE_ID: device_id},
+        )
+
+        if not device_attrs:
+            await execute_query(
+                query=UserQueries.INSERT_DEVICE,
+                db_session=db_session,
+                params=device_params,
+            )
+            await db_session.commit()
+
+        # if device id is provided, we need to pass on device attributes in the payload for the login api
+
+    data = dict(data)
+    # attach token to response
+    data[RequestParams.TOKEN] = auth_token
+    data[RequestParams.TOKEN_EXPIRY] = token_expiry
+    user_id = str(user_rows[0][ProcessParams.ID])
+    data[ProcessParams.ID] = user_id
+
+    return standard_response(
+        request=request,
+        message=SuccessMessages.USER_REGISTERED_VERIFIED,
+        data=data,
+    )
 
 
 @router.post("/resend_otp")
-async def resend_otp():
+async def resend_otp(
+    request: Request,
+    payload: ResendOTPRequest,
+    db_session: AsyncSession = Depends(get_db_session),
+    headers: CommonHeadersWithoutAuth = Depends(validate_headers_without_auth),
+    cache: Redis = Depends(get_redis_connection),
+    x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
+) -> JSONResponse:
     """
     Resend OTP (If Expired)
     """
-    return standard_response(message="OTP resent", data={"sent": True})
+    email = payload.email
+    mobile = payload.mobile
+    calling_code = payload.calling_code
+    intent = payload.intent
+
+    receiver = email if email else f"{calling_code}{mobile}".lstrip("+")
+    receiver_type = RequestParams.EMAIL if email else RequestParams.MOBILE
+
+    # Check if registration session exists
+    cache_key = build_cache_key(
+        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=receiver
+    )
+    cached_data = await get_cache(cache, cache_key)
+    if not cached_data:
+        raise RegistrationSessionClosed()
+
+    x_forwarded = x_forwarded_for or request.headers.get(RequestParams.X_FORWARDED_FOR)
+    client_ip = (
+        x_forwarded.split(",")[0].strip()
+        if x_forwarded
+        else (request.client.host if request.client else RequestParams.LOCALHOST)
+    )
+
+    await GenerateOtpService.generate_otp(
+        redis_client=cache,
+        receiver=receiver,
+        receiver_type=receiver_type,
+        intent=intent.value,
+        x_forwarded_for=client_ip,
+        is_resend=True,
+        db_session=db_session,
+        mobile=mobile,
+        calling_code=calling_code,
+    )
+
+    return standard_response(
+        request=request,
+        message=SuccessMessages.OTP_RESENT,
+        data={RequestParams.SENT: True},
+    )

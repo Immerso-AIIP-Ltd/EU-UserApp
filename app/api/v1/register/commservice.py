@@ -1,12 +1,17 @@
 import json
 from asyncio.log import logger
+from typing import Any, Dict
 
 import requests
 
 from app.core.exceptions.exceptions import CommServiceAPICallFailed
 
 
-def call_communication_api(url, payload, method="POST"):
+async def call_communication_api(
+    url: str,
+    payload: Dict[str, Any],
+    method: str = "POST",
+) -> Any:
     """This method is used for calling comm service urls"""
 
     headers = {
@@ -17,8 +22,13 @@ def call_communication_api(url, payload, method="POST"):
 
     response = requests.request(method, url, data=json.dumps(payload), headers=headers)
     if response.status_code != 200:
-        logger.info("COMM API CALL",
-                    extra={"server_response": response.text, "server_response_code": response.status_code})
+        logger.info(
+            "COMM API CALL",
+            extra={
+                "server_response": response.text,
+                "server_response_code": response.status_code,
+            },
+        )
         raise CommServiceAPICallFailed()
     logger.info("COMM API CALL", extra={"server_response": response.json()})
     return response.json()

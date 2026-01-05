@@ -9,6 +9,7 @@ from app.settings import settings
 
 security = HTTPBearer(auto_error=False)
 
+
 async def get_current_user(
     request: Request,
     token: HTTPAuthorizationCredentials = Depends(security),
@@ -33,4 +34,4 @@ async def get_current_user(
     except jwt.InvalidTokenError:
         raise UnauthorizedError(detail="Invalid token")
     except Exception as e:
-        raise UnauthorizedError(detail=f"Could not validate credentials: {str(e)}")
+        raise UnauthorizedError(detail=f"Could not validate credentials: {e!s}")

@@ -34,11 +34,11 @@ class UserQueries:
 
     UPSERT_DEVICE_INVITE = text(
         """
-        INSERT INTO user_app.invite_device (device_id, coupon_id)
+        INSERT INTO user_app.invite_device (device_id, coupon_id, created_at)
         VALUES (:device_id, :coupon_id, NOW())
         ON CONFLICT (device_id)
         DO UPDATE SET
-            coupon_id = EXCLUDED.coupon_id,
+            coupon_id = EXCLUDED.coupon_id
         RETURNING device_id
     """,
     )
@@ -46,10 +46,10 @@ class UserQueries:
     CONSUME_COUPON = text(
         """
         UPDATE user_app.invite_coupon
-        SET is_consumed = TRUE,
+        SET status = 'used',
             consumed_at = NOW()
         WHERE id = :coupon_uuid
-        """    
+        """,
     )
 
     INVITE_DEVICE_WITH_COUPON = text(
@@ -58,7 +58,7 @@ class UserQueries:
             :device_id,
             :coupon_id
         )
-        """
+        """,
     )
 
     # ==================== REGISTRATION ====================
@@ -107,7 +107,9 @@ class UserQueries:
             calling_code,
             password,
             login_type,
-            status,
+            type,
+            is_email_verified,
+            is_mobile_verified,
             created_at
         )
         VALUES (
@@ -116,7 +118,9 @@ class UserQueries:
             :calling_code,
             :password,
             :login_type,
-            :status,
+            :type,
+            CASE WHEN CAST(:login_type AS varchar) = 'email' THEN TRUE ELSE FALSE END,
+            CASE WHEN CAST(:login_type AS varchar) = 'mobile' THEN TRUE ELSE FALSE END,
             NOW()
         )
         RETURNING id;
@@ -296,15 +300,131 @@ class UserQueries:
         """,
     )
 
+    INSERT_FRIEND_INVITE = text(
+        """
+        INSERT INTO user_app.friend_invite (
+            inviter_id,
+            invited_email,
+            invited_mobile,
+            invited_calling_code,
+            status,
+            invite_token,
+            invite_sent_at,
+            invited_user_id,
+            waitlist_id,
+            created_at,
+            modified_at
+        )
+        VALUES (
+            :inviter_id,
+            :invited_email,
+            :invited_mobile,
+            :invited_calling_code,
+            'pending',
+            :invite_token,
+            NOW(),
+            :invited_user_id,
+            :waitlist_id,
+            NOW(),
+            NOW()
+        )
+        ON CONFLICT (invite_token) DO NOTHING
+        RETURNING id;
+        """
+    )
+
+    CHECK_FRIEND_INVITE_EXISTS_EMAIL = text(
+        """
+        SELECT id FROM user_app.friend_invite
+        WHERE inviter_id = :inviter_id AND invited_email = :email
+        LIMIT 1;
+        """
+    )
+
+    CHECK_FRIEND_INVITE_EXISTS_MOBILE = text(
+        """
+        SELECT id FROM user_app.friend_invite
+        WHERE inviter_id = :inviter_id AND invited_mobile = :mobile AND invited_calling_code = :calling_code
+        LIMIT 1;
+        """
+    )
+
     JOIN_WAITLIST = text(
         """
         SELECT * FROM user_app.join_waitlist(
             :device_id,
-            :email_id,
+            :email,
             :mobile,
             :calling_code
         );
         """,
+    )
+
+    GET_WAITLIST_BY_DEVICE_AND_EMAIL = text(
+        """
+        SELECT * FROM user_app.waitlist
+        WHERE device_id = :device_id AND email = :email
+        LIMIT 1;
+        """
+    )
+
+    GET_WAITLIST_BY_EMAIL = text(
+        """
+        SELECT * FROM user_app.waitlist
+        WHERE email = :email
+        LIMIT 1;
+        """
+    )
+
+    GET_WAITLIST_BY_DEVICE = text(
+        """
+        SELECT * FROM user_app.waitlist
+        WHERE device_id = :device_id
+        LIMIT 1;
+        """
+    )
+
+    GET_WAITLIST_BY_MOBILE = text(
+        """
+        SELECT * FROM user_app.waitlist
+        WHERE mobile = :mobile AND calling_code = :calling_code
+        LIMIT 1;
+        """
+    )
+
+    UPDATE_WAITLIST_VERIFIED = text(
+        """
+        UPDATE user_app.waitlist
+        SET is_verified = TRUE, modified_at = NOW()
+        WHERE id = :id
+        RETURNING id, queue_number;
+        """
+    )
+
+    INSERT_WAITLIST_ENTRY = text(
+        """
+        INSERT INTO user_app.waitlist (
+            device_id,
+            email,
+            mobile,
+            calling_code,
+            queue_number,
+            is_verified,
+            created_at,
+            modified_at
+        )
+        VALUES (
+            :device_id,
+            :email,
+            :mobile,
+            :calling_code,
+            (SELECT COALESCE(MAX(queue_number), 0) + 1 FROM user_app.waitlist),
+            FALSE,
+            NOW(),
+            NOW()
+        )
+        RETURNING id, queue_number;
+        """
     )
 
     WAITLIST_VERIFY_OTP = text(
@@ -337,7 +457,7 @@ class UserQueries:
         JOIN user_app.social_identity_provider sip ON u.id = sip.user_id
         WHERE sip.provider = :provider AND sip.provider_user_id = :social_id
         LIMIT 1;
-        """
+        """,
     )
 
     SIGNUP_WITH_SOCIAL_DATA = text(
@@ -351,7 +471,7 @@ class UserQueries:
             :platform,
             :user_agent
         );
-        """
+        """,
     )
 
     UPSERT_SOCIAL_IDENTITY_PROVIDER = text(
@@ -362,7 +482,7 @@ class UserQueries:
             provider_user_id = EXCLUDED.provider_user_id,
             provider_token = EXCLUDED.provider_token,
             updated_at = NOW();
-        """
+        """,
     )
 
     # ==================== ACCOUNT ====================
@@ -374,7 +494,7 @@ class UserQueries:
             logged_out_at = NOW(),
             logout_reason = 'user_initiated'
         WHERE user_id = :user_id AND device_id = :device_id AND is_active = TRUE
-        """
+        """,
     )
 
     UPDATE_USER_DEACTIVATED = text(
@@ -385,7 +505,7 @@ class UserQueries:
             deactivated_at = NOW(),
             modified_at = NOW()
         WHERE id = :user_id
-        """
+        """,
     )
     # ==================== AUTHENTICATION ====================
     GET_APP_CONSUMER = text(
@@ -394,7 +514,7 @@ class UserQueries:
         FROM user_app.app_consumer
         WHERE client_id = :client_id
         LIMIT 1;
-        """
+        """,
     )
 
     INSERT_USER_AUTH_TOKEN = text(
@@ -419,9 +539,8 @@ class UserQueries:
             TRUE,
             NOW()
         );
-        """
+        """,
     )
-
 
     GET_USER_FOR_LOGIN = text(
         """
@@ -429,14 +548,7 @@ class UserQueries:
         FROM user_app.user
         WHERE 
             (email = :email OR mobile = :mobile)
-        """
-    )
-
-    INSERT_USER = text(
-        """
-        INSERT INTO user_app.user (id, email, mobile, calling_code, password, name)
-        VALUES (:user_id, :email, :mobile, :calling_code, :password, :name)
-        """
+        """,
     )
 
     GET_CLIENT_SECRET = text(
@@ -445,7 +557,7 @@ class UserQueries:
         FROM user_app.app_consumer
         WHERE client_id = :client_id
         LIMIT 1
-        """
+        """,
     )
 
     GET_USER_PROFILE = text(
@@ -457,30 +569,30 @@ class UserQueries:
             image_url AS image
         FROM user_app.user_profile
         WHERE id = :user_id
-        """
+        """,
     )
 
     GET_USER_BY_EMAIL = text(
         """
         SELECT id, email, mobile, calling_code, state
-        FROM user_app.user
+        FROM user_app.waitlist
         WHERE email = :email
-        """
+        """,
     )
 
     GET_USER_BY_MOBILE = text(
         """
         SELECT id, email, mobile, calling_code, state
-        FROM user_app.user
+        FROM user_app.waitlist
         WHERE mobile = :mobile AND calling_code = :calling_code
-        """
+        """,
     )
     UPDATE_USER_PASSWORD = text(
         """
         UPDATE user_app.user
         SET password = :password
         WHERE id = :user_id
-        """
+        """,
     )
 
     GET_USER_PASSWORD_HASH = text(
@@ -488,7 +600,7 @@ class UserQueries:
         SELECT password
         FROM user_app.user
         WHERE id = :user_id
-        """
+        """,
     )
 
     DEACTIVATE_USER_TOKEN = text(
@@ -496,33 +608,33 @@ class UserQueries:
         UPDATE user_app.user_auth_token
         SET is_active = False
         WHERE token = :token AND device_id = :device_id
-        """
+        """,
     )
 
     # ==================== DEVICE MANAGEMENT ====================
     GET_DEVICE_BY_ID = text(
         """
         SELECT * FROM user_app.device WHERE device_id = :device_id LIMIT 1
-        """
+        """,
     )
 
     CHECK_DEVICE_EXISTS = text(
         """
         SELECT 1 FROM user_app.device WHERE device_id = :device_id LIMIT 1
-        """
+        """,
     )
 
     INSERT_DEVICE = text(
         """
         INSERT INTO user_app.device (
-            device_id, device_type, device_name, platform, device_ip, 
-            is_rooted, is_jailbroken, push_token, device_active, created_at
+            device_id, user_id, device_name, platform, device_type,
+            device_active, user_token, created_at, modified_at
         ) VALUES (
-            :device_id, :device_type, :device_name, :platform, :device_ip,
-            :is_rooted, :is_jailbroken, :push_token, TRUE, NOW()
+            :device_id, :user_id, :device_name, :device_type, :platform,
+            TRUE, :user_token, NOW(), NOW()
         )
         RETURNING device_id
-        """
+        """,
     )
 
     UPDATE_DEVICE = text(
@@ -534,9 +646,9 @@ class UserQueries:
             push_token = COALESCE(:push_token, push_token),
             modified_at = NOW()
         WHERE device_id = :device_id
-        """
+        """,
     )
-    
+
     LINK_DEVICE_TO_USER = text(
         """
         UPDATE user_app.device
@@ -547,9 +659,9 @@ class UserQueries:
             date_deactivated = NULL,
             modified_at = NOW()
         WHERE device_id = :device_id
-        """
+        """,
     )
-    
+
     DEACTIVATE_DEVICE = text(
         """
         UPDATE user_app.device
@@ -558,20 +670,20 @@ class UserQueries:
             date_deactivated = NOW(),
             modified_at = NOW()
         WHERE device_id = :device_id AND user_id = :user_id
-        """
+        """,
     )
-    
+
     DEACTIVATE_USER_AUTH_TOKEN = text(
         """
         UPDATE user_app.user_auth_token
         SET is_active = FALSE
         WHERE uuid = :user_id AND token = :token
-        """
+        """,
     )
-    
+
     GET_ACTIVE_DEVICES_FOR_USER = text(
         """
         SELECT * FROM user_app.device 
         WHERE user_id = :user_id AND device_active = TRUE
-        """
+        """,
     )

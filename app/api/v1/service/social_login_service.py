@@ -1,23 +1,24 @@
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any
+
 from redis.asyncio import Redis
-from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
-from app.db.utils import execute_query
-from app.api.v1.service.auth_service import AuthService
-from app.api.v1.service.google_oauth_service import GoogleOAuthService
 from app.api.v1.service.apple_oauth_service import AppleOAuthService
+from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
+from app.api.v1.service.google_oauth_service import GoogleOAuthService
+from app.db.utils import execute_query
 
 
 class SocialLoginService:
     @staticmethod
     async def google_login(
         google_service: GoogleOAuthService,
-        request_data: dict,
+        request_data: dict[str, Any],
         db_session: AsyncSession,
         cache: Redis,
-    ):
+    ) -> dict[str, Any]:
         """
         Handle Google Social Login business logic.
         """
@@ -39,12 +40,14 @@ class SocialLoginService:
             user = dict(rows[0])
         else:
             # 3. New user, signup with social
-            # We check if user exists with the same email first (optional based on requirements, 
+            # We check if user exists with the same email first (optional based on requirements,
             # but usually social login should link to existing account if email matches)
             email = google_service.get_email()
             if email:
                 email_rows = await execute_query(
-                    UserQueries.GET_USER_BY_EMAIL, {"email": email}, db_session
+                    UserQueries.GET_USER_BY_EMAIL,
+                    {"email": email},
+                    db_session,
                 )
                 if email_rows:
                     user = dict(email_rows[0])
@@ -87,8 +90,11 @@ class SocialLoginService:
         )
 
         # 5. Generate Auth Token
+        # 5. Generate Auth Token
+        from app.db.models.user_app import User
+
         token, expires_at = await AuthService.generate_token(
-            user_uuid=user_id,
+            user=User(id=user_id),
             client_id=request_data["client_id"],
             db_session=db_session,
             cache=cache,
@@ -97,7 +103,9 @@ class SocialLoginService:
 
         # Get user details for response
         profile_rows = await execute_query(
-            UserQueries.GET_USER_PROFILE, {"user_id": user_id}, db_session
+            UserQueries.GET_USER_PROFILE,
+            {"user_id": user_id},
+            db_session,
         )
         user_profile = dict(profile_rows[0]) if profile_rows else {}
 
@@ -114,10 +122,10 @@ class SocialLoginService:
     @staticmethod
     async def apple_login(
         apple_service: AppleOAuthService,
-        request_data: dict,
+        request_data: dict[str, Any],
         db_session: AsyncSession,
         cache: Redis,
-    ):
+    ) -> dict[str, Any]:
         """
         Handle Apple Social Login business logic.
         """
@@ -140,15 +148,17 @@ class SocialLoginService:
         else:
             # 3. New user, signup with social
             email = apple_service.get_email()
-            
+
             # Note: Apple sometimes hides email (private relay), so email could be None or a privaterelay email.
             if email:
                 email_rows = await execute_query(
-                    UserQueries.GET_USER_BY_EMAIL, {"email": email}, db_session
+                    UserQueries.GET_USER_BY_EMAIL,
+                    {"email": email},
+                    db_session,
                 )
                 if email_rows:
                     user = dict(email_rows[0])
-            
+
             if not user:
                 signup_rows = await execute_query(
                     UserQueries.SIGNUP_WITH_SOCIAL_DATA,
@@ -156,7 +166,7 @@ class SocialLoginService:
                         "provider": provider,
                         "social_id": social_id,
                         "email": email,
-                        "name": apple_service.get_name(), # Likely None for existing Apple logic unless we extend
+                        "name": apple_service.get_name(),  # Likely None for existing Apple logic unless we extend
                         "country": request_data.get("country"),
                         "platform": request_data.get("platform"),
                         "user_agent": request_data.get("user_agent"),
@@ -167,7 +177,7 @@ class SocialLoginService:
                     user = dict(signup_rows[0])
 
         if not user:
-             raise Exception("Failed to find or create user via social login")
+            raise Exception("Failed to find or create user via social login")
 
         user_id = user["id"]
 
@@ -184,8 +194,10 @@ class SocialLoginService:
         )
 
         # 5. Generate Auth Token
+        from app.db.models.user_app import User
+
         token, expires_at = await AuthService.generate_token(
-            user_uuid=user_id,
+            user=User(id=user_id),
             client_id=request_data["client_id"],
             db_session=db_session,
             cache=cache,
@@ -194,7 +206,9 @@ class SocialLoginService:
 
         # Get user details for response
         profile_rows = await execute_query(
-            UserQueries.GET_USER_PROFILE, {"user_id": user_id}, db_session
+            UserQueries.GET_USER_PROFILE,
+            {"user_id": user_id},
+            db_session,
         )
         user_profile = dict(profile_rows[0]) if profile_rows else {}
 
@@ -211,16 +225,16 @@ class SocialLoginService:
     @staticmethod
     async def facebook_login(
         facebook_service: FacebookOAuthService,
-        request_data: dict,
+        request_data: dict[str, Any],
         db_session: AsyncSession,
         cache: Redis,
-    ):
+    ) -> dict[str, Any]:
         """
         Handle Facebook Social Login business logic.
         """
         # 1. Verify Facebook Access Token
         # Facebook verification matches ID against UID inside verify_access_token so we pass uid
-        facebook_service.verify_access_token(request_data["uid"])
+        await facebook_service.verify_access_token(request_data["uid"])
 
         # 2. Get user by social login
         social_id = facebook_service.get_uid()
@@ -238,14 +252,16 @@ class SocialLoginService:
         else:
             # 3. New user, signup with social
             email = facebook_service.get_email()
-            
+
             if email:
                 email_rows = await execute_query(
-                    UserQueries.GET_USER_BY_EMAIL, {"email": email}, db_session
+                    UserQueries.GET_USER_BY_EMAIL,
+                    {"email": email},
+                    db_session,
                 )
                 if email_rows:
                     user = dict(email_rows[0])
-            
+
             if not user:
                 signup_rows = await execute_query(
                     UserQueries.SIGNUP_WITH_SOCIAL_DATA,
@@ -264,7 +280,7 @@ class SocialLoginService:
                     user = dict(signup_rows[0])
 
         if not user:
-             raise Exception("Failed to find or create user via social login")
+            raise Exception("Failed to find or create user via social login")
 
         user_id = user["id"]
 
@@ -281,8 +297,11 @@ class SocialLoginService:
         )
 
         # 5. Generate Auth Token
+        # 5. Generate Auth Token
+        from app.db.models.user_app import User
+
         token, expires_at = await AuthService.generate_token(
-            user_uuid=user_id,
+            user=User(id=user_id),
             client_id=request_data["client_id"],
             db_session=db_session,
             cache=cache,
@@ -291,7 +310,9 @@ class SocialLoginService:
 
         # Get user details for response
         profile_rows = await execute_query(
-            UserQueries.GET_USER_PROFILE, {"user_id": user_id}, db_session
+            UserQueries.GET_USER_PROFILE,
+            {"user_id": user_id},
+            db_session,
         )
         user_profile = dict(profile_rows[0]) if profile_rows else {}
 

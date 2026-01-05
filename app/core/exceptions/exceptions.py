@@ -1,16 +1,16 @@
 """Custom exceptions for the application."""
 
 from typing import Optional
+
 from fastapi.responses import JSONResponse
 from starlette import status
 
 from app.core.constants import ErrorCodes, ErrorMessages
 
 
-
 class AppException(Exception):
     """Base exception class for application errors."""
-    
+
     def __init__(
         self,
         status_code: int,
@@ -23,6 +23,7 @@ class AppException(Exception):
         self.error_type = error_type
         self.detail = detail
         super().__init__(self.detail)
+
 
 class AppError(Exception):
     """Base application exception."""
@@ -315,9 +316,10 @@ class ForgotPassword(AppError):
 
 # Add to existing exceptions file
 
+
 class UserNotFoundException(AppException):
     """Raised when user profile is not found."""
-    
+
     def __init__(self, detail: str = ErrorMessages.USER_NOT_FOUND):
         super().__init__(
             status_code=404,
@@ -329,7 +331,7 @@ class UserNotFoundException(AppException):
 
 class ProfileFetchException(AppException):
     """Raised when profile fetch fails."""
-    
+
     def __init__(self, detail: str = ErrorMessages.PROFILE_FETCH_FAILED):
         super().__init__(
             status_code=403,
@@ -339,12 +341,9 @@ class ProfileFetchException(AppException):
         )
 
 
-
-
-
 class ClientIdValidationFailed(AppError):
     """Raised when client ID validation fails."""
-    
+
     http_code = status.HTTP_401_UNAUTHORIZED
     message = ErrorMessages.CLIENT_ID_VALIDATION_FAILED
     error_code = ErrorCodes.CLIENT_ID_VALIDATION_FAILED_CODE
@@ -360,7 +359,7 @@ class InvalidInput(AppError):
 
 
 class UserNotFound(AppError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_404_NOT_FOUND,
             message=ErrorMessages.USER_NOT_FOUND,
@@ -369,16 +368,16 @@ class UserNotFound(AppError):
 
 
 class AccountBlocked(AppError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_409_CONFLICT,
-            message=ErrorMessages.ACCOUNT_BLOCKED,
+            message=ErrorMessages.ACCOUNT_LOCKED,
             error_code=ErrorCodes.US409,
         )
 
 
 class PasswordsDoNotMatch(AppError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_400_BAD_REQUEST,
             message=ErrorMessages.PASSWORDS_DO_NOT_MATCH,
@@ -387,7 +386,7 @@ class PasswordsDoNotMatch(AppError):
 
 
 class InvalidOldPassword(AppError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_400_BAD_REQUEST,
             message=ErrorMessages.INVALID_OLD_PASSWORD,
@@ -396,7 +395,7 @@ class InvalidOldPassword(AppError):
 
 
 class UserTokenNotFound(AppError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_401_UNAUTHORIZED,
             message=ErrorMessages.USER_TOKEN_NOT_FOUND,
@@ -405,7 +404,7 @@ class UserTokenNotFound(AppError):
 
 
 class GoogleWrongIssuer(AppError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_401_UNAUTHORIZED,
             message=ErrorMessages.GOOGLE_WRONG_ISSUER,
@@ -414,7 +413,7 @@ class GoogleWrongIssuer(AppError):
 
 
 class InvalidSocialUID(AppError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_401_UNAUTHORIZED,
             message=ErrorMessages.INVALID_SOCIAL_UID,
@@ -423,7 +422,7 @@ class InvalidSocialUID(AppError):
 
 
 class InvalidSocialToken(AppError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_401_UNAUTHORIZED,
             message=ErrorMessages.INVALID_SOCIAL_TOKEN,
@@ -431,8 +430,27 @@ class InvalidSocialToken(AppError):
         )
 
 
+class OtpInvalid(AppError):
+    def __init__(self) -> None:
+        super().__init__(
+            http_code=status.HTTP_400_BAD_REQUEST,
+            message="Invalid OTP",
+            error_code="US400",
+        )
+
+
+class RegistrationSessionClosed(AppError):
+    def __init__(self) -> None:
+        super().__init__(
+            http_code=status.HTTP_400_BAD_REQUEST,
+            message="Registration session closed or expired",
+            error_code="US400",
+        )
+
+
 class AppleKeyFetchError(AppError):
-    def __init__(self):
+
+    def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=ErrorMessages.APPLE_KEY_FETCH_ERROR,
@@ -441,7 +459,7 @@ class AppleKeyFetchError(AppError):
 
 
 class FacebookAuthError(AppError):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_401_UNAUTHORIZED,
             message=ErrorMessages.FACEBOOK_AUTH_ERROR,
@@ -465,3 +483,22 @@ class DeviceNotRegistered(AppError):
             message=detail,
             error_code="US404",
         )
+
+
+class InvalidServiceToken(AppError):
+    def __init__(self) -> None:
+        super().__init__(
+            http_code=status.HTTP_401_UNAUTHORIZED,
+            message=ErrorMessages.USER_TOKEN_NOT_VALID,
+            error_code=ErrorCodes.USER_TOKEN_NOT_VALID,
+        )
+
+
+class InvalidCredentials(AppError):
+    """Invalid credentials provided."""
+
+    def __init__(self, message: str = "Invalid credentials.") -> None:
+        self.http_code = status.HTTP_401_UNAUTHORIZED
+        self.code = ErrorCodes.UNAUTHORIZED_CODE
+        self.message = message
+        super().__init__(message=message)

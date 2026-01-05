@@ -1,12 +1,14 @@
 from datetime import datetime
+from typing import Any, Optional
+
 import google.oauth2.id_token
 from google.auth.transport import requests
 from loguru import logger
 
 from app.core.exceptions import (
+    GoogleWrongIssuer,
     InvalidSocialToken,
     InvalidSocialUID,
-    GoogleWrongIssuer,
 )
 from app.settings import settings
 
@@ -22,9 +24,9 @@ class GoogleOAuthService:
         self.uid = None
         self.name = None
         self.email = None
-        self.expiry = None
+        self.expiry: Optional[datetime] = None
 
-    async def verify_id_token(self, uid: str):
+    async def verify_id_token(self, uid: str) -> Any:
         """Verify the Google ID token."""
         try:
             if self.platform == "ios":
@@ -37,9 +39,11 @@ class GoogleOAuthService:
             # In a real async environment, we might want to run this in a thread pool
             # since verify_oauth2_token is blocking, but for now we'll keep it simple.
             id_info = google.oauth2.id_token.verify_oauth2_token(
-                self.id_token, requests.Request(), google_client_id
+                self.id_token,
+                requests.Request(),
+                google_client_id,
             )
-            
+
             logger.info(f"GOOGLE VERIFY TOKEN response: {id_info}")
 
             if id_info["iss"] not in [
@@ -57,23 +61,23 @@ class GoogleOAuthService:
             self.expiry = datetime.utcfromtimestamp(int(id_info["exp"]))
 
         except ValueError as e:
-            logger.error(f"Google Token Verification Error: {str(e)}")
+            logger.error(f"Google Token Verification Error: {e!s}")
             raise InvalidSocialToken()
         except Exception as e:
-            logger.exception(f"Unexpected error during Google verification: {str(e)}")
+            logger.exception(f"Unexpected error during Google verification: {e!s}")
             raise InvalidSocialToken()
 
-    def get_email(self):
+    async def get_email(self) -> Any:
         return self.email
 
-    def get_name(self):
+    async def get_name(self) -> Any:
         return self.name
 
-    def get_uid(self):
+    async def get_uid(self) -> Any:
         return self.uid
 
-    def get_token(self):
+    async def get_token(self) -> Any:
         return self.id_token
 
-    def get_expiry(self):
+    async def get_expiry(self) -> Any:
         return self.expiry

@@ -19,8 +19,8 @@ class UserLogoutService:
         Logs out the user by invalidating the token in Redis and updating the database.
         And deactivates the device.
         """
-        from app.api.v1.service.device_service import DeviceService
         from app.api.v1.service.auth_service import AuthService
+        from app.api.v1.service.device_service import DeviceService
 
         # 1. Deactivate device (covers redis token removal for device flow)
         if device_id:
@@ -28,7 +28,7 @@ class UserLogoutService:
                 device_id=device_id,
                 user_uuid=user_uuid,
                 db_session=db_session,
-                cache=cache
+                cache=cache,
             )
 
         # 2. Free auth token (DB + Redis)
@@ -37,9 +37,9 @@ class UserLogoutService:
             token=token,
             db_session=db_session,
             cache=cache,
-            device_id=device_id
+            device_id=device_id,
         )
-        
+
         # 3. Update authentication session (replace stored procedure)
         await execute_query(
             UserQueries.UPDATE_AUTH_SESSION_LOGOUT,

@@ -1,12 +1,14 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.schemas import SocialLoginRequest, SocialLoginResponse
 from app.api.v1.service.apple_oauth_service import AppleOAuthService
-from app.api.v1.service.google_oauth_service import GoogleOAuthService
 from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
+from app.api.v1.service.google_oauth_service import GoogleOAuthService
 from app.api.v1.service.social_login_service import SocialLoginService
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import SuccessMessages
@@ -23,15 +25,18 @@ async def google_login(
     login_data: SocialLoginRequest,
     db_session: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
-    headers: dict = Depends(validate_headers_without_auth),
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
 ) -> JSONResponse:
     """
     Google Login / Sign Up API.
-    
+
     Logs in a user via Google OAuth. Creates a new account if it does not exist.
     """
-    google_service = GoogleOAuthService(login_data.token, headers.get("platform"))
-    
+    google_service = GoogleOAuthService(
+        login_data.token,
+        headers.get("platform") or "unknown",
+    )
+
     request_data = {
         "uid": login_data.user_id,
         "client_id": headers.get("api_client"),
@@ -40,14 +45,14 @@ async def google_login(
         "country": headers.get("country"),
         "user_agent": request.headers.get("User-Agent"),
     }
-    
+
     data = await SocialLoginService.google_login(
         google_service=google_service,
         request_data=request_data,
         db_session=db_session,
         cache=cache,
     )
-    
+
     return standard_response(
         message=SuccessMessages.USER_LOGGED_IN,
         request=request,
@@ -61,15 +66,18 @@ async def apple_login(
     login_data: SocialLoginRequest,
     db_session: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
-    headers: dict = Depends(validate_headers_without_auth),
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
 ) -> JSONResponse:
     """
     Apple Login / Sign Up API.
-    
+
     Logs in a user via Apple OAuth. Creates a new account if it does not exist.
     """
-    apple_service = AppleOAuthService(login_data.token, headers.get("platform"))
-    
+    apple_service = AppleOAuthService(
+        login_data.token,
+        headers.get("platform") or "unknown",
+    )
+
     request_data = {
         "uid": login_data.user_id,
         "client_id": headers.get("api_client"),
@@ -78,14 +86,14 @@ async def apple_login(
         "country": headers.get("country"),
         "user_agent": request.headers.get("User-Agent"),
     }
-    
+
     data = await SocialLoginService.apple_login(
         apple_service=apple_service,
         request_data=request_data,
         db_session=db_session,
         cache=cache,
     )
-    
+
     return standard_response(
         message=SuccessMessages.USER_LOGGED_IN,
         request=request,
@@ -99,15 +107,15 @@ async def facebook_login(
     login_data: SocialLoginRequest,
     db_session: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
-    headers: dict = Depends(validate_headers_without_auth),
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
 ) -> JSONResponse:
     """
     Facebook Login / Sign Up API.
-    
+
     Logs in a user via Facebook OAuth. Creates a new account if it does not exist.
     """
     facebook_service = FacebookOAuthService(login_data.token)
-    
+
     request_data = {
         "uid": login_data.user_id,
         "client_id": headers.get("api_client"),
@@ -116,14 +124,14 @@ async def facebook_login(
         "country": headers.get("country"),
         "user_agent": request.headers.get("User-Agent"),
     }
-    
+
     data = await SocialLoginService.facebook_login(
         facebook_service=facebook_service,
         request_data=request_data,
         db_session=db_session,
         cache=cache,
     )
-    
+
     return standard_response(
         message=SuccessMessages.USER_LOGGED_IN,
         request=request,

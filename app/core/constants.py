@@ -39,7 +39,13 @@ class CacheKeyTemplates:
         "device:invite:{device_id}:{coupon_id}:{platform}:{version}:{country}"
     )
     CACHE_KEY_REGISTRATION_DATA = "registration:data:{identifier}"
-    CACHE_KEY_USER_PROFILE = "user_profile:{user_id}:platform:{platform}:version:{version}:country:{country}"
+    CACHE_KEY_USER_PROFILE = (
+        "user_profile:{user_id}:platform:{platform}:version:{version}:country:{country}"
+    )
+    OTP_EMAIL = "email_otp_{receiver}_{intent}"
+    OTP_MOBILE = "mobile_otp_{receiver}_{intent}"
+    BLOCKED_IP = "blocked_ip_{ip_address}_{receiver}"
+    OTP_REQ_COUNT = "otp_reqcount_{ip_address}_{receiver}"
 
 
 class CacheTTL:
@@ -50,7 +56,7 @@ class CacheTTL:
     TTL_EXTENDED = 43200  # 12 hours
     TTL_MAX = 86400  # 24 hours
     TTL_INVITE_DEVICE = 60
-    TTL_USER_PROFILE = 3600 
+    TTL_USER_PROFILE = 3600
 
 
 class QueryTimeouts:
@@ -83,7 +89,55 @@ class RequestParams:
     TRANSLATED_TEXT = "translated_text"
     EMAIL = "email"
     MOBILE = "mobile"
-    
+    X_DEVICE_ID = "x-device-id"
+    X_FORWARD_FOR = "x-forward-for"
+    X_FORWARDED_FOR = "x-forwarded-for"
+    COUNTRY = "country"
+    DEVICE_ID = "device_id"
+    COUPON_ID = "coupon_id"
+    CALLING_CODE = "calling_code"
+    NAME = "name"
+    INVITED_LIST = "invited_list"
+    OTP = "otp"
+    IS_VERIFIED = "is_verified"
+    QUEUE_NUMBER = "queue_number"
+    STATUS = "status"
+    SENT = "sent"
+    INVITED = "invited"
+    DUPLICATES = "duplicates"
+    INVALID = "invalid"
+    FAILED = "failed"
+    X_FORWARDED_FOR = "X-Forwarded-For"
+    X_FORWARD_FOR = "x-forwarded-for"
+    DEVICE = "Device"
+    DEVICE_NAME = "device_name"
+    DEVICE_TYPE = "device_type"
+    OTP_VERIFIED = "otp_verified"
+    INVITER_ID = "inviter_id"
+    INVITED_EMAIL = "invited_email"
+    INVITED_MOBILE = "invited_mobile"
+    INVITED_CALLING_CODE = "invited_calling_code"
+    INVITED_USER_ID = "invited_user_id"
+    WAITLIST_ID = "waitlist_id"
+    API_CLIENT = "api_client"
+    TOKEN = "token"
+    TOKEN_EXPIRY = "token_expiry"
+    USER_TOKEN = "user_token"
+    JSON = "json"
+
+
+class ProcessParams:
+    """Process parameter names."""
+
+    IS_CONSUMED = "is_consumed"
+    IS_EXPIRED = "is_expired"
+    ID = "id"
+    OTP_RESENT = "otp_resent"
+    OTP_SENT = "otp_sent"
+    USER = "user"
+    MODEL_DUMP = "model_dump"
+    EMAIL_ADDRESS = "email address"
+    MOBILE_NUMBER = "mobile number"
 
 
 class ResponseParams:
@@ -95,6 +149,8 @@ class ResponseParams:
     DATA = "data"
     META = "meta"
     ERROR = "error"
+    VERIFICATION_SUCCESS = "verification_success"
+    VERIFIED = "verified"
 
     # Meta fields
     API_VERSION = "api_version"
@@ -110,6 +166,49 @@ class ResponseParams:
     ERROR_DETAILS = "error_details"
 
 
+class CommParams:
+    """Communication payload parameter names."""
+
+    RECIPIENTS = "recipients"
+    SUBJECT = "subject"
+    MESSAGE = "message"
+    HTML_CONTENT = "html_content"
+    TEMPLATE_ID = "template_id"
+    TEMPLATE_PARAMS = "template_params"
+    VARIABLES = "variables"
+    INTENT = "intent"
+    VAR = "var"
+    STATUS = "status"
+
+
+class LoginParams:
+    """Login parameter names."""
+
+    UTF8 = "utf-8"
+    PASSWORD = "password"
+    REDIRECT_URL = "redirect_url"
+    NAME = "name"
+    AVATAR_ID = "avatar_id"
+    BIRTH_DATE = "birth_date"
+    PROFILE_IMAGE = "profile_image"
+    LOGIN_TYPE = "login_type"
+    TYPE = "type"
+    REGULAR = "regular"
+
+
+class EmailTemplates:
+    """Email body and subject templates."""
+
+    FRIEND_INVITE_SUBJECT = "{0} invited you to join!"
+    FRIEND_INVITE_MESSAGE = "Hi,\n\n{0} has invited you to join our platform.\nClick here to register: {1}\n\nThanks!"
+
+
+class RedirectTemplates:
+    """Redirect URL templates for mobile app navigation."""
+
+    VERIFY_OTP = "erosnowapp://verify_otp?{type}={receiver}&intent={intent}"
+
+
 # Custom Messages
 class SuccessMessages:
     """Success messages."""
@@ -121,18 +220,32 @@ class SuccessMessages:
     SUCCESS = "true"
     MESSAGE = "Information retrived successdully"
     DATA = "null"
-    DEVICE_INVITED = "Device is already invited"
+    DEVICE_INVITED = "Device invited successfully"
+    DEVICE_ALREADY_INVITED = "Device already invited"
     USER_CREATED_REDIRECT_OTP = "User Created. Redirect to OTP verification"
     USER_PROFILE_RETRIEVED = "User Information Retrieved"
     USER_LOGGED_IN = "User logged in successfully"
     OTP_SENT = "OTP sent successfully"
     EMAIL_OR_MOBILE_REQUIRED = "Either email or mobile number is required."
     USER_NOT_FOUND = "User not found."
-    ACCOUNT_LOCKED = "Your account is temporarily locked due to multiple failed attempts."
+    ACCOUNT_LOCKED = (
+        "Your account is temporarily locked due to multiple failed attempts."
+    )
     PASSWORD_CHANGED_SUCCESS = "Password changed successfully."
     USER_LOGGED_OUT_SUCCESS = "User was logged out successfully."
     USER_DEACTIVATED_SUCCESS = "Your account has been successfully deactivated."
-
+    USER_REGISTERED_VERIFIED = "User registered and verified successfully."
+    WAITLIST_QUEUE_STATUS = (
+        "You're #{0} in the queue, with this {1}. We'll notify you when it is ready."
+    )
+    WAITLIST_ALREADY_EXISTS = "Already on the Waitlist."
+    WAITLIST_OTP_RESENT = "{0} already exists but not verified. OTP has been resent."
+    WAITLIST_OTP_SENT = "OTP sent to your {0}. Please verify to confirm your spot."
+    FRIEND_INVITES_SENT = "{0} invites sent successfully"
+    EMAIL_ALREADY_VERIFIED = "This email is already verified."
+    MOBILE_ALREADY_VERIFIED = "This mobile number is already verified."
+    OTP_RESENT = "A new OTP has been sent."
+    INVITER_NOT_REGISTERED = "Inviter must be a registered user to send invites."
 
 
 class ErrorCodes:
@@ -182,7 +295,7 @@ class ErrorCodes:
     VALIDATION = "US004"
     USER_NOT_FOUND = "US002"
     BLOCKED = "US003"
-
+    USER_TOKEN_NOT_VALID = "US031"
 
     # Login Specific
     USER_NOT_FOUND_LOGIN_CODE = "US002"
@@ -243,6 +356,11 @@ class ErrorMessages:
     OTP_EXPIRED = "OTP Expired"
     OTP_TOO_MANY_ATTEMPTS = "OTP Too Many Attempts"
     IP_BLOCKED = "IP is blocked"
+    PROVIDE_EMAIL_OR_MOBILE = (
+        "Provide only email OR only mobile with calling_code, not both"
+    )
+    WAITLIST_ENTRY_NOT_FOUND = "No waitlist entry found for this {0}"
+    INVITER_NOT_FOUND = "Inviter not found"
     IP_MISSING = "Client IP not provided"
     REDIS_DOWN = "Redis server is down"
     USER_NOT_FOUND = "User not found"
@@ -250,11 +368,17 @@ class ErrorMessages:
     INVALID_INPUT = "Invalid input data"
     CLIENT_ID_VALIDATION_FAILED = "Invalid Client ID"
     FORGOT_PASSWORD = "FORGOT_PASSWORD"
+    USER_TOKEN_NOT_VALID = "Invalid Token"
+    STATE_NOT_FOUND = "State not found"
+    INVITE_DB_INSERT_FAILED = "INVITE_DB_INSERT_FAILED"
+    INVITE_SEND_FAILED = "INVITE_SEND_FAILED"
 
     # Login Specific
     INCORRECT_PASSWORD = "Incorrect password."
     USER_NOT_FOUND_LOGIN = "User not found."
-    ACCOUNT_LOCKED = "Your account is temporarily locked due to multiple failed login attempts."
+    ACCOUNT_LOCKED = (
+        "Your account is temporarily locked due to multiple failed login attempts."
+    )
     ACCOUNT_LOCKED_DETAILS = "Please try again after some time."
     USER_TOKEN_NOT_FOUND = "Authentication token not found or invalid."
     INVALID_OLD_PASSWORD = "The old password provided is incorrect."
@@ -280,11 +404,13 @@ class Headers:
     X_APP_VERSION = "Application version (eg. 1.0.0)"
     X_API_TOKEN = "API token (x-api-token)."
 
+
 class Intents:
     REGISTRATION = "registration"
     FORGOT_PASSWORD = "forgot_password"
     UPDATE_EMAIL = "update_email"
     UPDATE_MOBILE = "update_mobile"
+    WAITLIST = "waitlist"
 
 
 class Description(str):
@@ -352,11 +478,14 @@ class LoggerConfigs:
     LOG_LEVEL_ERROR = "ERROR"
     LOG_LEVEL_DEBUG = "DEBUG"
 
+
 class AuthConfig:
-    "Authorization constants"
-    
+    """Authorization constants"""
+
     ALGORITHM = "HS256"
     DECODE_CODE = "utf-8"
+
+
 Messages = SuccessMessages
 
 Intent = Intents

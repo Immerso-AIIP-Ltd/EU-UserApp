@@ -41,7 +41,10 @@ def get_app() -> FastAPI:
         return exc.to_response()
 
     @app.exception_handler(AppException)
-    async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+    async def app_exception_handler(
+        request: Request,
+        exc: AppException,
+    ) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status_code,
             content={
@@ -57,9 +60,13 @@ def get_app() -> FastAPI:
         )
 
     @app.exception_handler(Exception)
-    async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    async def global_exception_handler(
+        request: Request,
+        exc: Exception,
+    ) -> JSONResponse:
         logger.exception(f"Unhandled exception: {exc}")
         from app.core.constants import ErrorCodes, ErrorMessages
+
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={

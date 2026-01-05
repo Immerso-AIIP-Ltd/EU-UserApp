@@ -1,17 +1,17 @@
-from typing import Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.schemas import (
-    UserProfileData,
-    UpdateProfileRequest,
-    UpdateEmailMobileRequest,
     UpdateEmailMobileData,
+    UpdateEmailMobileRequest,
+    UpdateProfileRequest,
+    UserProfileData,
 )
 from app.cache.base import build_cache_key, get_cache, set_cache
 from app.cache.dependencies import get_redis_connection
@@ -23,15 +23,14 @@ from app.core.constants import (
     SuccessMessages,
 )
 from app.core.exceptions.exceptions import (
-    UserNotFoundException,
     ProfileFetchException,
+    UserNotFoundException,
 )
+from app.core.middleware.auth import get_current_user
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform
-from app.settings import settings
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import validate_common_headers
-from app.core.middleware.auth import get_current_user
 
 router = APIRouter()
 
@@ -40,9 +39,9 @@ router = APIRouter()
 async def get_user_profile(
     request: Request,
     db_session: AsyncSession = Depends(get_db_session),
-    headers: dict = Depends(validate_common_headers),
+    headers: dict[str, Any] = Depends(validate_common_headers),
     cache: Redis = Depends(get_redis_connection),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> JSONResponse:
     """
     Get authenticated user's profile using x-api-token.
@@ -91,7 +90,7 @@ async def get_user_profile(
     except Exception as e:
         logger.exception(e)
         raise ProfileFetchException(
-            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {str(e)}"
+            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {e!s}",
         )
 
 
@@ -100,9 +99,9 @@ async def update_user_profile(
     request: Request,
     profile_update: UpdateProfileRequest,
     db_session: AsyncSession = Depends(get_db_session),
-    headers: dict = Depends(validate_common_headers),
+    headers: dict[str, Any] = Depends(validate_common_headers),
     cache: Redis = Depends(get_redis_connection),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> JSONResponse:
     """
     Update authenticated user's profile.
@@ -158,7 +157,7 @@ async def update_user_profile(
     except Exception as e:
         logger.exception(e)
         raise ProfileFetchException(
-            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {str(e)}"
+            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {e!s}",
         )
 
 
@@ -167,9 +166,9 @@ async def update_email_mobile(
     request: Request,
     contact_update: UpdateEmailMobileRequest,
     db_session: AsyncSession = Depends(get_db_session),
-    headers: dict = Depends(validate_common_headers),
+    headers: dict[str, Any] = Depends(validate_common_headers),
     cache: Redis = Depends(get_redis_connection),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> JSONResponse:
     """
     Update authenticated user's email or mobile.
@@ -200,7 +199,10 @@ async def update_email_mobile(
 
     try:
         data = await execute_and_transform(
-            query, params, UpdateEmailMobileData, db_session
+            query,
+            params,
+            UpdateEmailMobileData,
+            db_session,
         )
 
         if not data or len(data) == 0:
@@ -225,5 +227,5 @@ async def update_email_mobile(
     except Exception as e:
         logger.exception(e)
         raise ProfileFetchException(
-            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {str(e)}"
+            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {e!s}",
         )
