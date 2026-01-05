@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.schemas import SocialLoginRequest, SocialLoginResponse
+from app.api.v1.schemas import SocialLoginRequest, SocialLoginResponse, FacebookLoginRequest
 from app.api.v1.service.apple_oauth_service import AppleOAuthService
 from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
 from app.api.v1.service.google_oauth_service import GoogleOAuthService
@@ -104,7 +104,7 @@ async def apple_login(
 @router.post("/facebook_login", response_model=SocialLoginResponse)
 async def facebook_login(
     request: Request,
-    login_data: SocialLoginRequest,
+    login_data: FacebookLoginRequest,
     db_session: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
@@ -114,17 +114,16 @@ async def facebook_login(
 
     Logs in a user via Facebook OAuth. Creates a new account if it does not exist.
     """
-    facebook_service = FacebookOAuthService(login_data.token)
-
+    facebook_service = FacebookOAuthService(login_data.token)   
     request_data = {
-        "uid": login_data.user_id,
+        "uid": login_data.uid,
         "client_id": headers.get("api_client"),
         "device_id": headers.get("device_id"),
         "platform": headers.get("platform"),
         "country": headers.get("country"),
         "user_agent": request.headers.get("User-Agent"),
     }
-
+    print("request_data", request_data)
     data = await SocialLoginService.facebook_login(
         facebook_service=facebook_service,
         request_data=request_data,

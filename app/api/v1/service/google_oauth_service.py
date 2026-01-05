@@ -30,14 +30,15 @@ class GoogleOAuthService:
         """Verify the Google ID token."""
         try:
             if self.platform == "ios":
-                google_client_id = settings.google_ios_client_id
+                google_client_id = settings.GOOGLE_IOS_CLIENT_ID
             elif self.platform == "android":
-                google_client_id = settings.google_android_client_id
+                google_client_id = settings.GOOGLE_ANDROID_CLIENT_ID
             else:
-                google_client_id = settings.google_client_id
+                google_client_id = settings.GOOGLE_CLIENT_ID
 
             # In a real async environment, we might want to run this in a thread pool
             # since verify_oauth2_token is blocking, but for now we'll keep it simple.
+            
             id_info = google.oauth2.id_token.verify_oauth2_token(
                 self.id_token,
                 requests.Request(),
@@ -61,7 +62,7 @@ class GoogleOAuthService:
             self.expiry = datetime.utcfromtimestamp(int(id_info["exp"]))
 
         except ValueError as e:
-            logger.error(f"Google Token Verification Error: {e!s}")
+            logger.error(f"Google Token Verification Error: {str(e)}")
             raise InvalidSocialToken()
         except Exception as e:
             logger.exception(f"Unexpected error during Google verification: {e!s}")

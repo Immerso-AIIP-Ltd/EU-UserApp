@@ -2,12 +2,12 @@ import enum
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Optional
-
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 from yarl import URL
 
 TEMP_DIR = Path(gettempdir())
-
 
 class LogLevel(str, enum.Enum):
     """Possible log levels."""
@@ -107,21 +107,14 @@ class Settings(BaseSettings):
 
     # Apple Social Login Settings
     apple_client_id: str = "YOUR_APPLE_CLIENT_ID"
-    apple_ios_client_id: str = "YOUR_APPLE_IOS_CLIENT_ID"
+    apple_ios_client_id: str = "YOUR_APPLE_IOS_CLIENT_ID" 
     apple_team_id: str = "YOUR_APPLE_TEAM_ID"
     apple_key_id: str = "YOUR_APPLE_KEY_ID"
-    apple_private_key: str = (
-        "YOUR_APPLE_PRIVATE_KEY"  # Multiline string recommended to be passed as env var with \n escaped
-    )
+    apple_private_key: str = "YOUR_APPLE_PRIVATE_KEY"  # Multiline string recommended to be passed as env var with \n escaped
 
     # Facebook Social Login Settings
     facebook_client_id: str = "YOUR_FACEBOOK_CLIENT_ID"
     facebook_client_secret: str = "YOUR_FACEBOOK_CLIENT_SECRET"
-
-    # Other settings
-    CACHE_TIMEOUT_FOR_EMAIL_DNS: int = 300
-    skip_partner_auth_redis_check: list[str] = []
-    token_leeway_threshold_in_days: int = 15
 
     @property
     def db_url(self) -> URL:

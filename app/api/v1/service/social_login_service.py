@@ -284,7 +284,16 @@ class SocialLoginService:
 
         user_id = user["id"]
 
-        # 4. Create or update identity provider
+        # 4. Generate Auth Token
+        token, expires_at = await AuthService.generate_token(
+            user_uuid=user_id,
+            client_id=request_data["client_id"],
+            db_session=db_session,
+            cache=cache,
+            device_id=request_data["device_id"],
+        )
+
+        # 5. Create or update identity provider
         await execute_query(
             UserQueries.UPSERT_SOCIAL_IDENTITY_PROVIDER,
             {
@@ -297,11 +306,8 @@ class SocialLoginService:
         )
 
         # 5. Generate Auth Token
-        # 5. Generate Auth Token
-        from app.db.models.user_app import User
-
         token, expires_at = await AuthService.generate_token(
-            user=User(id=user_id),
+            user_uuid=user_id,
             client_id=request_data["client_id"],
             db_session=db_session,
             cache=cache,

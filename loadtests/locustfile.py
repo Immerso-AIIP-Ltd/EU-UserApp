@@ -2,16 +2,15 @@
 # It also triggers the bootstrap process to fetch initial data.
 
 # Import user classes to be included in the test
-from loadtests.users.games import GamesApiUser
-from loadtests.users.vendor import VendorApiUser
-from loadtests.users.progress import ProgressApiUser
+from loadtests.users.register import RegisterUser
+from loadtests.users.login import LoginUser
+from loadtests.users.logout import LogoutUser
+from loadtests.users.profile import ProfileUser
+from loadtests.users.social import SocialUser
+from loadtests.users.device import DeviceUser
 
 # Import and register the bootstrap function
 from loadtests.common.bootstrap import bootstrap_all
-
-# The bootstrap_all function is registered via the @events.test_start.add_listener
-# decorator in the bootstrap module itself. Nothing further is needed here to
-# ensure it runs at the start of the test.
 
 # To run the tests, use the following command:
 # locust -f loadtests/locustfile.py

@@ -377,6 +377,13 @@ class SocialLoginRequest(BaseModel):
     token: str = Field(..., description=Description.OAUTH_TOKEN)
 
 
+class FacebookLoginRequest(BaseModel):
+    """Request schema for Facebook login."""
+
+    uid: str = Field(..., description=Description.SOCIAL_USER_ID)
+    access_token: str = Field(..., description=Description.OAUTH_TOKEN)
+
+
 # ==================== RESPONSE SCHEMAS ====================
 
 T = TypeVar("T", bound=BaseModel)
