@@ -3,10 +3,9 @@ import smtplib
 import socket
 import time
 import traceback
-from typing import Any
 from asyncio.log import logger
+from typing import Any
 
-from app.db.models.user_app import Device
 import dns.resolver
 
 from app.api.v1.register import deeplinks
@@ -17,11 +16,12 @@ from app.cache.utils import get_val, set_val, smembers
 from app.core.constants import Intent
 from app.core.exceptions.exceptions import (
     CommServiceAPICallFailed,
-    ForgotPassword,
-    MobileInvalid,
     DeviceAlreadyRegistered,
     DeviceNotRegistered,
+    ForgotPassword,
+    MobileInvalid,
 )
+from app.db.models.user_app import Device
 
 logger = logging.getLogger("django")
 

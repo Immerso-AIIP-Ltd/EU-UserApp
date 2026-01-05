@@ -1,24 +1,23 @@
 import logging
-import os
 import random
 import string
 from typing import Any, Optional
 
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
-from redis.asyncio import Redis
 from app.api.v1.register.commservice import call_communication_api
 from app.api.v1.register.deeplinks import *
 from app.api.v1.register.task import block_ip_for_24_hours
-from app.core.exceptions import (
-    exceptions,  # as core_exceptions (keeping name 'exceptions' to match usage)
-)
 from app.core.constants import (
     CacheKeyTemplates,
     CommParams,
     RequestParams,
     ResponseParams,
+)
+from app.core.exceptions import (
+    exceptions,  # as core_exceptions (keeping name 'exceptions' to match usage)
 )
 from app.db.utils import execute_query
 
@@ -37,7 +36,7 @@ class GenerateOtpService(object):
         receiver: Any,
     ) -> bool:
         redis_key = CacheKeyTemplates.BLOCKED_IP.format(
-            ip_address=ip_address, receiver=receiver
+            ip_address=ip_address, receiver=receiver,
         )
         val = await redis_client.get(redis_key)
         return val is not None
@@ -49,7 +48,7 @@ class GenerateOtpService(object):
         receiver: Any,
     ) -> int:
         key = CacheKeyTemplates.OTP_REQ_COUNT.format(
-            ip_address=ip_address, receiver=receiver
+            ip_address=ip_address, receiver=receiver,
         )
         try:
             count = await redis_client.incr(key)
@@ -78,7 +77,7 @@ class GenerateOtpService(object):
             otp = "".join(random.choice(string.digits) for _ in range(4))
             # redis.set_val(f"email_otp_{receiver}_{intent}", otp, timeout=180)
             redis_key = CacheKeyTemplates.OTP_EMAIL.format(
-                receiver=receiver, intent=intent
+                receiver=receiver, intent=intent,
             )
             await redis_client.setex(redis_key, 180, otp)
             try:
@@ -209,7 +208,7 @@ class GenerateOtpService(object):
             otp = "".join(random.choice(string.digits) for _ in range(4))
             receiver_for_key = str(receiver).lstrip("+")
             redis_key = CacheKeyTemplates.OTP_MOBILE.format(
-                receiver=receiver_for_key, intent=intent
+                receiver=receiver_for_key, intent=intent,
             )
             await redis_client.setex(redis_key, 180, otp)
 
@@ -240,7 +239,6 @@ class GenerateOtpService(object):
                     # raise exceptions.CommServiceAPICallFailed()
                     # Don't crash hard if SMS fails? original code raised OtpTooManyAttempts if not sent?
                     # Original: if not is_otp_sent: raise exceptions.OtpTooManyAttempts()
-                    pass
             except Exception as e:
                 logger.error(f"SMS Send failed: {e}")
                 # raise exceptions.CommServiceAPICallFailed()

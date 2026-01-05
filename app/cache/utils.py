@@ -1,9 +1,13 @@
 import json
 import logging
 from typing import Any, List, Optional
+
 from redis.asyncio import Redis
 
-logger = logging.getLogger("django")  # Keeping same logger for consistency, or should use "app"? Leaving as is.
+logger = logging.getLogger(
+    "django",
+)  # Keeping same logger for consistency, or should use "app"? Leaving as is.
+
 
 async def sadd(redis_client: Redis, key: str, val: str) -> None:
     try:
@@ -54,7 +58,10 @@ async def lrem(redis_client: Redis, key: str, count: int, val: str) -> None:
 
 
 async def set_dict(
-    redis_client: Redis, key: str, val: Any, timeout: Optional[int] = None,
+    redis_client: Redis,
+    key: str,
+    val: Any,
+    timeout: Optional[int] = None,
 ) -> None:
     try:
         if isinstance(val, (dict, list)):
@@ -78,7 +85,10 @@ async def get_val(redis_client: Redis, key: str) -> Optional[str]:
 
 
 async def set_val(
-    redis_client: Redis, key: str, val: str, timeout: Optional[int] = None,
+    redis_client: Redis,
+    key: str,
+    val: str,
+    timeout: Optional[int] = None,
 ) -> None:
     try:
         await redis_client.set(key, val)

@@ -330,7 +330,7 @@ class UserQueries:
         )
         ON CONFLICT (invite_token) DO NOTHING
         RETURNING id;
-        """
+        """,
     )
 
     CHECK_FRIEND_INVITE_EXISTS_EMAIL = text(
@@ -338,7 +338,7 @@ class UserQueries:
         SELECT id FROM user_app.friend_invite
         WHERE inviter_id = :inviter_id AND invited_email = :email
         LIMIT 1;
-        """
+        """,
     )
 
     CHECK_FRIEND_INVITE_EXISTS_MOBILE = text(
@@ -346,7 +346,7 @@ class UserQueries:
         SELECT id FROM user_app.friend_invite
         WHERE inviter_id = :inviter_id AND invited_mobile = :mobile AND invited_calling_code = :calling_code
         LIMIT 1;
-        """
+        """,
     )
 
     JOIN_WAITLIST = text(
@@ -365,7 +365,7 @@ class UserQueries:
         SELECT * FROM user_app.waitlist
         WHERE device_id = :device_id AND email = :email
         LIMIT 1;
-        """
+        """,
     )
 
     GET_WAITLIST_BY_EMAIL = text(
@@ -373,7 +373,7 @@ class UserQueries:
         SELECT * FROM user_app.waitlist
         WHERE email = :email
         LIMIT 1;
-        """
+        """,
     )
 
     GET_WAITLIST_BY_DEVICE = text(
@@ -381,7 +381,7 @@ class UserQueries:
         SELECT * FROM user_app.waitlist
         WHERE device_id = :device_id
         LIMIT 1;
-        """
+        """,
     )
 
     GET_WAITLIST_BY_MOBILE = text(
@@ -389,7 +389,7 @@ class UserQueries:
         SELECT * FROM user_app.waitlist
         WHERE mobile = :mobile AND calling_code = :calling_code
         LIMIT 1;
-        """
+        """,
     )
 
     UPDATE_WAITLIST_VERIFIED = text(
@@ -398,7 +398,7 @@ class UserQueries:
         SET is_verified = TRUE, modified_at = NOW()
         WHERE id = :id
         RETURNING id, queue_number;
-        """
+        """,
     )
 
     INSERT_WAITLIST_ENTRY = text(
@@ -424,7 +424,7 @@ class UserQueries:
             NOW()
         )
         RETURNING id, queue_number;
-        """
+        """,
     )
 
     WAITLIST_VERIFY_OTP = text(

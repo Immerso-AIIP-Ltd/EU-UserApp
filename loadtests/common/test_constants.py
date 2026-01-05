@@ -20,7 +20,11 @@ DEFAULT_HEADERS = {
     "x-country": "IN",
     "x-app-version": "1.0.0",
 }
-JSON_HEADERS = {**DEFAULT_HEADERS, "Content-Type": "application/json", "accept": "application/json"}
+JSON_HEADERS = {
+    **DEFAULT_HEADERS,
+    "Content-Type": "application/json",
+    "accept": "application/json",
+}
 
 # Bootstrap parameters
 BOOTSTRAP_COUNTRIES_PARAMS = {"appname": "android_app", "limit": 100}

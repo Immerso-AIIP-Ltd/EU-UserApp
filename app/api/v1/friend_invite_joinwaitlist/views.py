@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, Request
@@ -30,13 +31,12 @@ from app.core.constants import (
     SuccessMessages,
 )
 from app.core.exceptions import exceptions
-from app.core.exceptions.exceptions import OtpExpired, OtpInvalid
+from app.core.exceptions.exceptions import OtpExpired
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_query
 from app.settings import settings
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import validate_headers_without_auth
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ async def join_waitlist(
 
     if email_id and not mobile:
         return await _process_email_flow(
-            request, cache, db_session, device_id, email_id, name, client_ip
+            request, cache, db_session, device_id, email_id, name, client_ip,
         )
 
     if mobile and calling_code and not email_id:
@@ -91,9 +91,7 @@ async def join_waitlist(
             client_ip,
         )
 
-    raise exceptions.ValidationError(
-        message=ErrorMessages.PROVIDE_EMAIL_OR_MOBILE
-    )
+    raise exceptions.ValidationError(message=ErrorMessages.PROVIDE_EMAIL_OR_MOBILE)
 
 
 async def _process_email_flow(
@@ -117,7 +115,9 @@ async def _process_email_flow(
         if entry.is_verified:
             return standard_response(
                 request=request,
-                message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(entry.queue_number, RequestParams.DEVICE_ID),
+                message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
+                    entry.queue_number, RequestParams.DEVICE_ID,
+                ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
                     RequestParams.IS_VERIFIED: entry.is_verified,
@@ -137,7 +137,9 @@ async def _process_email_flow(
             )
             return standard_response(
                 request=request,
-                message=SuccessMessages.WAITLIST_OTP_RESENT.format(RequestParams.DEVICE),
+                message=SuccessMessages.WAITLIST_OTP_RESENT.format(
+                    RequestParams.DEVICE,
+                ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
                     RequestParams.IS_VERIFIED: False,
@@ -158,7 +160,7 @@ async def _process_email_flow(
             return standard_response(
                 request=request,
                 message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
-                    entry.queue_number, RequestParams.EMAIL_ADDRESS
+                    entry.queue_number, RequestParams.EMAIL_ADDRESS,
                 ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
@@ -243,7 +245,9 @@ async def _process_mobile_flow(
         if entry.is_verified:
             return standard_response(
                 request=request,
-                message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(entry.queue_number, RequestParams.DEVICE_ID),
+                message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
+                    entry.queue_number, RequestParams.DEVICE_ID,
+                ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
                     RequestParams.IS_VERIFIED: entry.is_verified,
@@ -262,7 +266,9 @@ async def _process_mobile_flow(
             )
             return standard_response(
                 request=request,
-                message=SuccessMessages.WAITLIST_OTP_RESENT.format(RequestParams.DEVICE),
+                message=SuccessMessages.WAITLIST_OTP_RESENT.format(
+                    RequestParams.DEVICE,
+                ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
                     RequestParams.IS_VERIFIED: False,
@@ -283,7 +289,7 @@ async def _process_mobile_flow(
             return standard_response(
                 request=request,
                 message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
-                    entry.queue_number, ProcessParams.MOBILE_NUMBER
+                    entry.queue_number, ProcessParams.MOBILE_NUMBER,
                 ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
@@ -303,7 +309,9 @@ async def _process_mobile_flow(
             )
             return standard_response(
                 request=request,
-                message=SuccessMessages.WAITLIST_OTP_RESENT.format(ProcessParams.MOBILE_NUMBER),
+                message=SuccessMessages.WAITLIST_OTP_RESENT.format(
+                    ProcessParams.MOBILE_NUMBER,
+                ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
                     RequestParams.IS_VERIFIED: False,
@@ -415,11 +423,15 @@ async def verify_waitlist(
     # 1. Verify OTP
     if email_id:
         redis_key = CacheKeyTemplates.OTP_EMAIL.format(
-            receiver=email_id, intent=Intents.WAITLIST
+            receiver=email_id, intent=Intents.WAITLIST,
         )
         cached_otp = await cache.get(redis_key)
-        
-        if not cached_otp or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp) or (isinstance(cached_otp, str) and cached_otp != otp):
+
+        if (
+            not cached_otp
+            or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
+            or (isinstance(cached_otp, str) and cached_otp != otp)
+        ):
             raise OtpExpired()
 
         # Consume OTP
@@ -436,11 +448,15 @@ async def verify_waitlist(
         receiver = f"{calling_code}{mobile}".lstrip("+")
         # Verify OTP
         redis_key = CacheKeyTemplates.OTP_MOBILE.format(
-            receiver=receiver, intent=Intents.WAITLIST
+            receiver=receiver, intent=Intents.WAITLIST,
         )
         cached_otp = await cache.get(redis_key)
 
-        if not cached_otp or (isinstance(cached_otp, bytes) and cached_otp.decode() != payload.otp) or (isinstance(cached_otp, str) and cached_otp != payload.otp):
+        if (
+            not cached_otp
+            or (isinstance(cached_otp, bytes) and cached_otp.decode() != payload.otp)
+            or (isinstance(cached_otp, str) and cached_otp != payload.otp)
+        ):
             raise ValidationError(ErrorMessages.OTP_INVALID_OR_EXPIRED)
 
         # Consume OTP
@@ -457,7 +473,9 @@ async def verify_waitlist(
         )
 
     if not existing_entry:
-        raise exceptions.UserNotFound(message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(ProcessParams.USER))
+        raise exceptions.UserNotFound(
+            message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(ProcessParams.USER),
+        )
 
     entry = existing_entry[0]
 
@@ -474,7 +492,7 @@ async def verify_waitlist(
     return standard_response(
         request=request,
         message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
-            updated_row.queue_number, ResponseParams.VERIFICATION_SUCCESS
+            updated_row.queue_number, ResponseParams.VERIFICATION_SUCCESS,
         ),  # Or a simpler message
         data={
             RequestParams.QUEUE_NUMBER: str(updated_row.queue_number),
@@ -509,7 +527,9 @@ async def resend_waitlist_otp(
         )
         if not existing_entry:
             raise exceptions.UserNotFound(
-                message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(RequestParams.EMAIL)
+                message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(
+                    RequestParams.EMAIL,
+                ),
             )
 
         if existing_entry[0].is_verified:
@@ -540,7 +560,9 @@ async def resend_waitlist_otp(
         )
         if not existing_entry:
             raise exceptions.UserNotFound(
-                message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(RequestParams.MOBILE_NUMBER)
+                message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(
+                    RequestParams.MOBILE_NUMBER,
+                ),
             )
 
         if existing_entry[0].is_verified:
@@ -622,7 +644,7 @@ async def friend_invite(
 
     if not inviter_user_id:
         logger.warning(
-            f"{ErrorMessages.INVITER_NOT_FOUND}: Device {x_device_id}, Email {inviter_email}"
+            f"{ErrorMessages.INVITER_NOT_FOUND}: Device {x_device_id}, Email {inviter_email}",
         )
         return standard_response(
             request=request,
@@ -632,7 +654,11 @@ async def friend_invite(
                 RequestParams.DUPLICATES: [],
                 RequestParams.INVALID: [],
                 RequestParams.FAILED: [
-                    item.model_dump() if hasattr(item, ProcessParams.MODEL_DUMP) else item
+                    (
+                        item.model_dump()
+                        if hasattr(item, ProcessParams.MODEL_DUMP)
+                        else item
+                    )
                     for item in payload.invited_list
                 ],
             },
@@ -648,7 +674,7 @@ async def friend_invite(
         if isinstance(item, str):  # EmailStr
             invited_email = item
         elif isinstance(
-            item, dict
+            item, dict,
         ):  # Should not happen due to Pydantic, but purely for safety
             invited_email = item.get(RequestParams.EMAIL)
             invited_mobile = item.get(RequestParams.MOBILE)
@@ -666,10 +692,10 @@ async def friend_invite(
                 email_payload = {
                     CommParams.RECIPIENTS: [invited_email],
                     CommParams.SUBJECT: EmailTemplates.FRIEND_INVITE_SUBJECT.format(
-                        inviter_email
+                        inviter_email,
                     ),
                     CommParams.MESSAGE: EmailTemplates.FRIEND_INVITE_MESSAGE.format(
-                        inviter_email, settings.web_url
+                        inviter_email, settings.web_url,
                     ),
                     CommParams.HTML_CONTENT: None,
                     CommParams.TEMPLATE_ID: None,
@@ -677,7 +703,7 @@ async def friend_invite(
                 # TODO: Use proper template if available
 
                 resp = await call_communication_api(
-                    deeplinks.MAIL_SEND_URL, email_payload
+                    deeplinks.MAIL_SEND_URL, email_payload,
                 )
                 if (
                     resp and resp.get(CommParams.STATUS) == ResponseParams.SUCCESS
