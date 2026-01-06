@@ -192,12 +192,12 @@ async def execute_query(
             ),
         )
 
-        if result:
+        if result and result.returns_rows:
             rows = result.mappings().all()
             logger.debug(f"Query returned {len(rows)} rows")
             return rows
 
-        logger.debug("Query returned no rows (non-SELECT statement)")
+        logger.debug("Query returned no rows (non-SELECT statement or no rows found)")
         return []
 
     except SQLAlchemyTimeoutError as e:
