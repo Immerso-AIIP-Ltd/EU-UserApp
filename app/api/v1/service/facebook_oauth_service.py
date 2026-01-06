@@ -12,28 +12,26 @@ class FacebookOAuthService:
     NAME = "facebook"
     GRAPH_API_URL = "https://graph.facebook.com/me"
 
-    def __init__(self, access_token: str):
+    def __init__(self, access_token: str) -> None:
         self.access_token = access_token
         self.uid: Optional[str] = None
         self.email: Optional[str] = None
         self.name: Optional[str] = None
 
     async def verify_access_token(self, uid: str) -> Any:
-        """
-        Verify the Facebook Access Token and match UID.
-        """
+        """Verify the Facebook Access Token and match UID."""
         try:
             params = {"access_token": self.access_token, "fields": "id,name,email"}
-            response = requests.get(self.GRAPH_API_URL, params=params)
+            response = requests.get(self.GRAPH_API_URL, params=params, timeout=10)
 
             if response.status_code != 200:
                 logger.error(f"Facebook Graph API Error: {response.text}")
-                raise FacebookAuthError()
+                raise FacebookAuthError
 
             data = response.json()
 
             if data.get("id") != uid:
-                raise InvalidSocialUIDError()
+                raise InvalidSocialUIDError
 
             self.uid = data.get("id")
             self.name = data.get("name")
@@ -45,16 +43,20 @@ class FacebookOAuthService:
             raise
         except Exception as e:
             logger.exception(f"Unexpected error during Facebook verification: {e}")
-            raise FacebookAuthError()
+            raise FacebookAuthError from e
 
     async def get_email(self) -> Any:
+        """Get the user's email."""
         return self.email
 
     async def get_name(self) -> Any:
+        """Get the user's name."""
         return self.name
 
     async def get_uid(self) -> Any:
+        """Get the user's UID."""
         return self.uid
 
     async def get_token(self) -> Any:
+        """Get the access token."""
         return self.access_token

@@ -127,7 +127,6 @@ async def facebook_login(
         "country": headers.get("country"),
         "user_agent": request.headers.get("User-Agent"),
     }
-    print("request_data", request_data)
     data = await SocialLoginService.facebook_login(
         facebook_service=facebook_service,
         request_data=request_data,

@@ -4,21 +4,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.queries import UserQueries
 from app.api.v1.register.otp import GenerateOtpService
 from app.core.constants import Intents, Messages
-from app.core.exceptions.exceptions import AccountBlockedError, UserNotFoundError
+from app.core.exceptions import AccountBlockedError, UserNotFoundError
 from app.db.utils import execute_query
 
 
 class ForgotPasswordService:
+    """Service to handle forgot password logic."""
 
     @staticmethod
     async def forgot_password_email(db: AsyncSession, email: str, cache: Redis) -> str:
+        """Process forgot password request via email."""
         rows = await execute_query(UserQueries.GET_USER_BY_EMAIL, {"email": email}, db)
         if not rows:
-            raise UserNotFoundError()
+            raise UserNotFoundError
 
         user = rows[0]
         if user["state"] == "blocked":
-            raise AccountBlockedError()
+            raise AccountBlockedError
 
         await GenerateOtpService.generate_otp(
             redis_client=cache,
@@ -38,14 +40,15 @@ class ForgotPasswordService:
         ip: str,
         cache: Redis,
     ) -> str:
+        """Process forgot password request via mobile."""
         params = {"mobile": mobile, "calling_code": calling_code}
         rows = await execute_query(UserQueries.GET_USER_BY_MOBILE, params, db)
         if not rows:
-            raise UserNotFoundError()
+            raise UserNotFoundError
 
         user = rows[0]
         if user["state"] == "blocked":
-            raise AccountBlockedError()
+            raise AccountBlockedError
 
         await GenerateOtpService.generate_otp(
             redis_client=cache,

@@ -9,7 +9,7 @@ from redis.asyncio import Redis
 class DeviceTokenRedisService:
     """Service to store device tokens directly in Redis."""
 
-    def __init__(self, redis_client: Redis):
+    def __init__(self, redis_client: Redis) -> None:
         self.redis_client = redis_client
         self.ttl = 86400  # 24 hours default, can be moved to settings
 
@@ -65,9 +65,7 @@ class DeviceTokenRedisService:
         device: dict[str, Any],
         user_uuid: str,
     ) -> dict[str, Any]:
-        """
-        Remove device token from Redis when device is deactivated.
-        """
+        """Remove device token from Redis when device is deactivated."""
         try:
             device_id = device["device_id"]
 
@@ -91,8 +89,8 @@ class DeviceTokenRedisService:
         try:
             # Get all active device tokens for this user from Redis
             device_pattern = f"device_token:{user_uuid}:*"
-            # Note: keys() is blocking in standard Redis, but used here as per requirements.
-            # Ideally use SCAN for large datasets in production.
+            # Note: keys() is blocking in standard Redis, but used here
+            # as per requirements. Ideally use SCAN for large datasets.
             device_keys = await self.redis_client.keys(device_pattern)
 
             active_devices = []
@@ -121,7 +119,9 @@ class DeviceTokenRedisService:
 
         except Exception as e:
             logger.error(
-                f"Failed to update user device list in Redis for user {user_uuid}: {e!s}",
+                "Failed to update user device list in Redis for user {uuid}: {err!s}",
+                uuid=user_uuid,
+                err=e,
             )
 
     async def get_user_device_tokens(self, user_uuid: str) -> list[dict[str, Any]]:

@@ -2,6 +2,7 @@ import random
 import string
 from locust import HttpUser, task, between
 
+
 class WaitlistUser(HttpUser):
     wait_time = between(1, 3)
 
@@ -32,19 +33,18 @@ class WaitlistUser(HttpUser):
         payload = {
             "device_id": self.device_id,
             "email_id": self.email,
-            "name": "LoadTest User"
+            "name": "LoadTest User",
         }
 
         with self.client.post(
-            "/user/v1/waitlist",
-            json=payload,
-            headers=self.headers,
-            catch_response=True
+            "/user/v1/waitlist", json=payload, headers=self.headers, catch_response=True
         ) as response:
             if response.status_code == 200:
                 response.success()
             else:
-                response.failure(f"Join waitlist failed: {response.status_code} - {response.text}")
+                response.failure(
+                    f"Join waitlist failed: {response.status_code} - {response.text}"
+                )
 
     @task(1)
     def resend_otp(self):
@@ -62,12 +62,14 @@ class WaitlistUser(HttpUser):
             "/user/v1/waitlist_resend_otp",
             json=payload,
             headers=self.headers,
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code == 200:
                 response.success()
             else:
-                response.failure(f"Resend OTP failed: {response.status_code} - {response.text}")
+                response.failure(
+                    f"Resend OTP failed: {response.status_code} - {response.text}"
+                )
 
     @task(2)
     def friend_invite(self):
@@ -80,21 +82,21 @@ class WaitlistUser(HttpUser):
         # Invite 2 friends
         friends = [
             f"friend_{''.join(random.choices(string.ascii_lowercase, k=5))}@example.com",
-            f"friend_{''.join(random.choices(string.ascii_lowercase, k=5))}@example.com"
+            f"friend_{''.join(random.choices(string.ascii_lowercase, k=5))}@example.com",
         ]
-        
-        payload = {
-            "invited_list": friends
-        }
+
+        payload = {"invited_list": friends}
 
         # The API requires x-device-id in headers (already in self.headers)
         with self.client.post(
             "/user/v1/friend_invite",
             json=payload,
             headers=self.headers,
-            catch_response=True
+            catch_response=True,
         ) as response:
             if response.status_code == 200:
                 response.success()
             else:
-                response.failure(f"Friend invite failed: {response.status_code} - {response.text}")
+                response.failure(
+                    f"Friend invite failed: {response.status_code} - {response.text}"
+                )

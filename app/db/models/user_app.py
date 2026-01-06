@@ -3,7 +3,6 @@ import enum
 import uuid
 from datetime import datetime
 from datetime import timezone as dt_timezone
-from typing import ClassVar
 
 from sqlalchemy import (
     CHAR,
@@ -71,7 +70,7 @@ class User(Base):
     """Represents the user table."""
 
     __tablename__ = "user"
-    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
+    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(VARCHAR(255), nullable=False, unique=True, index=True)
@@ -133,7 +132,7 @@ class UserProfile(Base):
     """Represents the user_profile table."""
 
     __tablename__ = "user_profile"
-    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
+    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
     id = Column(
         UUID(as_uuid=True),
@@ -167,7 +166,7 @@ class Platform(Base):
     """Represents the platform table."""
 
     __tablename__ = "platform"
-    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
+    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
     platform_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     platform_name = Column(VARCHAR, unique=True, index=True)
@@ -182,7 +181,6 @@ class Platform(Base):
     )
 
     # Relationships
-    # devices = relationship("Device", back_populates="platform")
     devices = relationship(
         "Device",
         back_populates="platform_ref",
@@ -194,7 +192,7 @@ class Device(Base):
     """Represents the device table."""
 
     __tablename__ = "device"
-    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
+    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     device_id = Column(VARCHAR(255), nullable=False, unique=True, index=True)
@@ -243,7 +241,7 @@ class AuthenticationSession(Base):
     """Represents the authentication_session table."""
 
     __tablename__ = "authentication_session"
-    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
+    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(
@@ -287,7 +285,7 @@ class OtpVerification(Base):
     """Represents the otp_verification table."""
 
     __tablename__ = "otp_verification"
-    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
+    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(VARCHAR(255), index=True)
@@ -309,7 +307,7 @@ class OtpToken(Base):
     """Represents the otp_token table."""
 
     __tablename__ = "otp_token"
-    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
+    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(VARCHAR(255))
@@ -330,7 +328,7 @@ class Waitlist(Base):
     """Represents the waitlist table."""
 
     __tablename__ = "waitlist"
-    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
+    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("user_app.user.id"))
@@ -366,7 +364,7 @@ class FriendInvite(Base):
     """Represents the friend_invite table."""
 
     __tablename__ = "friend_invite"
-    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
+    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     inviter_id = Column(
@@ -415,7 +413,7 @@ class InviteCoupon(Base):
     """Represents the invite_coupon table."""
 
     __tablename__ = "invite_coupon"
-    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
+    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     code = Column(VARCHAR(255), unique=True)
@@ -442,7 +440,7 @@ class InviteDevice(Base):
     """Represents the invite_device table."""
 
     __tablename__ = "invite_device"
-    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
+    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     device_id = Column(
@@ -482,7 +480,7 @@ class SocialIdentityProvider(Base):
     """Represents the social_identity_provider table."""
 
     __tablename__ = "social_identity_provider"
-    __table_args__: ClassVar = {"schema": "user_app"}  # type: ignore[misc]
+    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(
@@ -512,6 +510,8 @@ class SocialIdentityProvider(Base):
 
 
 class InviteDeviceCoupon(Base):
+    """Represents a device invitation coupon."""
+
     __tablename__ = "invite_coupon"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     code: Mapped[str] = mapped_column(
@@ -525,6 +525,8 @@ class InviteDeviceCoupon(Base):
 
 
 class DeviceInvite(Base):
+    """Represents an invitation for a specific device."""
+
     __tablename__ = "invite_device"
     device_id = Column(UUID(as_uuid=True), primary_key=True)
     coupon_id = Column(UUID(as_uuid=True), ForeignKey("invite_coupon.id"))
@@ -532,8 +534,10 @@ class DeviceInvite(Base):
 
 
 class UserAuthToken(Base):
+    """Represents an authentication token for a user."""
+
     __tablename__ = "user_auth_token"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__ = {"schema": "user_app"}  # noqa: RUF012
 
     uuid = Column(UUID(as_uuid=True), primary_key=True)
     token = Column(Text)
@@ -555,8 +559,10 @@ class UserAuthToken(Base):
 
 
 class AppConsumer(Base):
+    """Represents an application consumer authorized to use the API."""
+
     __tablename__ = "app_consumer"
-    __table_args__ = {"schema": "user_app"}
+    __table_args__ = {"schema": "user_app"}  # noqa: RUF012
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_name = Column(VARCHAR(128))

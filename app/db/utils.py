@@ -1,6 +1,6 @@
 import asyncio
 import enum
-import random
+import secrets
 import string
 import time
 from contextlib import asynccontextmanager
@@ -264,7 +264,6 @@ async def execute_and_transform(
     """
     step_start = time.perf_counter()
     rows = await execute_query(query, params, db_session, timeout_seconds)
-    print("rrrrrrrrrr", rows)
     logger.info(f"Step 3.1: Execute query took {time.perf_counter() - step_start:.4f}s")
     step_start = time.perf_counter()
     try:
@@ -285,6 +284,7 @@ async def execute_and_transform(
 
 
 async def get_random_string(length: int = 40) -> str:
+    """Generate a cryptographically secure random string."""
     return "".join(
-        [random.choice(string.ascii_letters + string.digits) for _ in range(length)],
+        [secrets.choice(string.ascii_letters + string.digits) for _ in range(length)],
     )

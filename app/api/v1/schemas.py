@@ -148,6 +148,7 @@ class VerifyOTPRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_contact_info(self) -> Self:
+        """Validate that either email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
                 "Either email or mobile with calling_code must be provided.",
@@ -173,6 +174,7 @@ class VerifyOTPRegisterRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_contact_info(self) -> Self:
+        """Validate that either email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
                 "Either email or mobile with calling_code must be provided.",
@@ -213,6 +215,7 @@ class ForgotPasswordRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_contact_info(self) -> Self:
+        """Validate that either email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
                 "Either email or mobile with calling_code must be provided.",
@@ -263,6 +266,7 @@ class UpdateEmailMobileRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_one_field(self) -> Self:
+        """Ensure only one contact method is provided."""
         if self.email and (self.mobile or self.calling_code):
             raise ValueError("Provide only one contact method (email OR mobile).")
         if not self.email and not (self.mobile and self.calling_code):
@@ -286,6 +290,7 @@ class WaitlistRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_contact_info(self) -> Self:
+        """Validate that either email_id or mobile+calling_code is provided."""
         if not self.email_id and not (self.mobile and self.calling_code):
             raise ValueError(
                 "Either email_id or mobile with calling_code must be provided.",
@@ -307,6 +312,7 @@ class VerifyWaitlistRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_contact_info(self) -> Self:
+        """Validate that either email_id or mobile+calling_code is provided."""
         if not self.email_id and not (self.mobile and self.calling_code):
             raise ValueError(
                 "Either email_id or mobile with calling_code must be provided.",
@@ -326,6 +332,7 @@ class ResendWaitlistOtpRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_contact_info(self) -> Self:
+        """Validate that either email_id or mobile+calling_code is provided."""
         if not self.email_id and not (self.mobile and self.calling_code):
             raise ValueError(
                 "Either email_id or mobile with calling_code must be provided.",
@@ -365,6 +372,7 @@ class FriendInviteRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_list(self) -> Self:
+        """Ensure invited_list is not empty."""
         if not self.invited_list:
             raise ValueError("invited_list cannot be empty.")
         return self
@@ -458,6 +466,8 @@ class UserProfileResponse(GenericResponse[UserProfileData]):
 
 
 class DeviceInviteData(BaseModel):
+    """Data schema for Device Invite."""
+
     device_id: str
     coupon_id: Optional[str] = None
 
@@ -467,6 +477,8 @@ class DeviceInviteResponse(GenericResponse[DeviceInviteData]):
 
 
 class WaitlistData(BaseModel):
+    """Data schema for Waitlist status."""
+
     queue_number: Optional[int] = None
     is_verified: Optional[bool] = None
     status: Optional[str] = None
@@ -477,6 +489,8 @@ class WaitlistResponse(GenericResponse[WaitlistData]):
 
 
 class FriendInviteData(BaseModel):
+    """Data schema for Friend Invite results."""
+
     invited: List[Any] = []
     duplicates: List[Any] = []
     invalid: List[Any] = []

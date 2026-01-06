@@ -22,8 +22,9 @@ class ProfileUser(HttpUser):
         }
         # Create user and login to get token
         from loadtests.common.auth import register_and_login
+
         email, auth_token = register_and_login(self.client, self.headers)
-        
+
         if auth_token:
             self.auth_token = auth_token
             self.headers["x-api-token"] = self.auth_token

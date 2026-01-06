@@ -13,6 +13,8 @@ from app.db.utils import execute_query
 
 
 class SocialLoginService:
+    """Service to handle social login business logic."""
+
     @staticmethod
     async def google_login(
         google_service: GoogleOAuthService,
@@ -20,9 +22,7 @@ class SocialLoginService:
         db_session: AsyncSession,
         cache: Redis,
     ) -> dict[str, Any]:
-        """
-        Handle Google Social Login business logic.
-        """
+        """Handle Google Social Login business logic."""
         # 1. Verify Google ID Token
         await google_service.verify_id_token(request_data["uid"])
 
@@ -41,8 +41,9 @@ class SocialLoginService:
             user = dict(rows[0])
         else:
             # 3. New user, signup with social
-            # We check if user exists with the same email first (optional based on requirements,
-            # but usually social login should link to existing account if email matches)
+            # We check if user exists with the same email first (optional based on
+            # requirements, but usually social login should link to existing
+            # account if email matches)
             email = google_service.get_email()
             if email:
                 email_rows = await execute_query(
@@ -52,7 +53,8 @@ class SocialLoginService:
                 )
                 if email_rows:
                     user = dict(email_rows[0])
-                    # If user exists by email, we should still update/create identity provider later
+                    # If user exists by email, we should still update/create identity
+                    # provider later
 
             if not user:
                 # Actually signup
@@ -127,9 +129,7 @@ class SocialLoginService:
         db_session: AsyncSession,
         cache: Redis,
     ) -> dict[str, Any]:
-        """
-        Handle Apple Social Login business logic.
-        """
+        """Handle Apple Social Login business logic."""
         # 1. Verify Apple ID Token
         await apple_service.verify_id_token(request_data["uid"])
 
@@ -150,7 +150,8 @@ class SocialLoginService:
             # 3. New user, signup with social
             email = apple_service.get_email()
 
-            # Note: Apple sometimes hides email (private relay), so email could be None or a privaterelay email.
+            # Note: Apple sometimes hides email (private relay), so email could
+            # be None or a privaterelay email.
             if email:
                 email_rows = await execute_query(
                     UserQueries.GET_USER_BY_EMAIL,
@@ -167,7 +168,7 @@ class SocialLoginService:
                         "provider": provider,
                         "social_id": social_id,
                         "email": email,
-                        "name": apple_service.get_name(),  # Likely None for existing Apple logic unless we extend
+                        "name": apple_service.get_name(),
                         "country": request_data.get("country"),
                         "platform": request_data.get("platform"),
                         "user_agent": request_data.get("user_agent"),
@@ -230,11 +231,10 @@ class SocialLoginService:
         db_session: AsyncSession,
         cache: Redis,
     ) -> dict[str, Any]:
-        """
-        Handle Facebook Social Login business logic.
-        """
+        """Handle Facebook Social Login business logic."""
         # 1. Verify Facebook Access Token
-        # Facebook verification matches ID against UID inside verify_access_token so we pass uid
+        # Facebook verification matches ID against UID inside verify_access_token
+        # so we pass uid
         await facebook_service.verify_access_token(request_data["uid"])
 
         # 2. Get user by social login

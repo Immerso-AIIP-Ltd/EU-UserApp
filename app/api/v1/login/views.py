@@ -19,7 +19,13 @@ from app.api.v1.service.change_password_service import ChangePasswordService
 from app.api.v1.service.forgot_password_service import ForgotPasswordService
 from app.api.v1.service.login_service import LoginService
 from app.cache.dependencies import get_redis_connection
-from app.core.constants import Messages, SuccessMessages
+from app.core.constants import (
+    HeaderKeys,
+    Messages,
+    ProcessParams,
+    RequestParams,
+    SuccessMessages,
+)
 from app.core.exceptions import InvalidInputError
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform
@@ -40,11 +46,11 @@ async def login_user(
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """
-    Authenticate user using Email or Mobile and Password.
-    """
-    device_id = headers.get("x-device-id") or headers.get("device_id")
-    client_id = headers.get("x-api-client") or headers.get("api_client")
+    """Authenticate user using Email or Mobile and Password."""
+    device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
+    client_id = headers.get(HeaderKeys.X_API_CLIENT) or headers.get(
+        HeaderKeys.API_CLIENT,
+    )
 
     # 1. Login via service
     user, token, expires_at = await LoginService.login_user(
@@ -58,7 +64,7 @@ async def login_user(
     # 2. Fetch Full Profile for response
     profile_data_list = await execute_and_transform(
         UserQueries.GET_USER_PROFILE,
-        {"user_id": user["id"]},
+        {RequestParams.USER_ID: user[ProcessParams.ID]},
         UserProfileData,
         db_session,
     )
@@ -67,24 +73,24 @@ async def login_user(
         profile_data_list[0]
         if profile_data_list
         else {
-            "user_id": str(user["id"]),
-            "email": user.get("email"),
-            "name": user.get("name"),
+            RequestParams.USER_ID: str(user[ProcessParams.ID]),
+            RequestParams.EMAIL: user.get(RequestParams.EMAIL),
+            RequestParams.NAME: user.get(RequestParams.NAME),
         }
     )
 
     # 3. Format response
     user_response = {
-        "user_id": str(user["id"]),
-        "email": profile.get("email"),
-        "name": profile.get("name"),
-        "image": profile.get("image"),
+        RequestParams.USER_ID: str(user[ProcessParams.ID]),
+        RequestParams.EMAIL: profile.get(RequestParams.EMAIL),
+        RequestParams.NAME: profile.get(RequestParams.NAME),
+        RequestParams.IMAGE: profile.get(RequestParams.IMAGE),
     }
 
     response_data = {
-        "auth_token": token,
-        "auth_token_expiry": expires_at,
-        "user": user_response,
+        RequestParams.AUTH_TOKEN: token,
+        RequestParams.AUTH_TOKEN_EXPIRY: expires_at,
+        RequestParams.USER: user_response,
     }
 
     return standard_response(
@@ -104,6 +110,7 @@ async def forgot_password(
 ) -> ForgotPasswordResponse:
     """
     Forgot password handler using email or mobile.
+
     Common headers are validated through validate_common_headers().
     """
 
@@ -139,10 +146,9 @@ async def change_password(
     headers: dict[str, Any] = Depends(validate_common_headers),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> ChangePasswordResponse:
-
-    # print("HEADERS FROM DEPENDENCY:", headers)
     """
     Change user password.
+
     Requires valid x-api-token in headers.
     """
     # 1. Get user UUID from token

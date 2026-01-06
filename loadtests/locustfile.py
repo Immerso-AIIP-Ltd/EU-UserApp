@@ -18,6 +18,7 @@ from loadtests.common.bootstrap import bootstrap_all
 
 from locust import HttpUser, task
 
+
 class SanityUser(HttpUser):
     weight = 1
 
