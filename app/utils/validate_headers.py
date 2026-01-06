@@ -19,6 +19,8 @@ class CommonHeaders(BaseModel):
 
 
 class CommonHeadersWithoutAuth(BaseModel):
+    """Pydantic model for common request headers without authentication."""
+
     api_client: str = Field(..., alias="x-api-client")
     device_id: str = Field(..., alias="x-device-id")
     platform: str = Field(..., alias="x-platform")

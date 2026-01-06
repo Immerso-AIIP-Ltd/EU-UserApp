@@ -23,15 +23,14 @@ async def get_current_user(
         raise UnauthorizedError(detail="Missing authentication token")
 
     try:
-        payload = jwt.decode(
+        return jwt.decode(
             token.credentials,
             settings.jwt_secret_key,
             algorithms=[settings.jwt_algorithm],
         )
-        return payload
-    except jwt.ExpiredSignatureError:
-        raise UnauthorizedError(detail="Token has expired")
-    except jwt.InvalidTokenError:
-        raise UnauthorizedError(detail="Invalid token")
+    except jwt.ExpiredSignatureError as e:
+        raise UnauthorizedError(detail="Token has expired") from e
+    except jwt.InvalidTokenError as e:
+        raise UnauthorizedError(detail="Invalid token") from e
     except Exception as e:
-        raise UnauthorizedError(detail=f"Could not validate credentials: {e!s}")
+        raise UnauthorizedError(detail=f"Could not validate credentials: {e!s}") from e

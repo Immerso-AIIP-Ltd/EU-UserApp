@@ -1,18 +1,19 @@
-# A collection of deeplinks that are returned in the responses of some of the onboarding APIs
+# A collection of deeplinks that are returned in the responses of
+# some of the onboarding APIs
 # TODO - update this after getting the actual values from frontend
 from app.settings import settings
 
-LOGIN_SCREEN = "erosnowapp://login?{}"
-OTP_SCREEN = "erosnowapp://verify_otp?{}"
-SET_PASSWORD = "erosnowapp://set_password?{}"
-LINK_ACCOUNT = "erosnowapp://link_account"
+LOGIN_SCREEN = settings.deeplink_login_screen
+OTP_SCREEN = settings.deeplink_otp_screen
+SET_PASSWORD = settings.deeplink_set_password
+LINK_ACCOUNT = settings.deeplink_link_account
 
-VERIFY_OTP_URL = settings.communication_api_url + "/api/v1/comm/otp/validate/"
-GENERATE_OTP_URL = settings.communication_api_url + "/api/v1/comm/otp/generate/"
-MAIL_SEND_URL = settings.communication_api_url + "/api/v1/comm/email/send/"
-SMS_SEND_URL = settings.communication_api_url + "/api/v1/comm/sms/send/"
-MOBILE_VERIFY_URL = settings.communication_api_url + "/api/v1/comm/sms/verify_mobile/"
-FACEBOOOK_AUTH_LINK = "https://graph.facebook.com/oauth/access_token"
-LEGACY_LOGIN = settings.legacy_api_url + "/api/v2/secured/user/login"
-LEGACY_LOGOUT = settings.legacy_api_url + "/api/v2/secured/user/logout"
-LEGACY_MAP_GCM = settings.legacy_api_url + "/api/v2/secured/user/mapgcm"
+VERIFY_OTP_URL = settings.verify_otp_url
+GENERATE_OTP_URL = settings.generate_otp_url
+MAIL_SEND_URL = settings.mail_send_url
+SMS_SEND_URL = settings.sms_send_url
+MOBILE_VERIFY_URL = settings.mobile_verify_url
+FACEBOOOK_AUTH_LINK = settings.facebook_auth_link
+LEGACY_LOGIN = settings.legacy_login_url
+LEGACY_LOGOUT = settings.legacy_logout_url
+LEGACY_MAP_GCM = settings.legacy_map_gcm_url

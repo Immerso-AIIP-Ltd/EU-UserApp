@@ -3,7 +3,6 @@ from pathlib import Path
 from tempfile import gettempdir
 from typing import Optional
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from yarl import URL
 
@@ -101,19 +100,38 @@ class Settings(BaseSettings):
     legacy_oauth_consumer_key: str = "4e297e55a0600bb031c03b579f3151d3050220d41"
     legacy_oauth_consumer_secret: str = "8fadbc16ca36f3d2165a33f43be07411"
 
-    google_client_id: str = Field("", alias="APP_GOOGLE_CLIENT_ID")
-    google_android_client_id: str = Field("", alias="APP_GOOGLE_ANDROID_CLIENT_ID")
-    google_ios_client_id: str = Field("", alias="APP_GOOGLE_IOS_CLIENT_ID")
-    google_web_client_id: str = Field("", alias="APP_GOOGLE_WEB_CLIENT_ID")
+    # Google Social Login Settings
+    google_client_id: str = "YOUR_GOOGLE_CLIENT_ID"
+    google_android_client_id: str = "YOUR_GOOGLE_ANDROID_CLIENT_ID"
+    google_ios_client_id: str = "YOUR_GOOGLE_IOS_CLIENT_ID"
 
-    apple_client_id: str = Field("", alias="APP_APPLE_CLIENT_ID")
-    apple_ios_client_id: str = Field("", alias="APP_APPLE_IOS_CLIENT_ID")
-    apple_team_id: str = Field("", alias="APP_APPLE_TEAM_ID")
-    apple_key_id: str = Field("", alias="APP_APPLE_KEY_ID")
-    apple_private_key: str = Field("", alias="APP_APPLE_PRIVATE_KEY")
+    # Apple Social Login Settings
+    apple_client_id: str = "YOUR_APPLE_CLIENT_ID"
+    apple_ios_client_id: str = "YOUR_APPLE_IOS_CLIENT_ID"
+    apple_team_id: str = "YOUR_APPLE_TEAM_ID"
+    apple_key_id: str = "YOUR_APPLE_KEY_ID"
+    apple_private_key: str = (
+        "YOUR_APPLE_PRIVATE_KEY"
+        # Multiline string recommended to be passed as env var with \n escaped
+    )
+    apple_public_key_url: str = "https://appleid.apple.com/auth/keys"
+    apple_issuer: str = "https://appleid.apple.com"
 
-    facebook_client_id: str = Field("", alias="APP_FACEBOOK_CLIENT_ID")
-    facebook_client_secret: str = Field("", alias="APP_FACEBOOK_CLIENT_SECRET")
+    # Facebook Social Login Settings
+    facebook_client_id: str = "YOUR_FACEBOOK_CLIENT_ID"
+    facebook_client_secret: str = "YOUR_FACEBOOK_CLIENT_SECRET"
+
+    # Other settings
+    CACHE_TIMEOUT_FOR_EMAIL_DNS: int = 300
+    skip_partner_auth_redis_check: list[str] = []
+    token_leeway_threshold_in_days: int = 15
+
+    # Deep Links
+    deeplink_login_screen: str = "erosnowapp://login?{}"
+    deeplink_otp_screen: str = "erosnowapp://verify_otp?{}"
+    deeplink_set_password: str = "erosnowapp://set_password?{}"
+    deeplink_link_account: str = "erosnowapp://link_account"
+    facebook_auth_link: str = "https://graph.facebook.com/oauth/access_token"
 
     @property
     def db_url(self) -> URL:
@@ -213,6 +231,46 @@ class Settings(BaseSettings):
         # Fallback to no auth
         base = self.redis_base if self.redis_base is not None else 1
         return f"redis://{self.redis_host}:{self.redis_port}/{base}"
+
+    @property
+    def verify_otp_url(self) -> str:
+        """URL for verifying OTP via Communication Service."""
+        return f"{self.communication_api_url}/api/v1/comm/otp/validate/"
+
+    @property
+    def generate_otp_url(self) -> str:
+        """URL for generating OTP via Communication Service."""
+        return f"{self.communication_api_url}/api/v1/comm/otp/generate/"
+
+    @property
+    def mail_send_url(self) -> str:
+        """URL for sending emails via Communication Service."""
+        return f"{self.communication_api_url}/api/v1/comm/email/send/"
+
+    @property
+    def sms_send_url(self) -> str:
+        """URL for sending SMS via Communication Service."""
+        return f"{self.communication_api_url}/api/v1/comm/sms/send/"
+
+    @property
+    def mobile_verify_url(self) -> str:
+        """URL for mobile number verification via Communication Service."""
+        return f"{self.communication_api_url}/api/v1/comm/sms/verify_mobile/"
+
+    @property
+    def legacy_login_url(self) -> str:
+        """URL for legacy API login."""
+        return f"{self.legacy_api_url}/api/v2/secured/user/login"
+
+    @property
+    def legacy_logout_url(self) -> str:
+        """URL for legacy API logout."""
+        return f"{self.legacy_api_url}/api/v2/secured/user/logout"
+
+    @property
+    def legacy_map_gcm_url(self) -> str:
+        """URL for mapping GCM tokens in legacy API."""
+        return f"{self.legacy_api_url}/api/v2/secured/user/mapgcm"
 
     model_config = SettingsConfigDict(
         env_file=".env",

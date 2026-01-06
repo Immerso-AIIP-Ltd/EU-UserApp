@@ -18,7 +18,7 @@ class GoogleOAuthService:
 
     NAME = "google"
 
-    def __init__(self, id_token: str, platform: str):
+    def __init__(self, id_token: str, platform: str) -> None:
         self.id_token = id_token
         self.platform = platform
         self.uid = None
@@ -51,10 +51,10 @@ class GoogleOAuthService:
                 "accounts.google.com",
                 "https://accounts.google.com",
             ]:
-                raise GoogleWrongIssuerError()
+                raise GoogleWrongIssuerError
 
             if id_info["sub"] != uid:
-                raise InvalidSocialUIDError()
+                raise InvalidSocialUIDError
 
             self.uid = id_info["sub"]
             self.name = id_info.get("name")
@@ -63,22 +63,27 @@ class GoogleOAuthService:
 
         except ValueError as e:
             logger.error(f"Google Token Verification Error: {e!s}")
-            raise InvalidSocialTokenError()
+            raise InvalidSocialTokenError from e
         except Exception as e:
             logger.exception(f"Unexpected error during Google verification: {e!s}")
-            raise InvalidSocialTokenError()
+            raise InvalidSocialTokenError from e
 
     async def get_email(self) -> Any:
+        """Get the user's email."""
         return self.email
 
     async def get_name(self) -> Any:
+        """Get the user's name."""
         return self.name
 
     async def get_uid(self) -> Any:
+        """Get the user's UID."""
         return self.uid
 
     async def get_token(self) -> Any:
+        """Get the ID token."""
         return self.id_token
 
     async def get_expiry(self) -> Any:
+        """Get the token expiry."""
         return self.expiry

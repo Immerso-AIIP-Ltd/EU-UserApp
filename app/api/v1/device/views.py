@@ -45,7 +45,7 @@ async def check_device_invite_status(
         CacheKeyTemplates.CACHE_KEY_DEVICE_INVITE_STATUS,
         device_id=device_id,
         platform=headers.get(RequestParams.PLATFORM),
-        version=headers.get(RequestParams.API_VERSION),
+        version=headers.get(RequestParams.APP_VERSION),
         country=headers.get(RequestParams.COUNTRY),
     )
 
@@ -122,7 +122,7 @@ async def invite_device(
         CacheKeyTemplates.CACHE_KEY_DEVICE_INVITE_STATUS,
         device_id=payload.device_id,
         platform=headers.get(RequestParams.PLATFORM),
-        version=headers.get(RequestParams.API_VERSION),
+        version=headers.get(RequestParams.APP_VERSION),
         country=headers.get(RequestParams.COUNTRY),
     )
     await cache.delete(cache_key)

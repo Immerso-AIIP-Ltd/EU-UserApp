@@ -48,6 +48,7 @@ from app.utils.validate_headers import (
 
 
 def hash_password(password: str) -> str:
+    """Hash a password using bcrypt."""
     password_bytes: bytes
     if isinstance(password, str):
         password_bytes = password.encode(LoginParams.UTF8)
@@ -58,6 +59,7 @@ def hash_password(password: str) -> str:
 
 
 def get_hashed_password(password: str) -> str:
+    """Hash a password using bcrypt (alias for hash_password)."""
     password_bytes: bytes
     if isinstance(password, str):
         password_bytes = password.encode(LoginParams.UTF8)
@@ -67,6 +69,7 @@ def get_hashed_password(password: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a plain password against a bcrypt hash."""
     plain_bytes: bytes = (
         plain_password.encode(LoginParams.UTF8)
         if isinstance(plain_password, str)
@@ -93,12 +96,11 @@ async def register_with_profile(
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """Sign Up - Step 1 (Check Existence and Register)"""
+    """Sign Up - Step 1 (Check Existence and Register)."""
     email = payload.email
     mobile = payload.mobile
     calling_code = payload.calling_code
 
-    # x_forwarded = headers.get("x-forwarded-for") # CommonHeadersWithoutAuth has no get method
     # Use the injected header or request header
     x_forwarded = x_forwarded_for or request.headers.get(RequestParams.X_FORWARDED_FOR)
     client_ip = (
@@ -118,7 +120,7 @@ async def register_with_profile(
             db_session=db_session,
         )
         if user_exists:
-            raise UserExistsError()
+            raise UserExistsError
         state = await UserVerifyService.get_user_state_by_email(
             cache,
             email,
@@ -206,9 +208,7 @@ async def verify_otp_register(
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """
-    Sign Up - Step 2 (Verify OTP & Create)
-    """
+    """Sign Up - Step 2 (Verify OTP & Create)."""
     email = payload.email
     mobile = payload.mobile
     calling_code = payload.calling_code
@@ -232,7 +232,7 @@ async def verify_otp_register(
         or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
         or (isinstance(cached_otp, str) and cached_otp != otp)
     ):
-        raise OtpExpiredError()
+        raise OtpExpiredError
 
     await cache.delete(redis_key)
 
@@ -243,7 +243,7 @@ async def verify_otp_register(
     )
     cached_data = await get_cache(cache, cache_key)
     if not cached_data:
-        raise RegistrationSessionClosedError()
+        raise RegistrationSessionClosedError
 
     # 3. Register User in DB
     # cached_data contains: email, mobile, calling_code, password (hashed), name, ...
@@ -260,8 +260,6 @@ async def verify_otp_register(
         LoginParams.LOGIN_TYPE: receiver_type,
         LoginParams.TYPE: LoginParams.REGULAR,
     }
-
-    # date.fromisoformat(params.birth_date)
     user_rows = await execute_query(
         query=UserQueries.INSERT_USER,
         db_session=db_session,
@@ -271,7 +269,7 @@ async def verify_otp_register(
 
     # Clear cache
     await cache.delete(cache_key)
-    data = user_rows[0] if user_rows else {}
+    data = dict(user_rows[0]) if user_rows else {}
 
     device_id = headers[RequestParams.DEVICE_ID]
 
@@ -282,7 +280,7 @@ async def verify_otp_register(
         device_id=device_id,
         db_session=db_session,
     )
-
+    await db_session.commit()
     # Device Registration
     device_info = await get_device_info(request)
     device_params = {
@@ -309,7 +307,8 @@ async def verify_otp_register(
             )
             await db_session.commit()
 
-        # if device id is provided, we need to pass on device attributes in the payload for the login api
+        # if device id is provided, we need to pass on device attributes
+        # in the payload for the login api
 
     data_dict: dict[str, Any] = dict(data)  # type: ignore
     # attach token to response
@@ -334,9 +333,7 @@ async def resend_otp(
     cache: Redis = Depends(get_redis_connection),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
 ) -> JSONResponse:
-    """
-    Resend OTP (If Expired)
-    """
+    """Resend OTP (If Expired)."""
     email = payload.email
     mobile = payload.mobile
     calling_code = payload.calling_code
@@ -352,13 +349,13 @@ async def resend_otp(
     )
     cached_data = await get_cache(cache, cache_key)
     if not cached_data:
-        raise RegistrationSessionClosedError()
+        raise RegistrationSessionClosedError
 
     x_forwarded = x_forwarded_for or request.headers.get(RequestParams.X_FORWARDED_FOR)
     client_ip = (
         x_forwarded.split(",")[0].strip()
         if x_forwarded
-        else (request.client.host if request.client else "127.0.0.1")
+        else (request.client.host if request.client else RequestParams.LOCALHOST)
     )
 
     await GenerateOtpService.generate_otp(
