@@ -13,15 +13,12 @@ from app.api.v1.register.commservice import call_communication_api
 from app.api.v1.register.deeplinks import *
 from app.api.v1.register.otp import GenerateOtpService
 from app.cache.utils import get_val, set_val, smembers
-from app.core.constants import Intent
+from app.core.constants import CacheTTL, Intent
 from app.core.exceptions.exceptions import (
-    CommServiceAPICallFailed,
-    DeviceAlreadyRegistered,
-    DeviceNotRegistered,
-    ForgotPassword,
-    MobileInvalid,
+    CommServiceAPICallFailedError,
+    ForgotPasswordError,
+    MobileInvalidError,
 )
-from app.db.models.user_app import Device
 
 logger = logging.getLogger("django")
 
@@ -30,6 +27,7 @@ from app.db.utils import execute_query
 
 
 class MobileVerificationService(object):
+    @staticmethod
     async def mobile_verification_service(mobile: str, calling_code: str) -> None:
         payload = {
             "mobile_number": mobile,
@@ -44,9 +42,9 @@ class MobileVerificationService(object):
         # However, call_communication_api was imported from commservice.
         if "status" in response and response["status"] == "success":
             if not response["data"]["is_valid"]:
-                raise MobileInvalid("Mobile number is not valid.")
+                raise MobileInvalidError("Mobile number is not valid.")
         else:
-            raise CommServiceAPICallFailed()
+            raise CommServiceAPICallFailedError()
 
 
 class EmailDnsVerifyService(object):
@@ -112,13 +110,13 @@ class EmailDnsVerifyService(object):
             self.redis_client,
             "dns.valid_domains.{0}".format(self.email_domain),
             "true",
-            timeout=settings.CACHE_TIMEOUT_FOR_EMAIL_DNS,
+            timeout=CacheTTL.TTL_EXTENDED,
         )
         await set_val(
             self.redis_client,
             "dns.valid_emails.{0}".format(self.email),
             "true",
-            timeout=settings.CACHE_TIMEOUT_FOR_EMAIL_DNS,
+            timeout=CacheTTL.TTL_EXTENDED,
         )
 
     async def get_mx_record_for_domain(self) -> None:
@@ -141,7 +139,7 @@ class EmailDnsVerifyService(object):
                 self.redis_client,
                 "dns.invalid_domains.{0}".format(self.email_domain),
                 "true",
-                timeout=settings.CACHE_TIMEOUT_FOR_EMAIL_DNS,
+                timeout=CacheTTL.TTL_EXTENDED,
             )
             await self.raise_exception("Invalid email domain")
         except Exception as e:
@@ -203,15 +201,15 @@ class EmailDnsVerifyService(object):
             self.redis_client,
             "dns.invalid_emails.{0}".format(self.email),
             message,
-            timeout=settings.CACHE_TIMEOUT_FOR_EMAIL_DNS,
+            timeout=CacheTTL.TTL_EXTENDED,
         )
         await self.raise_exception(message)
 
     async def raise_exception(self, message: str) -> None:
         if self.show_support_message:
-            raise ForgotPassword(message)
+            raise ForgotPasswordError(message)
         else:
-            raise ForgotPassword(message)
+            raise ForgotPasswordError(message)
 
 
 class UserVerifyService(object):
@@ -258,7 +256,7 @@ class UserVerifyService(object):
                 Intent.REGISTRATION,
                 db_session=db_session,
             )
-        return UserVerifyService._get_user_state(user, "email={}".format(email))
+        return await UserVerifyService._get_user_state(user, "email={}".format(email))
 
     # @staticmethod
     # def get_user_by_email(email):
@@ -304,42 +302,7 @@ class UserVerifyService(object):
                 mobile=mobile,
                 calling_code=calling_code,
             )
-        return UserVerifyService._get_user_state(
+        return await UserVerifyService._get_user_state(
             user,
             "mobile=+{}-{}".format(calling_code, mobile),
         )
-
-
-class DeviceService(object):
-    async def is_device_registered(device_id: str) -> bool:
-        return await Device.objects.filter(device_id=device_id).exists()
-
-    async def create_device(device_id: str, **attrs) -> None:
-        if await DeviceService.is_device_registered(device_id):
-            raise DeviceAlreadyRegistered()
-        # make an entry in the new device table
-        # switched to an att dict so that we have more flexibility into fields we accept
-        device = Device(device_id=device_id, **attrs)
-        device.save()
-
-        # Log device creation
-        user_uuid = attrs.get("uuid")
-        logger.info(
-            "Device registered",
-            extra={
-                "device_id": device_id,
-                "user_uuid": user_uuid,
-            },
-        )
-
-        return device
-
-    async def get_device_attrs(device_id):
-        if not await DeviceService.is_device_registered(device_id):
-            raise DeviceNotRegistered()
-        # return any one device row
-        device = Device.objects.filter(device_id=device_id).last()
-        device_attrs = {}
-        for attr in ["device_type", "device_name", "device_id"]:
-            device_attrs[attr] = getattr(device, attr)
-        return device_attrs

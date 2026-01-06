@@ -3,7 +3,7 @@ from typing import Any, Optional
 import requests
 from loguru import logger
 
-from app.core.exceptions import FacebookAuthError, InvalidSocialUID
+from app.core.exceptions import FacebookAuthError, InvalidSocialUIDError
 
 
 class FacebookOAuthService:
@@ -33,7 +33,7 @@ class FacebookOAuthService:
             data = response.json()
 
             if data.get("id") != uid:
-                raise InvalidSocialUID()
+                raise InvalidSocialUIDError()
 
             self.uid = data.get("id")
             self.name = data.get("name")
@@ -41,7 +41,7 @@ class FacebookOAuthService:
 
         except FacebookAuthError:
             raise
-        except InvalidSocialUID:
+        except InvalidSocialUIDError:
             raise
         except Exception as e:
             logger.exception(f"Unexpected error during Facebook verification: {e}")

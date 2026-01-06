@@ -31,7 +31,7 @@ from app.core.constants import (
     SuccessMessages,
 )
 from app.core.exceptions import exceptions
-from app.core.exceptions.exceptions import OtpExpired
+from app.core.exceptions.exceptions import OtpExpiredError
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_query
 from app.settings import settings
@@ -62,21 +62,24 @@ async def join_waitlist(
     client_ip = (
         x_forwarded.split(",")[0].strip()
         if x_forwarded
-        else (request.client.host if request.client else settings.REDIS_HOST)
+        else (request.client.host if request.client else settings.redis_host)
     )
 
     if not device_id:
         raise exceptions.ValidationError(message=ErrorMessages.DEVICE_ID_REQUIRED)
-
-    # Ensure device exists to satisfy Foreign Key constraint
-    # await _ensure_device_exists(db_session=db_session, device_id=device_id, request=request)
 
     if not email_id and not (mobile and calling_code):
         raise exceptions.ValidationError(message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED)
 
     if email_id and not mobile:
         return await _process_email_flow(
-            request, cache, db_session, device_id, email_id, name, client_ip,
+            request,
+            cache,
+            db_session,
+            device_id,
+            email_id,
+            name,
+            client_ip,
         )
 
     if mobile and calling_code and not email_id:
@@ -116,7 +119,8 @@ async def _process_email_flow(
             return standard_response(
                 request=request,
                 message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
-                    entry.queue_number, RequestParams.DEVICE_ID,
+                    entry.queue_number,
+                    RequestParams.DEVICE_ID,
                 ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
@@ -124,28 +128,28 @@ async def _process_email_flow(
                     RequestParams.STATUS: SuccessMessages.WAITLIST_ALREADY_EXISTS,
                 },
             )
-        else:
-            # Resend OTP
-            await GenerateOtpService.generate_otp(
-                redis_client=cache,
-                receiver=email_id,
-                receiver_type=RequestParams.EMAIL,
-                intent=Intents.WAITLIST,
-                x_forwarded_for=x_forwarded_for,
-                is_resend=True,
-                db_session=db_session,
-            )
-            return standard_response(
-                request=request,
-                message=SuccessMessages.WAITLIST_OTP_RESENT.format(
-                    RequestParams.DEVICE,
-                ),
-                data={
-                    RequestParams.QUEUE_NUMBER: str(entry.queue_number),
-                    RequestParams.IS_VERIFIED: False,
-                    RequestParams.STATUS: ProcessParams.OTP_RESENT,
-                },
-            )
+
+        # Resend OTP
+        await GenerateOtpService.generate_otp(
+            redis_client=cache,
+            receiver=email_id,
+            receiver_type=RequestParams.EMAIL,
+            intent=Intents.WAITLIST,
+            x_forwarded_for=x_forwarded_for,
+            is_resend=True,
+            db_session=db_session,
+        )
+        return standard_response(
+            request=request,
+            message=SuccessMessages.WAITLIST_OTP_RESENT.format(
+                RequestParams.DEVICE,
+            ),
+            data={
+                RequestParams.QUEUE_NUMBER: str(entry.queue_number),
+                RequestParams.IS_VERIFIED: False,
+                RequestParams.STATUS: ProcessParams.OTP_RESENT,
+            },
+        )
 
     # 2. Check if email exists
     existing_email = await execute_query(
@@ -160,7 +164,8 @@ async def _process_email_flow(
             return standard_response(
                 request=request,
                 message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
-                    entry.queue_number, RequestParams.EMAIL_ADDRESS,
+                    entry.queue_number,
+                    ProcessParams.EMAIL_ADDRESS,
                 ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
@@ -168,26 +173,26 @@ async def _process_email_flow(
                     RequestParams.STATUS: SuccessMessages.WAITLIST_ALREADY_EXISTS,
                 },
             )
-        else:
-            # Resend OTP
-            await GenerateOtpService.generate_otp(
-                redis_client=cache,
-                receiver=email_id,
-                receiver_type=RequestParams.EMAIL,
-                intent=Intents.WAITLIST,
-                x_forwarded_for=x_forwarded_for,
-                is_resend=True,
-                db_session=db_session,
-            )
-            return standard_response(
-                request=request,
-                message=SuccessMessages.WAITLIST_OTP_RESENT.format(RequestParams.EMAIL),
-                data={
-                    RequestParams.QUEUE_NUMBER: str(entry.queue_number),
-                    RequestParams.IS_VERIFIED: False,
-                    RequestParams.STATUS: ProcessParams.OTP_RESENT,
-                },
-            )
+
+        # Resend OTP
+        await GenerateOtpService.generate_otp(
+            redis_client=cache,
+            receiver=email_id,
+            receiver_type=RequestParams.EMAIL,
+            intent=Intents.WAITLIST,
+            x_forwarded_for=x_forwarded_for,
+            is_resend=True,
+            db_session=db_session,
+        )
+        return standard_response(
+            request=request,
+            message=SuccessMessages.WAITLIST_OTP_RESENT.format(RequestParams.EMAIL),
+            data={
+                RequestParams.QUEUE_NUMBER: str(entry.queue_number),
+                RequestParams.IS_VERIFIED: False,
+                RequestParams.STATUS: ProcessParams.OTP_RESENT,
+            },
+        )
 
     # 3. New registration
     new_entry_rows = await execute_query(
@@ -246,7 +251,8 @@ async def _process_mobile_flow(
             return standard_response(
                 request=request,
                 message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
-                    entry.queue_number, RequestParams.DEVICE_ID,
+                    entry.queue_number,
+                    RequestParams.DEVICE_ID,
                 ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
@@ -254,27 +260,27 @@ async def _process_mobile_flow(
                     RequestParams.STATUS: SuccessMessages.WAITLIST_ALREADY_EXISTS,
                 },
             )
-        else:
-            await _send_mobile_otp(
-                cache=cache,
-                mobile=mobile,
-                calling_code=calling_code,
-                client_ip=x_forwarded_for,
-                db_session=db_session,
-                intent=Intents.WAITLIST,
-                is_resend=True,
-            )
-            return standard_response(
-                request=request,
-                message=SuccessMessages.WAITLIST_OTP_RESENT.format(
-                    RequestParams.DEVICE,
-                ),
-                data={
-                    RequestParams.QUEUE_NUMBER: str(entry.queue_number),
-                    RequestParams.IS_VERIFIED: False,
-                    RequestParams.STATUS: ProcessParams.OTP_RESENT,
-                },
-            )
+
+        await _send_mobile_otp(
+            cache=cache,
+            mobile=mobile,
+            calling_code=calling_code,
+            client_ip=x_forwarded_for,
+            db_session=db_session,
+            intent=Intents.WAITLIST,
+            is_resend=True,
+        )
+        return standard_response(
+            request=request,
+            message=SuccessMessages.WAITLIST_OTP_RESENT.format(
+                RequestParams.DEVICE,
+            ),
+            data={
+                RequestParams.QUEUE_NUMBER: str(entry.queue_number),
+                RequestParams.IS_VERIFIED: False,
+                RequestParams.STATUS: ProcessParams.OTP_RESENT,
+            },
+        )
 
     # 2. Check existing mobile
     existing_mobile = await execute_query(
@@ -289,7 +295,8 @@ async def _process_mobile_flow(
             return standard_response(
                 request=request,
                 message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
-                    entry.queue_number, ProcessParams.MOBILE_NUMBER,
+                    entry.queue_number,
+                    ProcessParams.MOBILE_NUMBER,
                 ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
@@ -297,27 +304,27 @@ async def _process_mobile_flow(
                     RequestParams.STATUS: SuccessMessages.WAITLIST_ALREADY_EXISTS,
                 },
             )
-        else:
-            await _send_mobile_otp(
-                cache=cache,
-                mobile=mobile,
-                calling_code=calling_code,
-                client_ip=x_forwarded_for,
-                db_session=db_session,
-                intent=Intents.WAITLIST,
-                is_resend=True,
-            )
-            return standard_response(
-                request=request,
-                message=SuccessMessages.WAITLIST_OTP_RESENT.format(
-                    ProcessParams.MOBILE_NUMBER,
-                ),
-                data={
-                    RequestParams.QUEUE_NUMBER: str(entry.queue_number),
-                    RequestParams.IS_VERIFIED: False,
-                    RequestParams.STATUS: ProcessParams.OTP_RESENT,
-                },
-            )
+
+        await _send_mobile_otp(
+            cache=cache,
+            mobile=mobile,
+            calling_code=calling_code,
+            client_ip=x_forwarded_for,
+            db_session=db_session,
+            intent=Intents.WAITLIST,
+            is_resend=True,
+        )
+        return standard_response(
+            request=request,
+            message=SuccessMessages.WAITLIST_OTP_RESENT.format(
+                ProcessParams.MOBILE_NUMBER,
+            ),
+            data={
+                RequestParams.QUEUE_NUMBER: str(entry.queue_number),
+                RequestParams.IS_VERIFIED: False,
+                RequestParams.STATUS: ProcessParams.OTP_RESENT,
+            },
+        )
 
     # 3. New registration
     new_entry_rows = await execute_query(
@@ -359,7 +366,7 @@ async def _send_mobile_otp(
     calling_code: str,
     client_ip: str,
     db_session: AsyncSession,
-    intent: Intents,
+    intent: str,
     is_resend: bool = False,
 ) -> None:
     await GenerateOtpService.generate_otp(
@@ -423,7 +430,8 @@ async def verify_waitlist(
     # 1. Verify OTP
     if email_id:
         redis_key = CacheKeyTemplates.OTP_EMAIL.format(
-            receiver=email_id, intent=Intents.WAITLIST,
+            receiver=email_id,
+            intent=Intents.WAITLIST,
         )
         cached_otp = await cache.get(redis_key)
 
@@ -432,7 +440,7 @@ async def verify_waitlist(
             or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
             or (isinstance(cached_otp, str) and cached_otp != otp)
         ):
-            raise OtpExpired()
+            raise OtpExpiredError
 
         # Consume OTP
         await cache.delete(redis_key)
@@ -448,7 +456,8 @@ async def verify_waitlist(
         receiver = f"{calling_code}{mobile}".lstrip("+")
         # Verify OTP
         redis_key = CacheKeyTemplates.OTP_MOBILE.format(
-            receiver=receiver, intent=Intents.WAITLIST,
+            receiver=receiver,
+            intent=Intents.WAITLIST,
         )
         cached_otp = await cache.get(redis_key)
 
@@ -457,7 +466,9 @@ async def verify_waitlist(
             or (isinstance(cached_otp, bytes) and cached_otp.decode() != payload.otp)
             or (isinstance(cached_otp, str) and cached_otp != payload.otp)
         ):
-            raise ValidationError(ErrorMessages.OTP_INVALID_OR_EXPIRED)
+            raise exceptions.ValidationError(
+                message=ErrorMessages.OTP_INVALID_OR_EXPIRED,
+            )
 
         # Consume OTP
         await cache.delete(redis_key)
@@ -473,7 +484,7 @@ async def verify_waitlist(
         )
 
     if not existing_entry:
-        raise exceptions.UserNotFound(
+        raise exceptions.UserNotFoundError(
             message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(ProcessParams.USER),
         )
 
@@ -492,7 +503,8 @@ async def verify_waitlist(
     return standard_response(
         request=request,
         message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
-            updated_row.queue_number, ResponseParams.VERIFICATION_SUCCESS,
+            updated_row.queue_number,
+            ResponseParams.VERIFICATION_SUCCESS,
         ),  # Or a simpler message
         data={
             RequestParams.QUEUE_NUMBER: str(updated_row.queue_number),
@@ -526,7 +538,7 @@ async def resend_waitlist_otp(
             db_session=db_session,
         )
         if not existing_entry:
-            raise exceptions.UserNotFound(
+            raise exceptions.UserNotFoundError(
                 message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(
                     RequestParams.EMAIL,
                 ),
@@ -559,9 +571,9 @@ async def resend_waitlist_otp(
             db_session=db_session,
         )
         if not existing_entry:
-            raise exceptions.UserNotFound(
+            raise exceptions.UserNotFoundError(
                 message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(
-                    RequestParams.MOBILE_NUMBER,
+                    ProcessParams.MOBILE_NUMBER,
                 ),
             )
 
@@ -622,8 +634,6 @@ async def friend_invite(
 
     waitlist_entry = waitlist_entries[0]
     inviter_email = waitlist_entry.email
-    # inviter_mobile = waitlist_entry.mobile
-    # inviter_calling_code = waitlist_entry.calling_code
     inviter_user_id = waitlist_entry.id
     waitlist_id = waitlist_entry.queue_number
 
@@ -639,7 +649,7 @@ async def friend_invite(
 
     created_invites = []
     duplicate_invites = []
-    invalid_items = []
+    invalid_items: list[Any] = []
     failed_items = []
 
     if not inviter_user_id:
@@ -656,7 +666,8 @@ async def friend_invite(
                 RequestParams.FAILED: [
                     (
                         item.model_dump()
-                        if hasattr(item, ProcessParams.MODEL_DUMP)
+                        if not isinstance(item, str)
+                        and hasattr(item, ProcessParams.MODEL_DUMP)
                         else item
                     )
                     for item in payload.invited_list
@@ -674,7 +685,8 @@ async def friend_invite(
         if isinstance(item, str):  # EmailStr
             invited_email = item
         elif isinstance(
-            item, dict,
+            item,
+            dict,
         ):  # Should not happen due to Pydantic, but purely for safety
             invited_email = item.get(RequestParams.EMAIL)
             invited_mobile = item.get(RequestParams.MOBILE)
@@ -695,7 +707,8 @@ async def friend_invite(
                         inviter_email,
                     ),
                     CommParams.MESSAGE: EmailTemplates.FRIEND_INVITE_MESSAGE.format(
-                        inviter_email, settings.web_url,
+                        inviter_email,
+                        settings.web_url,
                     ),
                     CommParams.HTML_CONTENT: None,
                     CommParams.TEMPLATE_ID: None,
@@ -703,7 +716,8 @@ async def friend_invite(
                 # TODO: Use proper template if available
 
                 resp = await call_communication_api(
-                    deeplinks.MAIL_SEND_URL, email_payload,
+                    deeplinks.MAIL_SEND_URL,
+                    email_payload,
                 )
                 if (
                     resp and resp.get(CommParams.STATUS) == ResponseParams.SUCCESS
@@ -791,19 +805,19 @@ async def friend_invite(
         message=SuccessMessages.FRIEND_INVITES_SENT.format(len(created_invites)),
         data={
             RequestParams.INVITED: [
-                item.model_dump() if hasattr(item, ProcessParams.MODEL_DUMP) else item
+                item.model_dump() if not isinstance(item, str) else item
                 for item in created_invites
             ],
             RequestParams.DUPLICATES: [
-                item.model_dump() if hasattr(item, ProcessParams.MODEL_DUMP) else item
+                item.model_dump() if not isinstance(item, str) else item
                 for item in duplicate_invites
             ],
             RequestParams.INVALID: [
-                item.model_dump() if hasattr(item, ProcessParams.MODEL_DUMP) else item
+                item.model_dump() if not isinstance(item, str) else item
                 for item in invalid_items
             ],
             RequestParams.FAILED: [
-                item.model_dump() if hasattr(item, ProcessParams.MODEL_DUMP) else item
+                item.model_dump() if not isinstance(item, str) else item
                 for item in failed_items
             ],
         },

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import jwt
-import requests
+import requests  # type: ignore
 
 # from jwt.algorithms import RSAAlgorithm
 # from jwt import algorithms
@@ -11,8 +11,8 @@ from loguru import logger
 
 from app.core.exceptions import (
     AppleKeyFetchError,
-    InvalidSocialToken,
-    InvalidSocialUID,
+    InvalidSocialTokenError,
+    InvalidSocialUIDError,
 )
 from app.settings import settings
 
@@ -78,7 +78,7 @@ class AppleOAuthService:
             )
             exp_raw: Optional[Any] = decoded.get("exp")
             if decoded.get("sub") != uid:
-                raise InvalidSocialUID()
+                raise InvalidSocialUIDError()
 
             self.uid = decoded.get("sub")
             self.email = decoded.get("email")
@@ -89,15 +89,15 @@ class AppleOAuthService:
 
         except jwt.ExpiredSignatureError:
             logger.error("Apple ID Token expired")
-            raise InvalidSocialToken()
+            raise InvalidSocialTokenError()
 
         except jwt.InvalidTokenError as e:
             logger.error(f"Invalid Apple Token: {e}")
-            raise InvalidSocialToken()
+            raise InvalidSocialTokenError()
 
         except Exception as e:
             logger.exception(f"Unexpected error during Apple verification: {e}")
-            raise InvalidSocialToken()
+            raise InvalidSocialTokenError()
 
     async def get_email(self) -> Any:
         return self.email

@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 import bcrypt
 import jwt
-import pytz
+import pytz  # type: ignore
 from loguru import logger
 from redis.asyncio import Redis
 from sqlalchemy import select
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.core.constants import AuthConfig
-from app.core.exceptions.exceptions import InvalidServiceToken
+from app.core.exceptions.exceptions import InvalidServiceTokenError
 from app.db.models.user_app import AppConsumer, User, UserAuthToken
 from app.db.utils import execute_query
 from app.settings import settings
@@ -140,7 +140,7 @@ class AuthService:
 
         uuid = payload.get("uuid")
         if not isinstance(uuid, str):
-            raise InvalidServiceToken()
+            raise InvalidServiceTokenError()
         return uuid
 
     @staticmethod

@@ -16,46 +16,20 @@ class LogoutUser(HttpUser):
             "Content-Type": "application/json",
             "x-device-id": self.device_id,
             "api_client": "android_app",
-            "platform": "android",
-            "app_version": "1.0.0",
-            "country": "IN",
+            "x-platform": "android",
+            "x-app-version": "1.0.0",
+            "x-country": "IN",
             "x-api-client": "android_app",
         }
         # Create user and login to get token
-        email = f"loadtest_{''.join(random.choices(string.ascii_lowercase, k=10))}@example.com"
-        password = "Password123!"
-
-        # 1. Register
-        reg_payload = {
-            "email": email,
-            "password": password,
-            "name": "Logout Test User",
-            "birth_date": "1990-01-01",
-            "gender": "male",
-        }
-        with self.client.post(
-            "/user/v1/register/register_with_profile",
-            json=reg_payload,
-            headers=self.headers,
-            catch_response=True,
-        ) as resp:
-            if resp.status_code != 200:
-                print(f"Components setup failed: Register {resp.text}")
-                return  # Stop here if setup fails
-
-        # 2. Login
-        login_payload = {"email": email, "password": password, "login_type": "email"}
-        with self.client.post(
-            "/user/v1/user/login",
-            json=login_payload,
-            headers=self.headers,
-            catch_response=True,
-        ) as resp:
-            if resp.status_code == 200:
-                self.auth_token = resp.json().get("data", {}).get("auth_token")
-                self.headers["x-api-token"] = self.auth_token
-            else:
-                print(f"Components setup failed: Login {resp.text}")
+        from loadtests.common.auth import register_and_login
+        email, auth_token = register_and_login(self.client, self.headers)
+        
+        if auth_token:
+            self.auth_token = auth_token
+            self.headers["x-api-token"] = self.auth_token
+        else:
+            print("Components setup failed: Authentication helper failed")
 
     @task(1)
     def logout_user(self):

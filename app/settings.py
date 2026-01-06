@@ -2,6 +2,7 @@ import enum
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Optional
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from yarl import URL
@@ -100,21 +101,19 @@ class Settings(BaseSettings):
     legacy_oauth_consumer_key: str = "4e297e55a0600bb031c03b579f3151d3050220d41"
     legacy_oauth_consumer_secret: str = "8fadbc16ca36f3d2165a33f43be07411"
 
-    # Google Social Login Settings
-    google_client_id: str = Field(...,env="GOOGLE_CLIENT_ID")
-    google_android_client_id: str = Field(...,env="GOOGLE_ANDROID_CLIENT_ID")
-    google_ios_client_id: str = Field(...,env="GOOGLE_IOS_CLIENT_ID")
-    google_web_client_id: str = Field(...,env="GOOGLE_WEB_CLIENT_ID")
-    # Apple Social Login Settings
-    apple_client_id: str = Field(...,env="APPLE_CLIENT_ID")
-    apple_ios_client_id: str = Field(...,env="APPLE_IOS_CLIENT_ID")
-    apple_team_id: str = Field(...,env="APPLE_TEAM_ID")
-    apple_key_id: str = Field(...,env="APPLE_KEY_ID")
-    apple_private_key: str = Field(...,env="APPLE_PRIVATE_KEY")
+    google_client_id: str = Field("", alias="APP_GOOGLE_CLIENT_ID")
+    google_android_client_id: str = Field("", alias="APP_GOOGLE_ANDROID_CLIENT_ID")
+    google_ios_client_id: str = Field("", alias="APP_GOOGLE_IOS_CLIENT_ID")
+    google_web_client_id: str = Field("", alias="APP_GOOGLE_WEB_CLIENT_ID")
 
-    # Facebook Social Login Settings
-    facebook_client_id: str = Field(...,env="FACEBOOK_CLIENT_ID")
-    facebook_client_secret: str = Field(...,env="FACEBOOK_CLIENT_SECRET")
+    apple_client_id: str = Field("", alias="APP_APPLE_CLIENT_ID")
+    apple_ios_client_id: str = Field("", alias="APP_APPLE_IOS_CLIENT_ID")
+    apple_team_id: str = Field("", alias="APP_APPLE_TEAM_ID")
+    apple_key_id: str = Field("", alias="APP_APPLE_KEY_ID")
+    apple_private_key: str = Field("", alias="APP_APPLE_PRIVATE_KEY")
+
+    facebook_client_id: str = Field("", alias="APP_FACEBOOK_CLIENT_ID")
+    facebook_client_secret: str = Field("", alias="APP_FACEBOOK_CLIENT_SECRET")
 
     @property
     def db_url(self) -> URL:

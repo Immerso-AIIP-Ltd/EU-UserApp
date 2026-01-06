@@ -107,8 +107,6 @@ class RequestParams:
     DUPLICATES = "duplicates"
     INVALID = "invalid"
     FAILED = "failed"
-    X_FORWARDED_FOR = "X-Forwarded-For"
-    X_FORWARD_FOR = "x-forwarded-for"
     DEVICE = "Device"
     DEVICE_NAME = "device_name"
     DEVICE_TYPE = "device_type"
@@ -354,6 +352,7 @@ class ErrorMessages:
     MOBILE_INVALID = "Mobile number is not valid"
     FORGOT_PASSWORD = "Forgot Password"
     OTP_EXPIRED = "OTP Expired"
+    OTP_INVALID_OR_EXPIRED = "OTP is invalid or expired"
     OTP_TOO_MANY_ATTEMPTS = "OTP Too Many Attempts"
     IP_BLOCKED = "IP is blocked"
     PROVIDE_EMAIL_OR_MOBILE = (

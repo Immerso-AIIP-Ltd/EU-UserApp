@@ -12,9 +12,9 @@ class SocialUser(HttpUser):
             "x-device-id": "loadtest-device-"
             + "".join(random.choices(string.ascii_lowercase + string.digits, k=10)),
             "api_client": "android_app",
-            "platform": "android",
-            "app_version": "1.0.0",
-            "country": "IN",
+            "x-platform": "android",
+            "x-app-version": "1.0.0",
+            "x-country": "IN",
             "x-api-client": "android_app",
         }
 

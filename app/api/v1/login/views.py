@@ -20,7 +20,7 @@ from app.api.v1.service.forgot_password_service import ForgotPasswordService
 from app.api.v1.service.login_service import LoginService
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import Messages, SuccessMessages
-from app.core.exceptions import InvalidInput
+from app.core.exceptions import InvalidInputError
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform
 from app.utils.standard_response import standard_response
@@ -98,7 +98,7 @@ async def login_user(
 async def forgot_password(
     request: Request,
     payload: ForgotPasswordRequest,
-    headers: dict[str, Any] = Depends(validate_common_headers),
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
     db: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
 ) -> ForgotPasswordResponse:
@@ -109,7 +109,7 @@ async def forgot_password(
 
     # Validate email or mobile
     if not payload.validate_email_or_mobile():
-        raise InvalidInput(Messages.EMAIL_OR_MOBILE_REQUIRED)
+        raise InvalidInputError(Messages.EMAIL_OR_MOBILE_REQUIRED)
 
     ip = request.client.host if request.client else "unknown"
 
@@ -140,8 +140,7 @@ async def change_password(
     db_session: AsyncSession = Depends(get_db_session),
 ) -> ChangePasswordResponse:
 
-    print("HEADERS FROM DEPENDENCY:", headers)
-
+    # print("HEADERS FROM DEPENDENCY:", headers)
     """
     Change user password.
     Requires valid x-api-token in headers.

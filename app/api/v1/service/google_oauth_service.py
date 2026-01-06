@@ -6,9 +6,9 @@ from google.auth.transport import requests
 from loguru import logger
 
 from app.core.exceptions import (
-    GoogleWrongIssuer,
-    InvalidSocialToken,
-    InvalidSocialUID,
+    GoogleWrongIssuerError,
+    InvalidSocialTokenError,
+    InvalidSocialUIDError,
 )
 from app.settings import settings
 
@@ -51,10 +51,10 @@ class GoogleOAuthService:
                 "accounts.google.com",
                 "https://accounts.google.com",
             ]:
-                raise GoogleWrongIssuer()
+                raise GoogleWrongIssuerError()
 
             if id_info["sub"] != uid:
-                raise InvalidSocialUID()
+                raise InvalidSocialUIDError()
 
             self.uid = id_info["sub"]
             self.name = id_info.get("name")
@@ -63,10 +63,10 @@ class GoogleOAuthService:
 
         except ValueError as e:
             logger.error(f"Google Token Verification Error: {e!s}")
-            raise InvalidSocialToken()
+            raise InvalidSocialTokenError()
         except Exception as e:
             logger.exception(f"Unexpected error during Google verification: {e!s}")
-            raise InvalidSocialToken()
+            raise InvalidSocialTokenError()
 
     async def get_email(self) -> Any:
         return self.email

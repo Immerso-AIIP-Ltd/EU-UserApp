@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.queries import UserQueries
 from app.api.v1.schemas import LoginRequest
 from app.api.v1.service.auth_service import AuthService
-from app.core.exceptions.exceptions import UnauthorizedError, UserNotFoundException
+from app.core.exceptions.exceptions import UnauthorizedError, UserNotFoundError
 from app.db.utils import execute_query
 
 
@@ -34,7 +34,7 @@ class LoginService:
         )
 
         if not rows:
-            raise UserNotFoundException("User not found")
+            raise UserNotFoundError()
 
         user = dict(rows[0])
         user_id = user["id"]

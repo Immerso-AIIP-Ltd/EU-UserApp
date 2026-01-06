@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-import pytz
+import pytz  # type: ignore
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.register.task import (

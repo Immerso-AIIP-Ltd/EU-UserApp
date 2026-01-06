@@ -1,3 +1,4 @@
+from typing import Any
 
 import bcrypt
 from fastapi import APIRouter, Depends, Header, Request
@@ -29,12 +30,12 @@ from app.core.constants import (
     SuccessMessages,
 )
 from app.core.exceptions.exceptions import (
-    CallingCodeRequired,
-    EmailMobileRequired,
-    OtpExpired,
-    PasswordRequired,
-    RegistrationSessionClosed,
-    UserExits,
+    CallingCodeRequiredError,
+    EmailMobileRequiredError,
+    OtpExpiredError,
+    PasswordRequiredError,
+    RegistrationSessionClosedError,
+    UserExistsError,
     ValidationError,
 )
 from app.db.dependencies import get_db_session
@@ -42,7 +43,6 @@ from app.db.models.user_app import User
 from app.db.utils import execute_query
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import (
-    CommonHeadersWithoutAuth,
     validate_headers_without_auth,
 )
 
@@ -90,7 +90,7 @@ async def register_with_profile(
     payload: RegisterWithProfileRequest,
     db_session: AsyncSession = Depends(get_db_session),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
-    headers: CommonHeadersWithoutAuth = Depends(validate_headers_without_auth),
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
     """Sign Up - Step 1 (Check Existence and Register)"""
@@ -104,7 +104,7 @@ async def register_with_profile(
     client_ip = (
         x_forwarded.split(",")[0].strip()
         if x_forwarded
-        else (request.client.host if request.client else RequestParams.LOCALHOST)
+        else (request.client.host if request.client else "127.0.0.1")
     )
 
     if email:
@@ -118,9 +118,11 @@ async def register_with_profile(
             db_session=db_session,
         )
         if user_exists:
-            raise UserExits()
+            raise UserExistsError()
         state = await UserVerifyService.get_user_state_by_email(
-            cache, email, db_session,
+            cache,
+            email,
+            db_session,
         )
 
     elif mobile and calling_code:
@@ -134,11 +136,15 @@ async def register_with_profile(
             db_session=db_session,
         )
         if user_exists:
-            raise UserExits(
+            raise UserExistsError(
                 message=ErrorMessages.USER_ALREADY_REGISTERED,
             )
         state = await UserVerifyService.get_user_state_by_mobile(
-            cache, mobile, calling_code, client_ip, db_session,
+            cache,
+            mobile,
+            calling_code,
+            client_ip,
+            db_session,
         )
 
     else:
@@ -146,17 +152,17 @@ async def register_with_profile(
             message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED,
         )
     if not payload.email and not payload.mobile:
-        raise EmailMobileRequired(
+        raise EmailMobileRequiredError(
             message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED,
         )
 
     if payload.mobile and not payload.calling_code:
-        raise CallingCodeRequired(
+        raise CallingCodeRequiredError(
             message=ErrorMessages.CALLING_CODE_REQUIRED,
         )
 
     if not payload.password:
-        raise PasswordRequired(
+        raise PasswordRequiredError(
             message=ErrorMessages.PASSWORD_REQUIRED,
         )
     if not state:
@@ -174,7 +180,8 @@ async def register_with_profile(
     registration_data = payload.model_dump(mode=RequestParams.JSON)
     registration_data[LoginParams.PASSWORD] = hashed_password
     cache_key = build_cache_key(
-        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=identifier,
+        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA,
+        identifier=identifier,
     )
     await set_cache(cache, cache_key, registration_data, ttl=CacheTTL.TTL_FAST)
 
@@ -196,7 +203,7 @@ async def verify_otp_register(
     request: Request,
     payload: VerifyOTPRegisterRequest,
     db_session: AsyncSession = Depends(get_db_session),
-    headers: CommonHeadersWithoutAuth = Depends(validate_headers_without_auth),
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
     """
@@ -225,17 +232,18 @@ async def verify_otp_register(
         or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
         or (isinstance(cached_otp, str) and cached_otp != otp)
     ):
-        raise OtpExpired()
+        raise OtpExpiredError()
 
     await cache.delete(redis_key)
 
     # 2. Retrieve Cached Registration Data
     cache_key = build_cache_key(
-        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=receiver,
+        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA,
+        identifier=receiver,
     )
     cached_data = await get_cache(cache, cache_key)
     if not cached_data:
-        raise RegistrationSessionClosed()
+        raise RegistrationSessionClosedError()
 
     # 3. Register User in DB
     # cached_data contains: email, mobile, calling_code, password (hashed), name, ...
@@ -303,17 +311,17 @@ async def verify_otp_register(
 
         # if device id is provided, we need to pass on device attributes in the payload for the login api
 
-    data = dict(data)
+    data_dict: dict[str, Any] = dict(data)  # type: ignore
     # attach token to response
-    data[RequestParams.TOKEN] = auth_token
-    data[RequestParams.TOKEN_EXPIRY] = token_expiry
+    data_dict[RequestParams.TOKEN] = auth_token
+    data_dict[RequestParams.TOKEN_EXPIRY] = token_expiry
     user_id = str(user_rows[0][ProcessParams.ID])
-    data[ProcessParams.ID] = user_id
+    data_dict[ProcessParams.ID] = user_id
 
     return standard_response(
         request=request,
         message=SuccessMessages.USER_REGISTERED_VERIFIED,
-        data=data,
+        data=data_dict,
     )
 
 
@@ -322,7 +330,7 @@ async def resend_otp(
     request: Request,
     payload: ResendOTPRequest,
     db_session: AsyncSession = Depends(get_db_session),
-    headers: CommonHeadersWithoutAuth = Depends(validate_headers_without_auth),
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
 ) -> JSONResponse:
@@ -339,17 +347,18 @@ async def resend_otp(
 
     # Check if registration session exists
     cache_key = build_cache_key(
-        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA, identifier=receiver,
+        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA,
+        identifier=receiver,
     )
     cached_data = await get_cache(cache, cache_key)
     if not cached_data:
-        raise RegistrationSessionClosed()
+        raise RegistrationSessionClosedError()
 
     x_forwarded = x_forwarded_for or request.headers.get(RequestParams.X_FORWARDED_FOR)
     client_ip = (
         x_forwarded.split(",")[0].strip()
         if x_forwarded
-        else (request.client.host if request.client else RequestParams.LOCALHOST)
+        else (request.client.host if request.client else "127.0.0.1")
     )
 
     await GenerateOtpService.generate_otp(

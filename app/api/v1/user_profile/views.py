@@ -23,8 +23,8 @@ from app.core.constants import (
     SuccessMessages,
 )
 from app.core.exceptions.exceptions import (
-    ProfileFetchException,
-    UserNotFoundException,
+    ProfileFetchExceptionError,
+    UserNotFoundExceptionError,
 )
 from app.core.middleware.auth import get_current_user
 from app.db.dependencies import get_db_session
@@ -48,7 +48,7 @@ async def get_user_profile(
     """
     user_id = current_user.get("user_id")
     if not user_id:
-        raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+        raise UserNotFoundExceptionError(detail=ErrorMessages.USER_NOT_FOUND)
 
     cache_key = build_cache_key(
         CacheKeyTemplates.CACHE_KEY_USER_PROFILE,
@@ -73,7 +73,7 @@ async def get_user_profile(
         data = await execute_and_transform(query, params, UserProfileData, db_session)
 
         if not data or len(data) == 0:
-            raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+            raise UserNotFoundExceptionError(detail=ErrorMessages.USER_NOT_FOUND)
 
         user_profile = data[0]
 
@@ -85,11 +85,11 @@ async def get_user_profile(
             data=user_profile,
         )
 
-    except UserNotFoundException:
+    except UserNotFoundExceptionError:
         raise
     except Exception as e:
         logger.exception(e)
-        raise ProfileFetchException(
+        raise ProfileFetchExceptionError(
             detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {e!s}",
         )
 
@@ -108,7 +108,7 @@ async def update_user_profile(
     """
     user_id = current_user.get("user_id")
     if not user_id:
-        raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+        raise UserNotFoundExceptionError(detail=ErrorMessages.USER_NOT_FOUND)
 
     # Invalidate cache
     cache_key = build_cache_key(
@@ -139,7 +139,7 @@ async def update_user_profile(
         data = await execute_and_transform(query, params, UserProfileData, db_session)
 
         if not data or len(data) == 0:
-            raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+            raise UserNotFoundExceptionError(detail=ErrorMessages.USER_NOT_FOUND)
 
         user_profile = data[0]
 
@@ -152,11 +152,11 @@ async def update_user_profile(
             data=user_profile,
         )
 
-    except UserNotFoundException:
+    except UserNotFoundExceptionError:
         raise
     except Exception as e:
         logger.exception(e)
-        raise ProfileFetchException(
+        raise ProfileFetchExceptionError(
             detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {e!s}",
         )
 
@@ -175,7 +175,7 @@ async def update_email_mobile(
     """
     user_id = current_user.get("user_id")
     if not user_id:
-        raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+        raise UserNotFoundExceptionError(detail=ErrorMessages.USER_NOT_FOUND)
 
     # Invalidate cache
     cache_key = build_cache_key(
@@ -206,7 +206,7 @@ async def update_email_mobile(
         )
 
         if not data or len(data) == 0:
-            raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+            raise UserNotFoundExceptionError(detail=ErrorMessages.USER_NOT_FOUND)
 
         updated_contact = data[0]
 
@@ -222,10 +222,10 @@ async def update_email_mobile(
             data=updated_contact,
         )
 
-    except UserNotFoundException:
+    except UserNotFoundExceptionError:
         raise
     except Exception as e:
         logger.exception(e)
-        raise ProfileFetchException(
+        raise ProfileFetchExceptionError(
             detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {e!s}",
         )

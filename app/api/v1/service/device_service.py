@@ -6,7 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.service.device_redis_service import DeviceTokenRedisService
-from app.core.exceptions.exceptions import DeviceAlreadyRegistered, DeviceNotRegistered
+from app.core.exceptions.exceptions import (
+    DeviceAlreadyRegisteredError,
+    DeviceNotRegisteredError,
+)
 from app.db.utils import execute_query
 
 
@@ -32,7 +35,7 @@ class DeviceService:
         Creates a new device.
         """
         if await DeviceService.is_device_registered(device_id, db_session):
-            raise DeviceAlreadyRegistered("Device already registered")
+            raise DeviceAlreadyRegisteredError("Device already registered")
 
         # Prepare default values matching the query params
         params = {
@@ -75,7 +78,7 @@ class DeviceService:
             db_session,
         )
         if not rows:
-            raise DeviceNotRegistered("Device not registered")
+            raise DeviceNotRegisteredError("Device not registered")
         return dict(rows[0])
 
     @staticmethod
@@ -137,7 +140,7 @@ class DeviceService:
         """
         try:
             device = await DeviceService.get_device(device_id, db_session)
-        except DeviceNotRegistered:
+        except DeviceNotRegisteredError:
             logger.warning(f"Device {device_id} not found during deactivation")
             return
 
@@ -189,5 +192,5 @@ class DeviceService:
                 "device_name": device.get("device_name"),
                 "push_token": device.get("push_token"),
             }
-        except DeviceNotRegistered:
+        except DeviceNotRegisteredError:
             return {}

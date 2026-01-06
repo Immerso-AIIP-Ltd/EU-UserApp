@@ -194,120 +194,120 @@ class ForbiddenError(AppError):
     error_code = ErrorCodes.FORBIDDEN_CODE
 
 
-class DeviceNotInvited(AppError):
-    """Device ID not invited"""
+class DeviceNotInvitedError(AppError):
+    """Device ID not invited."""
 
     http_code = status.HTTP_200_OK
     message = ErrorMessages.DEVICE_NOT_INVITED
     error_code = ErrorCodes.DEVICE_NOT_INVITED
 
 
-class InvalidCoupon(AppError):
-    """Coupon ID not valid"""
+class InvalidCouponError(AppError):
+    """Coupon ID not valid."""
 
     http_code = status.HTTP_200_OK
     message = ErrorMessages.COUPON_ID_INVALID
     error_code = ErrorCodes.COUPON_ID_INVALID
 
 
-class CouponExpried(AppError):
-    """Coupon ID not valid"""
+class CouponExpiredError(AppError):
+    """Coupon ID not valid."""
 
     http_code = status.HTTP_200_OK
     message = ErrorMessages.COUPON_EXPIRED
     error_code = ErrorCodes.COUPON_EXPIRED
 
 
-class EmailMobileRequired(AppError):
-    """Email or MObile required"""
+class EmailMobileRequiredError(AppError):
+    """Email or Mobile required."""
 
     http_code = status.HTTP_400_BAD_REQUEST
     message = ErrorMessages.EMAIL_OR_MOBILE_REQUIRED
     error_code = ErrorCodes.EMAIL_OR_MOBILE_REQUIRED
 
 
-class CallingCodeRequired(AppError):
-    """Calling code required"""
+class CallingCodeRequiredError(AppError):
+    """Calling code required."""
 
     http_code = status.HTTP_400_BAD_REQUEST
     message = ErrorMessages.CALLING_CODE_REQUIRED
     error_code = ErrorCodes.CALLING_CODE_REQUIRED
 
 
-class PasswordRequired(AppError):
-    """Password Required"""
+class PasswordRequiredError(AppError):
+    """Password Required."""
 
     http_code = status.HTTP_400_BAD_REQUEST
     message = ErrorMessages.PASSWORD_REQUIRED
     error_code = ErrorCodes.PASSWORD_REQUIRED
 
 
-class UserExits(AppError):
-    """Password Required"""
+class UserExistsError(AppError):
+    """User already exists."""
 
     http_code = status.HTTP_400_BAD_REQUEST
     message = ErrorMessages.USER_ALREADY_REGISTERED
     error_code = ErrorCodes.USER_ALREADY_REGISTERED
 
 
-class CommServiceAPICallFailed(AppError):
-    """Commservice Failure"""
+class CommServiceAPICallFailedError(AppError):
+    """Commservice Failure."""
 
     http_code = status.HTTP_422_UNPROCESSABLE_ENTITY
     message = ErrorMessages.COMM_SERVICE_API_CALL_FAILED
     error_code = ErrorCodes.COMM_SERVICE_API_CALL_FAILED
 
 
-class RedisServerDown(AppError):
-    """Redis Server Down"""
+class RedisServerDownError(AppError):
+    """Redis Server Down."""
 
     http_code = status.HTTP_503_SERVICE_UNAVAILABLE
     message = ErrorMessages.REDIS_DOWN
     error_code = ErrorCodes.REDIS_DOWN
 
 
-class ClientIpNotProvided(AppError):
-    """Client IP not provided"""
+class ClientIpNotProvidedError(AppError):
+    """Client IP not provided."""
 
     http_code = status.HTTP_400_BAD_REQUEST
     message = ErrorMessages.IP_MISSING
     error_code = ErrorCodes.IP_MISSING
 
 
-class IpBlocked(AppError):
-    """IP Blocked"""
+class IpBlockedError(AppError):
+    """IP Blocked."""
 
     http_code = status.HTTP_403_FORBIDDEN
     message = ErrorMessages.IP_BLOCKED
     error_code = ErrorCodes.IP_BLOCKED
 
 
-class OtpExpired(AppError):
-    """OTP Expired"""
+class OtpExpiredError(AppError):
+    """OTP Expired."""
 
     http_code = status.HTTP_400_BAD_REQUEST
     message = ErrorMessages.OTP_EXPIRED
     error_code = ErrorCodes.OTP_EXPIRED
 
 
-class OtpTooManyAttempts(AppError):
-    """Too many OTP attempts"""
+class OtpTooManyAttemptsError(AppError):
+    """Too many OTP attempts."""
 
     http_code = status.HTTP_429_TOO_MANY_REQUESTS
     message = ErrorMessages.OTP_TOO_MANY_ATTEMPTS
     error_code = ErrorCodes.OTP_TOO_MANY_ATTEMPTS
 
 
-class MobileInvalid(AppError):
-    """Mobile Invalid"""
+class MobileInvalidError(AppError):
+    """Mobile Invalid."""
 
     http_code = status.HTTP_400_BAD_REQUEST
     message = ErrorMessages.MOBILE_INVALID
     error_code = ErrorCodes.MOBILE_INVALID
 
 
-class ForgotPassword(AppError):
-    """Forgot Password"""
+class ForgotPasswordError(AppError):
+    """Forgot Password."""
 
     http_code = status.HTTP_400_BAD_REQUEST
     message = ErrorMessages.FORGOT_PASSWORD
@@ -317,7 +317,7 @@ class ForgotPassword(AppError):
 # Add to existing exceptions file
 
 
-class UserNotFoundException(AppException):
+class UserNotFoundExceptionError(AppException):
     """Raised when user profile is not found."""
 
     def __init__(self, detail: str = ErrorMessages.USER_NOT_FOUND):
@@ -329,7 +329,7 @@ class UserNotFoundException(AppException):
         )
 
 
-class ProfileFetchException(AppException):
+class ProfileFetchExceptionError(AppException):
     """Raised when profile fetch fails."""
 
     def __init__(self, detail: str = ErrorMessages.PROFILE_FETCH_FAILED):
@@ -341,7 +341,7 @@ class ProfileFetchException(AppException):
         )
 
 
-class ClientIdValidationFailed(AppError):
+class ClientIdValidationFailedError(AppError):
     """Raised when client ID validation fails."""
 
     http_code = status.HTTP_401_UNAUTHORIZED
@@ -349,7 +349,7 @@ class ClientIdValidationFailed(AppError):
     error_code = ErrorCodes.CLIENT_ID_VALIDATION_FAILED_CODE
 
 
-class InvalidInput(AppError):
+class InvalidInputError(AppError):
     def __init__(self, detail: str):
         super().__init__(
             http_code=status.HTTP_400_BAD_REQUEST,
@@ -358,16 +358,16 @@ class InvalidInput(AppError):
         )
 
 
-class UserNotFound(AppError):
-    def __init__(self) -> None:
+class UserNotFoundError(AppError):
+    def __init__(self, message: Optional[str] = None) -> None:
         super().__init__(
             http_code=status.HTTP_404_NOT_FOUND,
-            message=ErrorMessages.USER_NOT_FOUND,
+            message=message or ErrorMessages.USER_NOT_FOUND,
             error_code=ErrorCodes.US404,
         )
 
 
-class AccountBlocked(AppError):
+class AccountBlockedError(AppError):
     def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_409_CONFLICT,
@@ -376,7 +376,7 @@ class AccountBlocked(AppError):
         )
 
 
-class PasswordsDoNotMatch(AppError):
+class PasswordsDoNotMatchError(AppError):
     def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_400_BAD_REQUEST,
@@ -385,7 +385,7 @@ class PasswordsDoNotMatch(AppError):
         )
 
 
-class InvalidOldPassword(AppError):
+class InvalidOldPasswordError(AppError):
     def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_400_BAD_REQUEST,
@@ -394,7 +394,7 @@ class InvalidOldPassword(AppError):
         )
 
 
-class UserTokenNotFound(AppError):
+class UserTokenNotFoundError(AppError):
     def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_401_UNAUTHORIZED,
@@ -403,7 +403,7 @@ class UserTokenNotFound(AppError):
         )
 
 
-class GoogleWrongIssuer(AppError):
+class GoogleWrongIssuerError(AppError):
     def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_401_UNAUTHORIZED,
@@ -412,7 +412,7 @@ class GoogleWrongIssuer(AppError):
         )
 
 
-class InvalidSocialUID(AppError):
+class InvalidSocialUIDError(AppError):
     def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_401_UNAUTHORIZED,
@@ -421,7 +421,7 @@ class InvalidSocialUID(AppError):
         )
 
 
-class InvalidSocialToken(AppError):
+class InvalidSocialTokenError(AppError):
     def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_401_UNAUTHORIZED,
@@ -430,7 +430,7 @@ class InvalidSocialToken(AppError):
         )
 
 
-class OtpInvalid(AppError):
+class OtpInvalidError(AppError):
     def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_400_BAD_REQUEST,
@@ -439,7 +439,7 @@ class OtpInvalid(AppError):
         )
 
 
-class RegistrationSessionClosed(AppError):
+class RegistrationSessionClosedError(AppError):
     def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_400_BAD_REQUEST,
@@ -467,7 +467,7 @@ class FacebookAuthError(AppError):
         )
 
 
-class DeviceAlreadyRegistered(AppError):
+class DeviceAlreadyRegisteredError(AppError):
     def __init__(self, detail: str = "Device already registered"):
         super().__init__(
             http_code=status.HTTP_409_CONFLICT,
@@ -476,7 +476,7 @@ class DeviceAlreadyRegistered(AppError):
         )
 
 
-class DeviceNotRegistered(AppError):
+class DeviceNotRegisteredError(AppError):
     def __init__(self, detail: str = "Device not registered"):
         super().__init__(
             http_code=status.HTTP_404_NOT_FOUND,
@@ -485,7 +485,7 @@ class DeviceNotRegistered(AppError):
         )
 
 
-class InvalidServiceToken(AppError):
+class InvalidServiceTokenError(AppError):
     def __init__(self) -> None:
         super().__init__(
             http_code=status.HTTP_401_UNAUTHORIZED,
@@ -494,7 +494,7 @@ class InvalidServiceToken(AppError):
         )
 
 
-class InvalidCredentials(AppError):
+class InvalidCredentialsError(AppError):
     """Invalid credentials provided."""
 
     def __init__(self, message: str = "Invalid credentials.") -> None:

@@ -4,8 +4,6 @@ from typing import Any, Dict
 
 import requests
 
-from app.core.exceptions.exceptions import CommServiceAPICallFailed
-
 
 async def call_communication_api(
     url: str,
@@ -29,6 +27,6 @@ async def call_communication_api(
                 "server_response_code": response.status_code,
             },
         )
-        raise CommServiceAPICallFailed()
+        raise CommServiceAPICallFailedError
     logger.info("COMM API CALL", extra={"server_response": response.json()})
     return response.json()

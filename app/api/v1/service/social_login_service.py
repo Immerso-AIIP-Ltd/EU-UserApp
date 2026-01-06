@@ -8,6 +8,7 @@ from app.api.v1.service.apple_oauth_service import AppleOAuthService
 from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
 from app.api.v1.service.google_oauth_service import GoogleOAuthService
+from app.db.models.user_app import User
 from app.db.utils import execute_query
 
 
@@ -284,15 +285,6 @@ class SocialLoginService:
 
         user_id = user["id"]
 
-        # 4. Generate Auth Token
-        token, expires_at = await AuthService.generate_token(
-            user_uuid=user_id,
-            client_id=request_data["client_id"],
-            db_session=db_session,
-            cache=cache,
-            device_id=request_data["device_id"],
-        )
-
         # 5. Create or update identity provider
         await execute_query(
             UserQueries.UPSERT_SOCIAL_IDENTITY_PROVIDER,
@@ -307,7 +299,7 @@ class SocialLoginService:
 
         # 5. Generate Auth Token
         token, expires_at = await AuthService.generate_token(
-            user_uuid=user_id,
+            user=User(id=user_id),
             client_id=request_data["client_id"],
             db_session=db_session,
             cache=cache,

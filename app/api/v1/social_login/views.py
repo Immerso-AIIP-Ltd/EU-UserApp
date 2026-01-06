@@ -118,7 +118,7 @@ async def facebook_login(
 
     Logs in a user via Facebook OAuth. Creates a new account if it does not exist.
     """
-    facebook_service = FacebookOAuthService(login_data.token)
+    facebook_service = FacebookOAuthService(login_data.access_token)
     request_data = {
         "uid": login_data.uid,
         "client_id": headers.get("api_client"),
