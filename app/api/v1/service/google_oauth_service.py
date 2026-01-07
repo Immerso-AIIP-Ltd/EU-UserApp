@@ -8,9 +8,9 @@ from loguru import logger
 from app.core.exceptions import (
     GoogleWrongIssuerError,
     InvalidSocialTokenError,
-    InvalidSocialUIDError,
 )
 from app.settings import settings
+
 
 class GoogleOAuthService:
     NAME = "google"

@@ -27,7 +27,6 @@ class SocialLoginService:
         # await google_service.verify_id_token(request_data["uid"])
         await google_service.verify_id_token()
 
-
         # 2. Get user by social login
         social_id = await google_service.get_uid()
         provider = google_service.NAME

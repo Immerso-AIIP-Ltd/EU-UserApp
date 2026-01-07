@@ -140,3 +140,6 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Pre-commit output files
+pre_commit_output*.txt

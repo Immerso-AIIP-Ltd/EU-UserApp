@@ -3,9 +3,9 @@ from pathlib import Path
 from tempfile import gettempdir
 from typing import Optional
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from yarl import URL
-from pydantic import Field
 
 TEMP_DIR = Path(gettempdir())
 
@@ -111,7 +111,6 @@ class Settings(BaseSettings):
     apple_team_id: str = Field(...)
     apple_key_id: str = Field(...)
     apple_private_key: str = Field(...)
-    
 
     facebook_client_id: str = Field(...)
     facebook_client_secret: str = Field(...)

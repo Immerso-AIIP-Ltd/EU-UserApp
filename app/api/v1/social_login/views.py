@@ -73,7 +73,6 @@ async def apple_login(
     cache: Redis = Depends(get_redis_connection),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
 ) -> JSONResponse:
-   
     """
     Apple Login / Sign Up API.
 
