@@ -12,10 +12,7 @@ from app.core.exceptions import (
 )
 from app.settings import settings
 
-
 class GoogleOAuthService:
-    """Service to handle Google OAuth verification."""
-
     NAME = "google"
 
     def __init__(self, id_token: str, platform: str) -> None:
@@ -26,8 +23,7 @@ class GoogleOAuthService:
         self.email = None
         self.expiry: Optional[datetime] = None
 
-    async def verify_id_token(self, uid: str) -> Any:
-        """Verify the Google ID token."""
+    async def verify_id_token(self) -> Any:
         try:
             if self.platform == "ios":
                 google_client_id = settings.google_ios_client_id
@@ -35,9 +31,6 @@ class GoogleOAuthService:
                 google_client_id = settings.google_android_client_id
             else:
                 google_client_id = settings.google_client_id
-
-            # In a real async environment, we might want to run this in a thread pool
-            # since verify_oauth2_token is blocking, but for now we'll keep it simple.
 
             id_info = google.oauth2.id_token.verify_oauth2_token(
                 self.id_token,
@@ -53,32 +46,29 @@ class GoogleOAuthService:
             ]:
                 raise GoogleWrongIssuerError
 
-            if id_info["sub"] != uid:
-                raise InvalidSocialUIDError
-
             self.uid = id_info["sub"]
             self.name = id_info.get("name")
             self.email = id_info.get("email")
             self.expiry = datetime.utcfromtimestamp(int(id_info["exp"]))
 
         except ValueError as e:
-            logger.error(f"Google Token Verification Error: {e!s}")
+            logger.error(f"Google Token Verification Error: {e}")
             raise InvalidSocialTokenError from e
         except Exception as e:
-            logger.exception(f"Unexpected error during Google verification: {e!s}")
+            logger.exception(f"Unexpected error during Google verification: {e}")
             raise InvalidSocialTokenError from e
 
-    async def get_email(self) -> Any:
-        return self.email
-
-    async def get_name(self) -> Any:
-        return self.name
-
-    async def get_uid(self) -> Any:
+    async def get_uid(self):
         return self.uid
 
-    async def get_token(self) -> Any:
-        return self.id_token
+    async def get_email(self):
+        return self.email
 
-    async def get_expiry(self) -> Any:
+    async def get_name(self):
+        return self.name
+
+    async def get_expiry(self):
         return self.expiry
+
+    async def get_token(self):
+        return self.id_token

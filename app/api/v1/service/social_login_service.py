@@ -24,10 +24,12 @@ class SocialLoginService:
     ) -> dict[str, Any]:
         """Handle Google Social Login business logic."""
         # 1. Verify Google ID Token
-        await google_service.verify_id_token(request_data["uid"])
+        # await google_service.verify_id_token(request_data["uid"])
+        await google_service.verify_id_token()
+
 
         # 2. Get user by social login
-        social_id = google_service.get_uid()
+        social_id = await google_service.get_uid()
         provider = google_service.NAME
 
         rows = await execute_query(
@@ -44,7 +46,7 @@ class SocialLoginService:
             # We check if user exists with the same email first (optional based on
             # requirements, but usually social login should link to existing
             # account if email matches)
-            email = google_service.get_email()
+            email = await google_service.get_email()
             if email:
                 email_rows = await execute_query(
                     UserQueries.GET_USER_BY_EMAIL,
@@ -64,7 +66,7 @@ class SocialLoginService:
                         "provider": provider,
                         "social_id": social_id,
                         "email": email,
-                        "name": google_service.get_name(),
+                        "name": await google_service.get_name(),
                         "country": request_data.get("country"),
                         "platform": request_data.get("platform"),
                         "user_agent": request_data.get("user_agent"),
@@ -87,7 +89,7 @@ class SocialLoginService:
                 "user_id": user_id,
                 "provider": provider,
                 "social_id": social_id,
-                "token": google_service.get_token(),
+                "token": await google_service.get_token(),
             },
             db_session,
         )
@@ -134,7 +136,7 @@ class SocialLoginService:
         await apple_service.verify_id_token(request_data["uid"])
 
         # 2. Get user by social login
-        social_id = apple_service.get_uid()
+        social_id = await apple_service.get_uid()
         provider = apple_service.NAME
 
         rows = await execute_query(
@@ -148,7 +150,7 @@ class SocialLoginService:
             user = dict(rows[0])
         else:
             # 3. New user, signup with social
-            email = apple_service.get_email()
+            email = await apple_service.get_email()
 
             # Note: Apple sometimes hides email (private relay), so email could
             # be None or a privaterelay email.
@@ -168,7 +170,7 @@ class SocialLoginService:
                         "provider": provider,
                         "social_id": social_id,
                         "email": email,
-                        "name": apple_service.get_name(),
+                        "name": await apple_service.get_name(),
                         "country": request_data.get("country"),
                         "platform": request_data.get("platform"),
                         "user_agent": request_data.get("user_agent"),
@@ -190,7 +192,7 @@ class SocialLoginService:
                 "user_id": user_id,
                 "provider": provider,
                 "social_id": social_id,
-                "token": apple_service.get_token(),
+                "token": await apple_service.get_token(),
             },
             db_session,
         )
@@ -238,7 +240,7 @@ class SocialLoginService:
         await facebook_service.verify_access_token(request_data["uid"])
 
         # 2. Get user by social login
-        social_id = facebook_service.get_uid()
+        social_id = await facebook_service.get_uid()
         provider = facebook_service.NAME
 
         rows = await execute_query(
@@ -252,7 +254,7 @@ class SocialLoginService:
             user = dict(rows[0])
         else:
             # 3. New user, signup with social
-            email = facebook_service.get_email()
+            email = await facebook_service.get_email()
 
             if email:
                 email_rows = await execute_query(
@@ -270,7 +272,7 @@ class SocialLoginService:
                         "provider": provider,
                         "social_id": social_id,
                         "email": email,
-                        "name": facebook_service.get_name(),
+                        "name": await facebook_service.get_name(),
                         "country": request_data.get("country"),
                         "platform": request_data.get("platform"),
                         "user_agent": request_data.get("user_agent"),
@@ -292,7 +294,7 @@ class SocialLoginService:
                 "user_id": user_id,
                 "provider": provider,
                 "social_id": social_id,
-                "token": facebook_service.get_token(),
+                "token": await facebook_service.get_token(),
             },
             db_session,
         )

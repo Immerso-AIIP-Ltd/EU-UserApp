@@ -486,7 +486,7 @@ class UserQueries:
                 CAST(:email AS VARCHAR),
                 '',
                 '',
-                CAST(:provider AS VARCHAR)::user_app.logintype,
+                :provider,
                 'active',
                 TRUE,
                 NOW(),
@@ -512,12 +512,12 @@ class UserQueries:
     UPSERT_SOCIAL_IDENTITY_PROVIDER = text(
         """
         INSERT INTO user_app.social_identity_provider
-        (user_id, provider, provider_user_id, provider_token, created_at)
+        (user_id, provider, provider_user_id, token, created_at)
         VALUES (:user_id, :provider, :social_id, :token, NOW())
         ON CONFLICT (user_id, provider) DO UPDATE SET
             provider_user_id = EXCLUDED.provider_user_id,
-            provider_token = EXCLUDED.provider_token,
-            updated_at = NOW();
+            token = EXCLUDED.token,
+            modified_at = NOW();
         """,
     )
 
