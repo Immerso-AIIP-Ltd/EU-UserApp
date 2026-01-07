@@ -86,7 +86,7 @@ class GenerateOtpService:
         """Generate and send OTP based on receiver type (email or mobile)."""
         # Generate OTP locally using secrets for security (S311)
         otp = "".join(secrets.choice(string.digits) for _ in range(4))
-        
+
         logger.info(f"Generating OTP for {receiver} (type={receiver_type}, intent={intent})")
         # DEBUG LOGGING FOR OTP
         logger.info(f"Generated OTP: {otp}")
@@ -155,8 +155,6 @@ class GenerateOtpService:
                     CommParams.SUBJECT: EmailSubjects.ONE_TIME_PASSWORD,
                     CommParams.MESSAGE: EmailMessages.ONE_TIME_PASSWORD.format(otp),
                 }
-            
-            logger.info(f"Sending Email OTP to {receiver}. Payload: {payload}")
             await call_communication_api(deeplinks.MAIL_SEND_URL, payload)
         except Exception as e:
             logger.error(LogMessages.EMAIL_SEND_FAILED.format(e))
@@ -225,7 +223,6 @@ class GenerateOtpService:
         }
 
         try:
-            logger.info(f"Sending SMS OTP to {receiver}. Payload: {sms_payload}")
             response = await call_communication_api(deeplinks.SMS_SEND_URL, sms_payload)
             if response and response.get(CommParams.STATUS) != ResponseParams.SUCCESS:
                 logger.error(LogMessages.SMS_SEND_FAILED.format(response))

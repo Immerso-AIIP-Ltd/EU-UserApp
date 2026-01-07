@@ -40,7 +40,7 @@ class GoogleOAuthService:
                 google_client_id,
             )
 
-            logger.info(f"GOOGLE VERIFY TOKEN response: {id_info}")
+            # logger.info(f"GOOGLE VERIFY TOKEN response: {id_info}")
 
             if id_info["iss"] not in [
                 "accounts.google.com",

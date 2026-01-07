@@ -41,7 +41,7 @@ class FusionAuthService:
             )
             return payload
         except Exception as e:
-            print(f"Token verification failed: {e}")
+            # print(f"Token verification failed: {e}")
             raise HTTPException(status_code=401, detail="Could not validate credentials")
 
     @classmethod
@@ -83,7 +83,7 @@ class FusionAuthService:
                     }
                 })
                 if not reg_response.was_successful():
-                     print(f"Failed to register existing user: {reg_response.error_response}")
+                     # print(f"Failed to register existing user: {reg_response.error_response}")
                      raise HTTPException(status_code=500, detail="Failed to register user to application")
 
             return user_uuid
@@ -95,7 +95,7 @@ class FusionAuthService:
         if response.was_successful():
             return response.success_response["user"]["id"]
         else:
-            print(f"Failed to create FA user: {response.error_response}")
+            # print(f"Failed to create FA user: {response.error_response}")
             raise HTTPException(status_code=500, detail="Failed to sync user with Authentication Provider")
 
     @classmethod
@@ -125,5 +125,5 @@ class FusionAuthService:
         if response.was_successful():
             return response.success_response["token"]
         else:
-            print(f"Failed to issue token: {response.error_response}")
+            # print(f"Failed to issue token: {response.error_response}")
             raise HTTPException(status_code=500, detail="Authentication Provider could not issue token")

@@ -83,7 +83,7 @@ class LoginService:
 
         except Exception as e:
              # Raise an error if FusionAuth token cannot be issued
-             print(f"Failed to issue FusionAuth token: {e}")
+             # print(f"Failed to issue FusionAuth token: {e}")
              raise UnauthorizedError(f"Failed to issue FusionAuth token: {e}")
 
         # Link device to user
