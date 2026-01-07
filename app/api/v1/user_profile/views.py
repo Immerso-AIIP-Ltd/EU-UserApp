@@ -23,8 +23,8 @@ from app.core.constants import (
     SuccessMessages,
 )
 from app.core.exceptions.exceptions import (
-    ProfileFetchException,
-    UserNotFoundException,
+    ProfileFetchError,
+    UserNotFoundError,
 )
 from app.core.middleware.auth import get_current_user
 from app.db.dependencies import get_db_session
@@ -43,20 +43,18 @@ async def get_user_profile(
     cache: Redis = Depends(get_redis_connection),
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> JSONResponse:
-    """
-    Get authenticated user's profile using x-api-token.
-    """
+    """Get authenticated user's profile using x-api-token."""
     user_id = current_user.get("user_id")
     if not user_id:
-        raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+        raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
 
     cache_key = build_cache_key(
         CacheKeyTemplates.CACHE_KEY_USER_PROFILE,
         **{
             RequestParams.USER_ID: user_id,
-            "platform": headers.get("platform"),
-            "version": headers.get("app_version"),
-            "country": headers.get("country"),
+            RequestParams.PLATFORM: headers.get(RequestParams.PLATFORM),
+            RequestParams.VERSION: headers.get(RequestParams.APP_VERSION),
+            RequestParams.COUNTRY: headers.get(RequestParams.COUNTRY),
         },
     )
     cached_data = await get_cache(cache, cache_key)
@@ -73,7 +71,7 @@ async def get_user_profile(
         data = await execute_and_transform(query, params, UserProfileData, db_session)
 
         if not data or len(data) == 0:
-            raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+            raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
 
         user_profile = data[0]
 
@@ -85,13 +83,13 @@ async def get_user_profile(
             data=user_profile,
         )
 
-    except UserNotFoundException:
+    except UserNotFoundError:
         raise
     except Exception as e:
         logger.exception(e)
-        raise ProfileFetchException(
+        raise ProfileFetchError(
             detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {e!s}",
-        )
+        ) from e
 
 
 @router.put("/profile")
@@ -103,21 +101,19 @@ async def update_user_profile(
     cache: Redis = Depends(get_redis_connection),
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> JSONResponse:
-    """
-    Update authenticated user's profile.
-    """
-    user_id = current_user.get("user_id")
+    """Update authenticated user's profile."""
+    user_id = current_user.get(RequestParams.USER_ID)
     if not user_id:
-        raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+        raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
 
     # Invalidate cache
     cache_key = build_cache_key(
         CacheKeyTemplates.CACHE_KEY_USER_PROFILE,
         **{
             RequestParams.USER_ID: user_id,
-            "platform": headers.get("platform"),
-            "version": headers.get("app_version"),
-            "country": headers.get("country"),
+            RequestParams.PLATFORM: headers.get(RequestParams.PLATFORM),
+            RequestParams.VERSION: headers.get(RequestParams.APP_VERSION),
+            RequestParams.COUNTRY: headers.get(RequestParams.COUNTRY),
         },
     )
     await cache.delete(cache_key)
@@ -125,21 +121,21 @@ async def update_user_profile(
     query = UserQueries.UPDATE_USER_PROFILE
     params = {
         RequestParams.USER_ID: user_id,
-        "name": profile_update.name,
-        "gender": profile_update.gender,
-        "about_me": profile_update.about_me,
-        "birth_date": profile_update.birth_date,
-        "nick_name": profile_update.nick_name,
-        "country": profile_update.country,
-        "avatar_id": profile_update.avatar_id,
-        "profile_image": profile_update.profile_image,
+        RequestParams.NAME: profile_update.name,
+        RequestParams.GENDER: profile_update.gender,
+        RequestParams.ABOUT_ME: profile_update.about_me,
+        RequestParams.BIRTH_DATE: profile_update.birth_date,
+        RequestParams.NICK_NAME: profile_update.nick_name,
+        RequestParams.COUNTRY: profile_update.country,
+        RequestParams.AVATAR_ID: profile_update.avatar_id,
+        RequestParams.PROFILE_IMAGE: profile_update.profile_image,
     }
 
     try:
         data = await execute_and_transform(query, params, UserProfileData, db_session)
 
         if not data or len(data) == 0:
-            raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+            raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
 
         user_profile = data[0]
 
@@ -147,18 +143,18 @@ async def update_user_profile(
         await set_cache(cache, cache_key, user_profile, ttl=CacheTTL.TTL_USER_PROFILE)
 
         return standard_response(
-            message="Profile Updated",
+            message=SuccessMessages.PROFILE_UPDATED,
             request=request,
             data=user_profile,
         )
 
-    except UserNotFoundException:
+    except UserNotFoundError:
         raise
     except Exception as e:
         logger.exception(e)
-        raise ProfileFetchException(
+        raise ProfileFetchError(
             detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {e!s}",
-        )
+        ) from e
 
 
 @router.post("/update_email_mobile")
@@ -170,21 +166,19 @@ async def update_email_mobile(
     cache: Redis = Depends(get_redis_connection),
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> JSONResponse:
-    """
-    Update authenticated user's email or mobile.
-    """
-    user_id = current_user.get("user_id")
+    """Update authenticated user's email or mobile."""
+    user_id = current_user.get(RequestParams.USER_ID)
     if not user_id:
-        raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+        raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
 
     # Invalidate cache
     cache_key = build_cache_key(
         CacheKeyTemplates.CACHE_KEY_USER_PROFILE,
         **{
             RequestParams.USER_ID: user_id,
-            "platform": headers.get("platform"),
-            "version": headers.get("app_version"),
-            "country": headers.get("country"),
+            RequestParams.PLATFORM: headers.get(RequestParams.PLATFORM),
+            RequestParams.VERSION: headers.get(RequestParams.APP_VERSION),
+            RequestParams.COUNTRY: headers.get(RequestParams.COUNTRY),
         },
     )
     await cache.delete(cache_key)
@@ -192,9 +186,9 @@ async def update_email_mobile(
     query = UserQueries.UPDATE_EMAIL_MOBILE
     params = {
         RequestParams.USER_ID: user_id,
-        "email": contact_update.email,
-        "mobile": contact_update.mobile,
-        "calling_code": contact_update.calling_code,
+        RequestParams.EMAIL: contact_update.email,
+        RequestParams.MOBILE: contact_update.mobile,
+        RequestParams.CALLING_CODE: contact_update.calling_code,
     }
 
     try:
@@ -206,14 +200,14 @@ async def update_email_mobile(
         )
 
         if not data or len(data) == 0:
-            raise UserNotFoundException(detail=ErrorMessages.USER_NOT_FOUND)
+            raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
 
         updated_contact = data[0]
 
         message = (
-            "User Email updated successfully."
+            SuccessMessages.EMAIL_UPDATED
             if contact_update.email
-            else "User Mobile updated successfully."
+            else SuccessMessages.MOBILE_UPDATED
         )
 
         return standard_response(
@@ -222,10 +216,10 @@ async def update_email_mobile(
             data=updated_contact,
         )
 
-    except UserNotFoundException:
+    except UserNotFoundError:
         raise
     except Exception as e:
         logger.exception(e)
-        raise ProfileFetchException(
+        raise ProfileFetchError(
             detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {e!s}",
-        )
+        ) from e

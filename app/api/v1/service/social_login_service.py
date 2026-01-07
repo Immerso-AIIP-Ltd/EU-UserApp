@@ -8,10 +8,13 @@ from app.api.v1.service.apple_oauth_service import AppleOAuthService
 from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
 from app.api.v1.service.google_oauth_service import GoogleOAuthService
+from app.db.models.user_app import User
 from app.db.utils import execute_query
 
 
 class SocialLoginService:
+    """Service to handle social login business logic."""
+
     @staticmethod
     async def google_login(
         google_service: GoogleOAuthService,
@@ -19,14 +22,13 @@ class SocialLoginService:
         db_session: AsyncSession,
         cache: Redis,
     ) -> dict[str, Any]:
-        """
-        Handle Google Social Login business logic.
-        """
+        """Handle Google Social Login business logic."""
         # 1. Verify Google ID Token
-        await google_service.verify_id_token(request_data["uid"])
+        # await google_service.verify_id_token(request_data["uid"])
+        await google_service.verify_id_token()
 
         # 2. Get user by social login
-        social_id = google_service.get_uid()
+        social_id = await google_service.get_uid()
         provider = google_service.NAME
 
         rows = await execute_query(
@@ -40,9 +42,10 @@ class SocialLoginService:
             user = dict(rows[0])
         else:
             # 3. New user, signup with social
-            # We check if user exists with the same email first (optional based on requirements,
-            # but usually social login should link to existing account if email matches)
-            email = google_service.get_email()
+            # We check if user exists with the same email first (optional based on
+            # requirements, but usually social login should link to existing
+            # account if email matches)
+            email = await google_service.get_email()
             if email:
                 email_rows = await execute_query(
                     UserQueries.GET_USER_BY_EMAIL,
@@ -51,7 +54,8 @@ class SocialLoginService:
                 )
                 if email_rows:
                     user = dict(email_rows[0])
-                    # If user exists by email, we should still update/create identity provider later
+                    # If user exists by email, we should still update/create identity
+                    # provider later
 
             if not user:
                 # Actually signup
@@ -61,7 +65,7 @@ class SocialLoginService:
                         "provider": provider,
                         "social_id": social_id,
                         "email": email,
-                        "name": google_service.get_name(),
+                        "name": await google_service.get_name(),
                         "country": request_data.get("country"),
                         "platform": request_data.get("platform"),
                         "user_agent": request_data.get("user_agent"),
@@ -84,7 +88,7 @@ class SocialLoginService:
                 "user_id": user_id,
                 "provider": provider,
                 "social_id": social_id,
-                "token": google_service.get_token(),
+                "token": await google_service.get_token(),
             },
             db_session,
         )
@@ -126,14 +130,12 @@ class SocialLoginService:
         db_session: AsyncSession,
         cache: Redis,
     ) -> dict[str, Any]:
-        """
-        Handle Apple Social Login business logic.
-        """
+        """Handle Apple Social Login business logic."""
         # 1. Verify Apple ID Token
         await apple_service.verify_id_token(request_data["uid"])
 
         # 2. Get user by social login
-        social_id = apple_service.get_uid()
+        social_id = await apple_service.get_uid()
         provider = apple_service.NAME
 
         rows = await execute_query(
@@ -147,9 +149,10 @@ class SocialLoginService:
             user = dict(rows[0])
         else:
             # 3. New user, signup with social
-            email = apple_service.get_email()
+            email = await apple_service.get_email()
 
-            # Note: Apple sometimes hides email (private relay), so email could be None or a privaterelay email.
+            # Note: Apple sometimes hides email (private relay), so email could
+            # be None or a privaterelay email.
             if email:
                 email_rows = await execute_query(
                     UserQueries.GET_USER_BY_EMAIL,
@@ -166,7 +169,7 @@ class SocialLoginService:
                         "provider": provider,
                         "social_id": social_id,
                         "email": email,
-                        "name": apple_service.get_name(),  # Likely None for existing Apple logic unless we extend
+                        "name": await apple_service.get_name(),
                         "country": request_data.get("country"),
                         "platform": request_data.get("platform"),
                         "user_agent": request_data.get("user_agent"),
@@ -188,7 +191,7 @@ class SocialLoginService:
                 "user_id": user_id,
                 "provider": provider,
                 "social_id": social_id,
-                "token": apple_service.get_token(),
+                "token": await apple_service.get_token(),
             },
             db_session,
         )
@@ -229,15 +232,14 @@ class SocialLoginService:
         db_session: AsyncSession,
         cache: Redis,
     ) -> dict[str, Any]:
-        """
-        Handle Facebook Social Login business logic.
-        """
+        """Handle Facebook Social Login business logic."""
         # 1. Verify Facebook Access Token
-        # Facebook verification matches ID against UID inside verify_access_token so we pass uid
+        # Facebook verification matches ID against UID inside verify_access_token
+        # so we pass uid
         await facebook_service.verify_access_token(request_data["uid"])
 
         # 2. Get user by social login
-        social_id = facebook_service.get_uid()
+        social_id = await facebook_service.get_uid()
         provider = facebook_service.NAME
 
         rows = await execute_query(
@@ -251,7 +253,7 @@ class SocialLoginService:
             user = dict(rows[0])
         else:
             # 3. New user, signup with social
-            email = facebook_service.get_email()
+            email = await facebook_service.get_email()
 
             if email:
                 email_rows = await execute_query(
@@ -269,7 +271,7 @@ class SocialLoginService:
                         "provider": provider,
                         "social_id": social_id,
                         "email": email,
-                        "name": facebook_service.get_name(),
+                        "name": await facebook_service.get_name(),
                         "country": request_data.get("country"),
                         "platform": request_data.get("platform"),
                         "user_agent": request_data.get("user_agent"),
@@ -284,15 +286,6 @@ class SocialLoginService:
 
         user_id = user["id"]
 
-        # 4. Generate Auth Token
-        token, expires_at = await AuthService.generate_token(
-            user_uuid=user_id,
-            client_id=request_data["client_id"],
-            db_session=db_session,
-            cache=cache,
-            device_id=request_data["device_id"],
-        )
-
         # 5. Create or update identity provider
         await execute_query(
             UserQueries.UPSERT_SOCIAL_IDENTITY_PROVIDER,
@@ -300,14 +293,14 @@ class SocialLoginService:
                 "user_id": user_id,
                 "provider": provider,
                 "social_id": social_id,
-                "token": facebook_service.get_token(),
+                "token": await facebook_service.get_token(),
             },
             db_session,
         )
 
         # 5. Generate Auth Token
         token, expires_at = await AuthService.generate_token(
-            user_uuid=user_id,
+            user=User(id=user_id),
             client_id=request_data["client_id"],
             db_session=db_session,
             cache=cache,

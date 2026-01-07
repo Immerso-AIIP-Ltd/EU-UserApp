@@ -12,6 +12,7 @@ from app.api.v1.register.commservice import call_communication_api
 from app.api.v1.register.otp import GenerateOtpService
 from app.api.v1.register.task import get_device_info
 from app.api.v1.schemas import (
+    FriendInviteObject,
     FriendInviteRequest,
     FriendInviteResponse,
     ResendWaitlistOtpRequest,
@@ -31,7 +32,7 @@ from app.core.constants import (
     SuccessMessages,
 )
 from app.core.exceptions import exceptions
-from app.core.exceptions.exceptions import OtpExpired
+from app.core.exceptions.exceptions import OtpExpiredError
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_query
 from app.settings import settings
@@ -52,6 +53,7 @@ async def join_waitlist(
     cache: Redis = Depends(get_redis_connection),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
 ) -> JSONResponse:
+    """Join the waitlist using email or mobile and trigger OTP flow."""
     device_id = payload.device_id
     email_id = payload.email_id
     mobile = payload.mobile
@@ -62,21 +64,24 @@ async def join_waitlist(
     client_ip = (
         x_forwarded.split(",")[0].strip()
         if x_forwarded
-        else (request.client.host if request.client else settings.REDIS_HOST)
+        else (request.client.host if request.client else settings.redis_host)
     )
 
     if not device_id:
         raise exceptions.ValidationError(message=ErrorMessages.DEVICE_ID_REQUIRED)
-
-    # Ensure device exists to satisfy Foreign Key constraint
-    # await _ensure_device_exists(db_session=db_session, device_id=device_id, request=request)
 
     if not email_id and not (mobile and calling_code):
         raise exceptions.ValidationError(message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED)
 
     if email_id and not mobile:
         return await _process_email_flow(
-            request, cache, db_session, device_id, email_id, name, client_ip,
+            request,
+            cache,
+            db_session,
+            device_id,
+            email_id,
+            name,
+            client_ip,
         )
 
     if mobile and calling_code and not email_id:
@@ -116,7 +121,8 @@ async def _process_email_flow(
             return standard_response(
                 request=request,
                 message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
-                    entry.queue_number, RequestParams.DEVICE_ID,
+                    entry.queue_number,
+                    RequestParams.DEVICE_ID,
                 ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
@@ -124,7 +130,7 @@ async def _process_email_flow(
                     RequestParams.STATUS: SuccessMessages.WAITLIST_ALREADY_EXISTS,
                 },
             )
-        else:
+
             # Resend OTP
             await GenerateOtpService.generate_otp(
                 redis_client=cache,
@@ -160,7 +166,8 @@ async def _process_email_flow(
             return standard_response(
                 request=request,
                 message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
-                    entry.queue_number, RequestParams.EMAIL_ADDRESS,
+                    entry.queue_number,
+                    RequestParams.EMAIL_ADDRESS,
                 ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
@@ -168,7 +175,6 @@ async def _process_email_flow(
                     RequestParams.STATUS: SuccessMessages.WAITLIST_ALREADY_EXISTS,
                 },
             )
-        else:
             # Resend OTP
             await GenerateOtpService.generate_otp(
                 redis_client=cache,
@@ -246,7 +252,8 @@ async def _process_mobile_flow(
             return standard_response(
                 request=request,
                 message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
-                    entry.queue_number, RequestParams.DEVICE_ID,
+                    entry.queue_number,
+                    RequestParams.DEVICE_ID,
                 ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
@@ -254,7 +261,6 @@ async def _process_mobile_flow(
                     RequestParams.STATUS: SuccessMessages.WAITLIST_ALREADY_EXISTS,
                 },
             )
-        else:
             await _send_mobile_otp(
                 cache=cache,
                 mobile=mobile,
@@ -289,7 +295,8 @@ async def _process_mobile_flow(
             return standard_response(
                 request=request,
                 message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
-                    entry.queue_number, ProcessParams.MOBILE_NUMBER,
+                    entry.queue_number,
+                    ProcessParams.MOBILE_NUMBER,
                 ),
                 data={
                     RequestParams.QUEUE_NUMBER: str(entry.queue_number),
@@ -297,7 +304,6 @@ async def _process_mobile_flow(
                     RequestParams.STATUS: SuccessMessages.WAITLIST_ALREADY_EXISTS,
                 },
             )
-        else:
             await _send_mobile_otp(
                 cache=cache,
                 mobile=mobile,
@@ -359,7 +365,7 @@ async def _send_mobile_otp(
     calling_code: str,
     client_ip: str,
     db_session: AsyncSession,
-    intent: Intents,
+    intent: str,
     is_resend: bool = False,
 ) -> None:
     await GenerateOtpService.generate_otp(
@@ -412,6 +418,7 @@ async def verify_waitlist(
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
+    """Verify OTP for waitlist entry."""
     email_id = payload.email_id
     mobile = payload.mobile
     calling_code = payload.calling_code
@@ -423,7 +430,8 @@ async def verify_waitlist(
     # 1. Verify OTP
     if email_id:
         redis_key = CacheKeyTemplates.OTP_EMAIL.format(
-            receiver=email_id, intent=Intents.WAITLIST,
+            receiver=email_id,
+            intent=Intents.WAITLIST,
         )
         cached_otp = await cache.get(redis_key)
 
@@ -432,7 +440,7 @@ async def verify_waitlist(
             or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
             or (isinstance(cached_otp, str) and cached_otp != otp)
         ):
-            raise OtpExpired()
+            raise OtpExpiredError
 
         # Consume OTP
         await cache.delete(redis_key)
@@ -448,7 +456,8 @@ async def verify_waitlist(
         receiver = f"{calling_code}{mobile}".lstrip("+")
         # Verify OTP
         redis_key = CacheKeyTemplates.OTP_MOBILE.format(
-            receiver=receiver, intent=Intents.WAITLIST,
+            receiver=receiver,
+            intent=Intents.WAITLIST,
         )
         cached_otp = await cache.get(redis_key)
 
@@ -457,7 +466,9 @@ async def verify_waitlist(
             or (isinstance(cached_otp, bytes) and cached_otp.decode() != payload.otp)
             or (isinstance(cached_otp, str) and cached_otp != payload.otp)
         ):
-            raise ValidationError(ErrorMessages.OTP_INVALID_OR_EXPIRED)
+            raise exceptions.ValidationError(
+                message=ErrorMessages.OTP_INVALID_OR_EXPIRED,
+            )
 
         # Consume OTP
         await cache.delete(redis_key)
@@ -473,7 +484,7 @@ async def verify_waitlist(
         )
 
     if not existing_entry:
-        raise exceptions.UserNotFound(
+        raise exceptions.UserNotFoundError(
             message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(ProcessParams.USER),
         )
 
@@ -492,7 +503,8 @@ async def verify_waitlist(
     return standard_response(
         request=request,
         message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
-            updated_row.queue_number, ResponseParams.VERIFICATION_SUCCESS,
+            updated_row.queue_number,
+            ResponseParams.VERIFICATION_SUCCESS,
         ),  # Or a simpler message
         data={
             RequestParams.QUEUE_NUMBER: str(updated_row.queue_number),
@@ -511,6 +523,7 @@ async def resend_waitlist_otp(
     cache: Redis = Depends(get_redis_connection),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
 ) -> JSONResponse:
+    """Resend OTP for waitlist verification."""
     email_id = payload.email_id
     mobile = payload.mobile
     calling_code = payload.calling_code
@@ -526,7 +539,7 @@ async def resend_waitlist_otp(
             db_session=db_session,
         )
         if not existing_entry:
-            raise exceptions.UserNotFound(
+            raise exceptions.UserNotFoundError(
                 message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(
                     RequestParams.EMAIL,
                 ),
@@ -559,7 +572,7 @@ async def resend_waitlist_otp(
             db_session=db_session,
         )
         if not existing_entry:
-            raise exceptions.UserNotFound(
+            raise exceptions.UserNotFoundError(
                 message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(
                     RequestParams.MOBILE_NUMBER,
                 ),
@@ -601,14 +614,11 @@ async def friend_invite(
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     x_device_id: str = Header(..., alias=RequestParams.X_DEVICE_ID),
 ) -> JSONResponse:
-    # 1. Get Waitlist Entry
-    waitlist_entries = await execute_query(
-        query=UserQueries.GET_WAITLIST_BY_DEVICE,
-        params={RequestParams.DEVICE_ID: x_device_id},
-        db_session=db_session,
-    )
+    """Invite a friend via email or mobile."""
+    # 1. Resolve Inviter
+    waitlist_entry, inviter_user_id = await _resolve_inviter(db_session, x_device_id)
 
-    if not waitlist_entries:
+    if not waitlist_entry:
         return standard_response(
             request=request,
             message=ErrorMessages.DEVICE_NOT_INVITED,
@@ -620,31 +630,14 @@ async def friend_invite(
             },
         )
 
-    waitlist_entry = waitlist_entries[0]
     inviter_email = waitlist_entry.email
-    # inviter_mobile = waitlist_entry.mobile
-    # inviter_calling_code = waitlist_entry.calling_code
-    inviter_user_id = waitlist_entry.id
     waitlist_id = waitlist_entry.queue_number
 
-    # 2. Resolve Inviter User ID if missing
-    if not inviter_user_id:
-        user_entry = await execute_query(
-            query=UserQueries.GET_USER_BY_EMAIL,
-            params={RequestParams.EMAIL: inviter_email},
-            db_session=db_session,
-        )
-        if user_entry:
-            inviter_user_id = user_entry[0].id
-
-    created_invites = []
-    duplicate_invites = []
-    invalid_items = []
-    failed_items = []
-
+    # 2. Check Inviter Registration
     if not inviter_user_id:
         logger.warning(
-            f"{ErrorMessages.INVITER_NOT_FOUND}: Device {x_device_id}, Email {inviter_email}",
+            f"{ErrorMessages.INVITER_NOT_FOUND}: Device {x_device_id}, "
+            f"Email {inviter_email}",
         )
         return standard_response(
             request=request,
@@ -654,136 +647,47 @@ async def friend_invite(
                 RequestParams.DUPLICATES: [],
                 RequestParams.INVALID: [],
                 RequestParams.FAILED: [
-                    (
-                        item.model_dump()
-                        if hasattr(item, ProcessParams.MODEL_DUMP)
-                        else item
-                    )
+                    item.model_dump() if isinstance(item, FriendInviteObject) else item
                     for item in payload.invited_list
                 ],
             },
         )
 
     # 3. Process Invites
-    for item in payload.invited_list:
-        invited_email = None
-        invited_mobile = None
-        invited_calling_code = None
+    created_invites = []
+    duplicate_invites = []
+    invalid_items: list[Any] = []
+    failed_items: list[Any] = []
 
-        # Determine Invite Type
-        if isinstance(item, str):  # EmailStr
-            invited_email = item
-        elif isinstance(
-            item, dict,
-        ):  # Should not happen due to Pydantic, but purely for safety
-            invited_email = item.get(RequestParams.EMAIL)
-            invited_mobile = item.get(RequestParams.MOBILE)
-            invited_calling_code = item.get(RequestParams.CALLING_CODE)
-        else:  # FriendInviteObject
-            invited_email = item.email
-            invited_mobile = item.mobile
-            invited_calling_code = item.calling_code
+    for item in payload.invited_list:
+        invited_email, invited_mobile, invited_calling_code = _parse_invite_item(item)
 
         # Send Invite
-        success = False
-        try:
-            if invited_email:
-                # Email Invite
-                email_payload = {
-                    CommParams.RECIPIENTS: [invited_email],
-                    CommParams.SUBJECT: EmailTemplates.FRIEND_INVITE_SUBJECT.format(
-                        inviter_email,
-                    ),
-                    CommParams.MESSAGE: EmailTemplates.FRIEND_INVITE_MESSAGE.format(
-                        inviter_email, settings.web_url,
-                    ),
-                    CommParams.HTML_CONTENT: None,
-                    CommParams.TEMPLATE_ID: None,
-                }
-                # TODO: Use proper template if available
-
-                resp = await call_communication_api(
-                    deeplinks.MAIL_SEND_URL, email_payload,
-                )
-                if (
-                    resp and resp.get(CommParams.STATUS) == ResponseParams.SUCCESS
-                ):  # Check your comm service response structure
-                    success = True
-            elif invited_mobile and invited_calling_code:
-                # SMS Invite
-                sms_payload = {
-                    RequestParams.MOBILE: invited_mobile,
-                    RequestParams.CALLING_CODE: invited_calling_code,
-                    CommParams.MESSAGE: None,
-                    CommParams.VARIABLES: {CommParams.VAR: invited_mobile},
-                }
-                # Note: User snippet used NotificationService.send_Friend_invite_sms
-                # We try to map to generic SMS or a specific endpoint if exists.
-                # Assuming SMS_SEND_URL works or we need a specific one.
-                # User provided logic: NotificationService.send_Friend_invite_sms with variables.
-                # Let's try generic SMS send.
-
-                resp = await call_communication_api(deeplinks.SMS_SEND_URL, sms_payload)
-                if resp and resp.get(CommParams.STATUS) == ResponseParams.SUCCESS:
-                    success = True
-
-        except Exception as e:
-            logger.error(f"{ErrorMessages.INVITE_SEND_FAILED}: {e}")
+        sent = await _send_invite_notification(
+            invited_email,
+            invited_mobile,
+            invited_calling_code,
+            inviter_email,
+        )
+        if not sent:
             failed_items.append(item)
             continue
 
-        if not success:
-            failed_items.append(item)
-            continue
+        # Persist Invite
+        status = await _persist_invite(
+            db_session,
+            inviter_user_id,
+            waitlist_id,
+            invited_email,
+            invited_mobile,
+            invited_calling_code,
+        )
 
-        # Insert into DB
-        try:
-            # Check if already invited (Optional, but DB has CONFLICT DO NOTHING)
-            # We just try insert
-
-            # We need invited_user_id if they exist?
-            invited_user_id = None
-            if invited_email:
-                existing = await execute_query(
-                    UserQueries.GET_USER_BY_EMAIL,
-                    {RequestParams.EMAIL: invited_email},
-                    db_session,
-                )
-                if existing:
-                    invited_user_id = existing[0].id
-            elif invited_mobile:
-                existing = await execute_query(
-                    UserQueries.GET_USER_BY_MOBILE,
-                    {
-                        RequestParams.MOBILE: invited_mobile,
-                        RequestParams.CALLING_CODE: invited_calling_code,
-                    },
-                    db_session,
-                )
-                if existing:
-                    invited_user_id = existing[0].id
-
-            res = await execute_query(
-                query=UserQueries.INSERT_FRIEND_INVITE,
-                params={
-                    RequestParams.INVITER_ID: inviter_user_id,
-                    RequestParams.INVITED_EMAIL: invited_email,
-                    RequestParams.INVITED_MOBILE: invited_mobile,
-                    RequestParams.INVITED_CALLING_CODE: invited_calling_code,
-                    RequestParams.INVITED_USER_ID: invited_user_id,
-                    RequestParams.WAITLIST_ID: waitlist_id,
-                },
-                db_session=db_session,
-            )
-            await db_session.commit()
-
-            if res:
-                created_invites.append(item)
-            else:
-                duplicate_invites.append(item)
-
-        except Exception as e:
-            logger.error(f"{ErrorMessages.INVITE_DB_INSERT_FAILED}: {e}")
+        if status == "created":
+            created_invites.append(item)
+        elif status == "duplicate":
+            duplicate_invites.append(item)
+        else:
             failed_items.append(item)
 
     return standard_response(
@@ -791,20 +695,159 @@ async def friend_invite(
         message=SuccessMessages.FRIEND_INVITES_SENT.format(len(created_invites)),
         data={
             RequestParams.INVITED: [
-                item.model_dump() if hasattr(item, ProcessParams.MODEL_DUMP) else item
+                item.model_dump() if isinstance(item, FriendInviteObject) else item
                 for item in created_invites
             ],
             RequestParams.DUPLICATES: [
-                item.model_dump() if hasattr(item, ProcessParams.MODEL_DUMP) else item
+                item.model_dump() if isinstance(item, FriendInviteObject) else item
                 for item in duplicate_invites
             ],
             RequestParams.INVALID: [
-                item.model_dump() if hasattr(item, ProcessParams.MODEL_DUMP) else item
+                item.model_dump() if isinstance(item, FriendInviteObject) else item
                 for item in invalid_items
             ],
             RequestParams.FAILED: [
-                item.model_dump() if hasattr(item, ProcessParams.MODEL_DUMP) else item
+                item.model_dump() if isinstance(item, FriendInviteObject) else item
                 for item in failed_items
             ],
         },
     )
+
+
+async def _resolve_inviter(
+    db_session: AsyncSession,
+    x_device_id: str,
+) -> tuple[Any | None, int | None]:
+    """Resolve waitlist entry and inviter user ID."""
+    waitlist_entries = await execute_query(
+        query=UserQueries.GET_WAITLIST_BY_DEVICE,
+        params={RequestParams.DEVICE_ID: x_device_id},
+        db_session=db_session,
+    )
+    if not waitlist_entries:
+        return None, None
+
+    waitlist_entry = waitlist_entries[0]
+    inviter_user_id = waitlist_entry.id
+
+    if not inviter_user_id:
+        user_entry = await execute_query(
+            query=UserQueries.GET_USER_BY_EMAIL,
+            params={RequestParams.EMAIL: waitlist_entry.email},
+            db_session=db_session,
+        )
+        if user_entry:
+            inviter_user_id = user_entry[0].id
+
+    return waitlist_entry, inviter_user_id
+
+
+def _parse_invite_item(
+    item: Any,
+) -> tuple[str | None, str | None, str | None]:
+    """Extract email, mobile, and calling code from invite item."""
+    if isinstance(item, str):
+        return item, None, None
+    if isinstance(item, dict):
+        return (
+            item.get(RequestParams.EMAIL),
+            item.get(RequestParams.MOBILE),
+            item.get(RequestParams.CALLING_CODE),
+        )
+    # FriendInviteObject
+    return item.email, item.mobile, item.calling_code
+
+
+async def _send_invite_notification(
+    invited_email: str | None,
+    invited_mobile: str | None,
+    invited_calling_code: str | None,
+    inviter_email: str | None,
+) -> bool:
+    """Send invitation via Email or SMS."""
+    try:
+        if invited_email:
+            email_payload = {
+                CommParams.RECIPIENTS: [invited_email],
+                CommParams.SUBJECT: EmailTemplates.FRIEND_INVITE_SUBJECT.format(
+                    inviter_email,
+                ),
+                CommParams.MESSAGE: EmailTemplates.FRIEND_INVITE_MESSAGE.format(
+                    inviter_email,
+                    settings.web_url,
+                ),
+                CommParams.HTML_CONTENT: None,
+                CommParams.TEMPLATE_ID: None,
+            }
+            resp = await call_communication_api(
+                deeplinks.MAIL_SEND_URL,
+                email_payload,
+            )
+            return bool(resp and resp.get(CommParams.STATUS) == ResponseParams.SUCCESS)
+
+        if invited_mobile and invited_calling_code:
+            sms_payload = {
+                RequestParams.MOBILE: invited_mobile,
+                RequestParams.CALLING_CODE: invited_calling_code,
+                CommParams.MESSAGE: None,
+                CommParams.VARIABLES: {CommParams.VAR: invited_mobile},
+            }
+            resp = await call_communication_api(deeplinks.SMS_SEND_URL, sms_payload)
+            return bool(resp and resp.get(CommParams.STATUS) == ResponseParams.SUCCESS)
+
+    except Exception as e:
+        logger.error(f"{ErrorMessages.INVITE_SEND_FAILED}: {e}")
+        return False
+
+    return False
+
+
+async def _persist_invite(
+    db_session: AsyncSession,
+    inviter_user_id: int | None,
+    waitlist_id: int,
+    invited_email: str | None,
+    invited_mobile: str | None,
+    invited_calling_code: str | None,
+) -> str:
+    """Insert invite into database. Returns 'created', 'duplicate', or 'failed'."""
+    try:
+        invited_user_id = None
+        if invited_email:
+            existing = await execute_query(
+                UserQueries.GET_USER_BY_EMAIL,
+                {RequestParams.EMAIL: invited_email},
+                db_session,
+            )
+            if existing:
+                invited_user_id = existing[0].id
+        elif invited_mobile:
+            existing = await execute_query(
+                UserQueries.GET_USER_BY_MOBILE,
+                {
+                    RequestParams.MOBILE: invited_mobile,
+                    RequestParams.CALLING_CODE: invited_calling_code,
+                },
+                db_session,
+            )
+            if existing:
+                invited_user_id = existing[0].id
+
+        res = await execute_query(
+            query=UserQueries.INSERT_FRIEND_INVITE,
+            params={
+                RequestParams.INVITER_ID: inviter_user_id,
+                RequestParams.INVITED_EMAIL: invited_email,
+                RequestParams.INVITED_MOBILE: invited_mobile,
+                RequestParams.INVITED_CALLING_CODE: invited_calling_code,
+                RequestParams.INVITED_USER_ID: invited_user_id,
+                RequestParams.WAITLIST_ID: waitlist_id,
+            },
+            db_session=db_session,
+        )
+        await db_session.commit()
+        return "created" if res else "duplicate"
+
+    except Exception as e:
+        logger.error(f"{ErrorMessages.INVITE_DB_INSERT_FAILED}: {e}")
+        return "failed"

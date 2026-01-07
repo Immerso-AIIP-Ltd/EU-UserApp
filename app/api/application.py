@@ -10,7 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.lifespan import lifespan_setup
 from app.api.v1.router import api_router
-from app.core.exceptions.exceptions import AppError, AppException
+from app.core.exceptions.exceptions import AppError, AppExceptionError
 from app.core.logging.log import configure_logging
 from app.core.middleware.logging_middleware import logging_middleware
 
@@ -40,10 +40,10 @@ def get_app() -> FastAPI:
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
         return exc.to_response()
 
-    @app.exception_handler(AppException)
+    @app.exception_handler(AppExceptionError)
     async def app_exception_handler(
         request: Request,
-        exc: AppException,
+        exc: AppExceptionError,
     ) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status_code,

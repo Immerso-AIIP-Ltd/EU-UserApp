@@ -28,6 +28,41 @@ class HTTPStatus:
     INTERNAL_SERVER_ERROR = 500
 
 
+class HTTPMethods:
+    """HTTP methods."""
+
+    POST = "POST"
+    GET = "GET"
+
+
+class HeaderValues:
+    """HTTP header values."""
+
+    APPLICATION_JSON = "application/json"
+    APPLICATION_FORM_URLENCODED = "application/x-www-form-urlencoded"
+
+
+class CommServiceConfig:
+    """Communication service configuration."""
+
+    TIMEOUT = 10
+    LOGGER_MSG = "COMM API CALL"
+
+
+class LogKeys:
+    """Keys for structured logging."""
+
+    SERVER_RESPONSE = "server_response"
+    SERVER_RESPONSE_CODE = "server_response_code"
+    TIME = "time"
+    EXCEPTION = "exception"
+    SMTP_ERROR = "smtp_error"
+    TRACEBACK = "traceback"
+    DATA = "data"
+    EMAIL = "email"
+    MESSAGE = "message"
+
+
 class CacheKeyTemplates:
     """Cache key templates for all endpoints."""
 
@@ -46,6 +81,7 @@ class CacheKeyTemplates:
     OTP_MOBILE = "mobile_otp_{receiver}_{intent}"
     BLOCKED_IP = "blocked_ip_{ip_address}_{receiver}"
     OTP_REQ_COUNT = "otp_reqcount_{ip_address}_{receiver}"
+    USER_AUTH_TOKEN = "auth:{user_uuid}:{device_id}"  # noqa: S105
 
 
 class CacheTTL:
@@ -57,6 +93,7 @@ class CacheTTL:
     TTL_MAX = 86400  # 24 hours
     TTL_INVITE_DEVICE = 60
     TTL_USER_PROFILE = 3600
+    OTP_EXPIRY = 180
 
 
 class QueryTimeouts:
@@ -107,8 +144,6 @@ class RequestParams:
     DUPLICATES = "duplicates"
     INVALID = "invalid"
     FAILED = "failed"
-    X_FORWARDED_FOR = "X-Forwarded-For"
-    X_FORWARD_FOR = "x-forwarded-for"
     DEVICE = "Device"
     DEVICE_NAME = "device_name"
     DEVICE_TYPE = "device_type"
@@ -120,10 +155,102 @@ class RequestParams:
     INVITED_USER_ID = "invited_user_id"
     WAITLIST_ID = "waitlist_id"
     API_CLIENT = "api_client"
-    TOKEN = "token"
-    TOKEN_EXPIRY = "token_expiry"
-    USER_TOKEN = "user_token"
+    TOKEN = "token"  # noqa: S105
+    TOKEN_EXPIRY = "token_expiry"  # noqa: S105
+    USER_TOKEN = "user_token"  # noqa: S105
     JSON = "json"
+    LOCALHOST = "127.0.0.1"
+    MOBILE_NUMBER = "mobile_number"
+    EMAIL_ADDRESS = "email_address"
+    AUTH_TOKEN = "auth_token"  # noqa: S105
+    AUTH_TOKEN_EXPIRY = "auth_token_expiry"  # noqa: S105
+    IMAGE = "image"
+    USER = "user"
+    APP_VERSION = "app_version"
+    VERSION = "version"
+    GENDER = "gender"
+    ABOUT_ME = "about_me"
+    BIRTH_DATE = "birth_date"
+    NICK_NAME = "nick_name"
+    AVATAR_ID = "avatar_id"
+    PROFILE_IMAGE = "profile_image"
+    IS_VALID = "is_valid"
+    UUID = "uuid"
+    KID = "kid"
+    EXP = "exp"
+    PARTNER_ID = "partner_id"
+    CLIENT_ID = "client_id"
+    CLIENT_SECRET = "client_secret"  # noqa: S105
+
+
+class DnsRecordTypes:
+    """DNS record types."""
+
+    MX = "MX"
+
+
+class PlatformTypes:
+    """Platform types."""
+
+    ANDROID = "android"
+    IOS = "ios"
+    WEB = "web"
+
+
+class DeviceTypes:
+    """Device types."""
+
+    MOBILE = "mobile"
+    DESKTOP = "desktop"
+
+
+class UserAgentSubstrings:
+    """User agent substrings for device detection."""
+
+    ANDROID = "android"
+    IPHONE = "iphone"
+    IPAD = "ipad"
+    WINDOWS = "windows"
+    MACINTOSH = "macintosh"
+    CHROME = "chrome"
+    EDG = "edg"
+    FIREFOX = "firefox"
+
+
+class DeviceNames:
+    """Device names."""
+
+    ANDROID_DEVICE = "Android Device"
+    IPHONE = "iPhone"
+    WINDOWS_BROWSER = "Windows Browser"
+    MAC_BROWSER = "Mac Browser"
+    WEB_BROWSER = "Web Browser"
+    CHROME = " Chrome"
+    EDGE = " Edge"
+    FIREFOX = " Firefox"
+
+
+class SocialProviders:
+    """Social login providers."""
+
+    APPLE = "apple"
+    GOOGLE = "google"
+    FACEBOOK = "facebook"
+
+
+class CacheValues:
+    """Common cache values."""
+
+    TRUE = "true"
+    EROS = "EROS"
+
+
+class DeepLinkParamFormats:
+    """Formats for deep link parameters."""
+
+    EMAIL = "email={}"
+    MOBILE = "mobile=+{}-{}"
+    REGISTRATION_INTENT = "&intent=registration"
 
 
 class ProcessParams:
@@ -160,6 +287,8 @@ class ResponseParams:
     PAGE = "page"
     PER_PAGE = "per_page"
     TOTAL_PAGES = "total_pages"
+    USER_STATUS = "user_status"
+    REDIRECT_URL = "redirect_url"
 
     # Error fields (if needed)
     ERROR_CODE = "error_code"
@@ -185,7 +314,7 @@ class LoginParams:
     """Login parameter names."""
 
     UTF8 = "utf-8"
-    PASSWORD = "password"
+    PASSWORD = "password"  # noqa: S105
     REDIRECT_URL = "redirect_url"
     NAME = "name"
     AVATAR_ID = "avatar_id"
@@ -200,13 +329,131 @@ class EmailTemplates:
     """Email body and subject templates."""
 
     FRIEND_INVITE_SUBJECT = "{0} invited you to join!"
-    FRIEND_INVITE_MESSAGE = "Hi,\n\n{0} has invited you to join our platform.\nClick here to register: {1}\n\nThanks!"
+    FRIEND_INVITE_MESSAGE = (
+        "Hi,\n\n{0} has invited you to join our platform.\n"
+        "Click here to register: {1}\n\nThanks!"
+    )
 
 
 class RedirectTemplates:
     """Redirect URL templates for mobile app navigation."""
 
     VERIFY_OTP = "erosnowapp://verify_otp?{type}={receiver}&intent={intent}"
+
+
+class CeleryQueues:
+    """Celery queue names."""
+
+    BLOCK_IP_QUEUE = "block_ip_queue"
+
+
+class EmailSubjects:
+    """Email subjects."""
+
+    ONE_TIME_PASSWORD = "One Time Password."  # noqa: S105
+    RESET_PASSWORD = "Reset Your Password - OTP"  # noqa: S105
+
+
+class EmailMessages:
+    """Email body messages."""
+
+    ONE_TIME_PASSWORD = "{0} is your one time password to set up your ErosUniverse account. It is valid for 3 minutes."  # noqa: S105, E501
+    RESET_PASSWORD = "{0} is your one time password to reset your ErosUniverse account password. It is valid for 3 minutes."  # noqa: S105, E501
+
+
+class TemplateParams:
+    """Template parameter keys."""
+
+    OTP_CODE = "otp_code"
+    USERNAME = "username"
+    RESET_URL = "reset_url"
+    OTP = "otp"
+    VAR = "var"
+
+
+class LogMessages:
+    """Log messages."""
+
+    CLIENT_IP_MISSING = "Client IP (x_forwarded_for) Missing"
+    IP_BLOCKED = "IP is blocked: {0}"
+    OTP_REQ_COUNT = "OTP request count for {0}_{1}: {2}"
+    TOO_MANY_REQUESTS_BLOCKING = "Too many OTP requests, blocking IP: {0}_{1}"
+    SMS_SEND_FAILED = "Failed to send SMS: {0}"
+    SMS_SEND_EXCEPTION = "SMS Send failed: {0}"
+    EMAIL_SEND_FAILED = "Failed to send OTP email via CommService: {0}"
+    BREVO_TEMPLATE_NOT_CONFIGURED = "BREVO_OTP_RESEND_TEMPLATE_ID not configured"
+    REDIS_ERROR_INCREMENT = "Redis error during OTP increment for {0}_{1}: {2}"
+
+
+class RedisLogMessages:
+    """Redis related log messages."""
+
+    REMOVE_DEVICE_TOKEN_ERROR = (
+        "Error removing device token from redis: {0}"  # noqa: S105
+    )
+    SAVE_DEVICE_TOKEN_ERROR = "Error saving device token to redis: {0}"  # noqa: S105
+    ADD_DEVICE_TOKEN_ERROR = "Error adding device token to redis: {0}"  # noqa: S105
+    SADD_ERROR = "Error in sadd: {0}"
+    SREM_ERROR = "Error in srem: {0}"
+    SMEMBERS_ERROR = "Error in smembers: {0}"
+    LPUSH_ERROR = "Error in lpush: {0}"
+    GET_LIST_ERROR = "Error in get_list: {0}"
+    LREM_ERROR = "Error in lrem: {0}"
+    SET_DICT_ERROR = "Error in set_dict: {0}"
+    GET_VAL_ERROR = "Error in get_val: {0}"
+    SET_VAL_ERROR = "Error in set_val: {0}"
+    REMOVE_KEY_ERROR = "Error in remove_key: {0}"
+    INCR_VAL_ERROR = "Error in incr_val: {0}"
+    EXPIRE_KEY_ERROR = "Error in expire_key: {0}"
+
+
+class ServiceLogMessages:
+    """Service related log messages."""
+
+    LOG_TIME = "Time for EmailDnsVerifyService"
+    UNHANDLED_EXCEPTION_DOMAIN = "Unhandled exception for domain"
+    UNABLE_TO_CONNECT_SMTP = "UNABLE TO CONNECT SMTP SERVER"
+    DEVICE_REGISTERED = "Device registered"
+
+
+class LegacyLogMessages:
+    """Legacy API related log messages."""
+
+    WOULD_BLOCK_IP = "Would block IP address {0}_{1} for 24 hours (Redis disabled)."
+    LEGACY_API_CALL_FAILED = "Legacy API call failed: {0}"
+
+
+class AppleLogMessages:
+    """Apple OAuth related log messages."""
+
+    FETCH_KEYS_FAILED = "Failed to fetch Apple public keys: {0}"
+    ID_TOKEN_EXPIRED = "Apple ID Token expired"  # noqa: S105
+    INVALID_TOKEN = "Invalid Apple Token: {0}"  # noqa: S105
+    UNEXPECTED_ERROR = "Unexpected error during Apple verification: {0}"
+
+
+class AuthLogMessages:
+    """Authentication related log messages."""
+
+    BCRYPT_VERIFICATION_FAILED = "Bcrypt verification failed: {0}"
+    JWT_DECODE_FAILED = "JWT decode failed: {0}"
+
+
+class EmailVerificationCacheKeys:
+    """Cache keys for email verification."""
+
+    DNS_INVALID_DOMAINS = "dns.invalid_domains.{0}"
+    DNS_SKIP_DOMAINS = "dns.skip_domains_for_verification"
+    DNS_VALID_EMAILS = "dns.valid_emails.{0}"
+    DNS_INVALID_EMAILS = "dns.invalid_emails.{0}"
+    DNS_VALID_DOMAINS = "dns.valid_domains.{0}"
+
+
+class UserStates:
+    """User states for deep linking."""
+
+    U001 = "U001"
+    U002 = "U002"
 
 
 # Custom Messages
@@ -231,7 +478,7 @@ class SuccessMessages:
     ACCOUNT_LOCKED = (
         "Your account is temporarily locked due to multiple failed attempts."
     )
-    PASSWORD_CHANGED_SUCCESS = "Password changed successfully."
+    PASSWORD_CHANGED_SUCCESS = "Password changed successfully."  # noqa: S105
     USER_LOGGED_OUT_SUCCESS = "User was logged out successfully."
     USER_DEACTIVATED_SUCCESS = "Your account has been successfully deactivated."
     USER_REGISTERED_VERIFIED = "User registered and verified successfully."
@@ -246,6 +493,9 @@ class SuccessMessages:
     MOBILE_ALREADY_VERIFIED = "This mobile number is already verified."
     OTP_RESENT = "A new OTP has been sent."
     INVITER_NOT_REGISTERED = "Inviter must be a registered user to send invites."
+    PROFILE_UPDATED = "Profile Updated"
+    EMAIL_UPDATED = "User Email updated successfully."
+    MOBILE_UPDATED = "User Mobile updated successfully."
 
 
 class ErrorCodes:
@@ -282,11 +532,11 @@ class ErrorCodes:
     COUPON_EXPIRED = "US200"
     EMAIL_OR_MOBILE_REQUIRED = "US004"
     CALLING_CODE_REQUIRED = "US018"
-    PASSWORD_REQUIRED = "US017"
+    PASSWORD_REQUIRED = "US017"  # noqa: S105
     USER_ALREADY_REGISTERED = "US001"
     COMM_SERVICE_API_CALL_FAILED = "US021"
     MOBILE_INVALID = "US022"
-    FORGOT_PASSWORD = "US023"
+    FORGOT_PASSWORD = "US023"  # noqa: S105
     OTP_EXPIRED = "US024"
     OTP_TOO_MANY_ATTEMPTS = "US025"
     IP_BLOCKED = "US026"
@@ -295,11 +545,11 @@ class ErrorCodes:
     VALIDATION = "US004"
     USER_NOT_FOUND = "US002"
     BLOCKED = "US003"
-    USER_TOKEN_NOT_VALID = "US031"
+    USER_TOKEN_NOT_VALID = "US031"  # noqa: S105
 
     # Login Specific
     USER_NOT_FOUND_LOGIN_CODE = "US002"
-    INCORRECT_PASSWORD_CODE = "US021"
+    INCORRECT_PASSWORD_CODE = "US021"  # noqa: S105
     ACCOUNT_LOCKED_CODE = "US003"
     UNAUTHORIZED_LOGIN_CODE = "US401"
     INVALID_INPUT_CODE = "US029"
@@ -307,11 +557,12 @@ class ErrorCodes:
     US400 = "US400"
     US404 = "US404"
     US409 = "US409"
-    USER_TOKEN_NOT_FOUND_CODE = "US401"
+    US403 = "US403"
+    USER_TOKEN_NOT_FOUND_CODE = "US401"  # noqa: S105
     FACEBOOK_AUTH_ERROR_CODE = "US401"
     GOOGLE_WRONG_ISSUER_CODE = "US401"
     INVALID_SOCIAL_UID_CODE = "US401"
-    INVALID_SOCIAL_TOKEN_CODE = "US401"
+    INVALID_SOCIAL_TOKEN_CODE = "US401"  # noqa: S105
     APPLE_KEY_FETCH_ERROR_CODE = "US500"
 
 
@@ -348,12 +599,13 @@ class ErrorMessages:
     COUPON_EXPIRED = "Coupon expired or consumed"
     EMAIL_OR_MOBILE_REQUIRED = "Either email or mobile number is required"
     CALLING_CODE_REQUIRED = "Calling code is required when mobile number is provided"
-    PASSWORD_REQUIRED = "Password is required"
+    PASSWORD_REQUIRED = "Password is required"  # noqa: S105
     USER_ALREADY_REGISTERED = "User already registered"
     COMM_SERVICE_API_CALL_FAILED = "Not able to send or validate OTP, please try again"
     MOBILE_INVALID = "Mobile number is not valid"
-    FORGOT_PASSWORD = "Forgot Password"
+    FORGOT_PASSWORD = "Forgot Password"  # noqa: S105
     OTP_EXPIRED = "OTP Expired"
+    OTP_INVALID_OR_EXPIRED = "OTP is Invalid or Expired"
     OTP_TOO_MANY_ATTEMPTS = "OTP Too Many Attempts"
     IP_BLOCKED = "IP is blocked"
     PROVIDE_EMAIL_OR_MOBILE = (
@@ -367,31 +619,32 @@ class ErrorMessages:
     PROFILE_FETCH_FAILED = "Failed to fetch user profile"
     INVALID_INPUT = "Invalid input data"
     CLIENT_ID_VALIDATION_FAILED = "Invalid Client ID"
-    FORGOT_PASSWORD = "FORGOT_PASSWORD"
-    USER_TOKEN_NOT_VALID = "Invalid Token"
+    USER_TOKEN_NOT_VALID = "Invalid Token"  # noqa: S105
     STATE_NOT_FOUND = "State not found"
     INVITE_DB_INSERT_FAILED = "INVITE_DB_INSERT_FAILED"
     INVITE_SEND_FAILED = "INVITE_SEND_FAILED"
 
     # Login Specific
-    INCORRECT_PASSWORD = "Incorrect password."
+    INCORRECT_PASSWORD = "Incorrect password."  # noqa: S105
     USER_NOT_FOUND_LOGIN = "User not found."
     ACCOUNT_LOCKED = (
         "Your account is temporarily locked due to multiple failed login attempts."
     )
     ACCOUNT_LOCKED_DETAILS = "Please try again after some time."
-    USER_TOKEN_NOT_FOUND = "Authentication token not found or invalid."
-    INVALID_OLD_PASSWORD = "The old password provided is incorrect."
+    USER_TOKEN_NOT_FOUND = "Authentication token not found or invalid."  # noqa: S105
+    INVALID_OLD_PASSWORD = "The old password provided is incorrect."  # noqa: S105
     PASSWORDS_DO_NOT_MATCH = "New passwords do not match."
-    INCORRECT_PASSWORD_DETAILS = "The password entered is incorrect."
+    INCORRECT_PASSWORD_DETAILS = "The password entered is incorrect."  # noqa: S105
     USER_NOT_FOUND_DETAILS = "No user exists with the provided email or mobile."
-    PASSWORDS_DO_NOT_MATCH = "New passwords do not match."
-    INVALID_OLD_PASSWORD = "The old password provided is incorrect."
+
     FACEBOOK_AUTH_ERROR = "Facebook authentication failed."
     GOOGLE_WRONG_ISSUER = "Invalid Google issuer."
     INVALID_SOCIAL_UID = "Social UID mismatch."
-    INVALID_SOCIAL_TOKEN = "Invalid social token."
+    INVALID_SOCIAL_TOKEN = "Invalid social token."  # noqa: S105
     APPLE_KEY_FETCH_ERROR = "Failed to fetch Apple auth keys."
+    INVALID_EMAIL_DOMAIN = "Invalid email domain"
+    EMAIL_DOES_NOT_EXIST = "Email doesn't exist"
+    EMAIL_DOMAIN_CONNECTION_ERROR = "Email domain connection error"
 
 
 class Headers:
@@ -402,12 +655,37 @@ class Headers:
     X_PLATFORM = "Platform key identifier (eg. android, ios, web)."
     X_COUNTRY = "Country code (eg. IN, US, UK)."
     X_APP_VERSION = "Application version (eg. 1.0.0)"
-    X_API_TOKEN = "API token (x-api-token)."
+    X_API_VERSION = "API version (eg. 1.0.0)"
+    X_API_TOKEN = "API token (eg. 1.0.0)"  # noqa: S105
+    X_DEVICE_TYPE = "Type of device (eg. mobile, tablet, desktop)."
+    X_DEVICE_NAME = "Name of the device (eg. iPhone 13, Samsung Galaxy S21)."
+    USER_AGENT = "User-Agent string from the client."
+
+
+class HeaderKeys:
+    """HTTP Header Keys."""
+
+    X_API_TOKEN = "x-api-token"  # noqa: S105
+    API_TOKEN = "api_token"  # noqa: S105
+    X_DEVICE_ID = "x-device-id"
+    DEVICE_ID = "device_id"
+    X_API_CLIENT = "x-api-client"
+    API_CLIENT = "api_client"
+    X_FORWARDED_FOR = "x-forwarded-for"
+    X_PLATFORM = "x-platform"
+    X_APP_VERSION = "x-app-version"
+    X_COUNTRY = "x-country"
+    X_DEVICE_TYPE = "x-device-type"
+    X_DEVICE_NAME = "x-device-name"
+    USER_AGENT = "user-agent"
+    CONTENT_TYPE = "Content-Type"
 
 
 class Intents:
+    """OTP verification intents."""
+
     REGISTRATION = "registration"
-    FORGOT_PASSWORD = "forgot_password"
+    FORGOT_PASSWORD = "forgot_password"  # noqa: S105
     UPDATE_EMAIL = "update_email"
     UPDATE_MOBILE = "update_mobile"
     WAITLIST = "waitlist"
@@ -452,9 +730,9 @@ class Description(str):
     EMAIL = "User email address"
     MOBILE = "User mobile number"
     CALLING_CODE = "International calling code"
-    PASSWORD = "User password"
-    NEW_PASSWORD = "New password"
-    NEW_PASSWORD_CONFIRM = "New password confirmation"
+    PASSWORD = "User password"  # noqa: S105
+    NEW_PASSWORD = "New password"  # noqa: S105
+    NEW_PASSWORD_CONFIRM = "New password confirmation"  # noqa: S105
     NAME = "Full name of the user"
     AVATAR_ID = "Avatar ID"
     BIRTH_DATE = "Birth date (YYYY-MM-DD)"
@@ -467,7 +745,7 @@ class Description(str):
     COUNTRY = "Country code"
     INVITED_LIST = "List of emails or contact objects"
     SOCIAL_USER_ID = "Social User ID"
-    OAUTH_TOKEN = "OAuth Token"
+    OAUTH_TOKEN = "OAuth Token"  # noqa: S105
 
 
 class LoggerConfigs:
@@ -480,10 +758,17 @@ class LoggerConfigs:
 
 
 class AuthConfig:
-    """Authorization constants"""
+    """Authorization constants."""
 
     ALGORITHM = "HS256"
+    RS256 = "RS256"
     DECODE_CODE = "utf-8"
+
+
+class JwtOptions:
+    """JWT verification options."""
+
+    VERIFY_EXP = "verify_exp"
 
 
 Messages = SuccessMessages

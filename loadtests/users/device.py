@@ -14,9 +14,9 @@ class DeviceUser(HttpUser):
             "Content-Type": "application/json",
             "x-device-id": self.device_id,
             "api_client": "android_app",
-            "platform": "android",
-            "app_version": "1.0.0",
-            "country": "IN",
+            "x-platform": "android",
+            "x-app-version": "1.0.0",
+            "x-country": "IN",
             "x-api-client": "android_app",
         }
 

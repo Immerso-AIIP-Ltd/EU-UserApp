@@ -5,6 +5,7 @@ from locust import HttpUser, task, between
 
 
 class RegisterUser(HttpUser):
+    host = "http://localhost:8880"
     wait_time = between(1, 5)
 
     def on_start(self):
@@ -13,13 +14,14 @@ class RegisterUser(HttpUser):
             "x-device-id": "loadtest-device-"
             + "".join(random.choices(string.ascii_lowercase + string.digits, k=10)),
             "api_client": "android_app",
-            "platform": "android",
-            "app_version": "1.0.0",
-            "country": "IN",
+            "x-platform": "android",
+            "x-app-version": "1.0.0",
+            "x-country": "IN",
             "x-api-client": "android_app",
         }
+        self.email = None
 
-    @task
+    @task(1)
     def register_with_profile(self):
         email = f"loadtest_{''.join(random.choices(string.ascii_lowercase, k=10))}@example.com"
         password = "Password123!"
@@ -49,3 +51,28 @@ class RegisterUser(HttpUser):
     # Note: Verify OTP requires knowing the OTP which is stored in Redis/sent via email.
     # We skip it for pure load testing of the registration initiation endpoint,
     # or it would require a way to fetch the OTP from Redis (which Locust shouldn't do directly ideally).
+    @task(2)
+    def resend_otp(self):
+        """
+        Load test OTP resend (rate limiting, Redis, validation)
+        """
+        if not self.email:
+            return
+
+        payload = {
+            "email": self.email,
+            "intent": "register",
+        }
+
+        with self.client.post(
+            "/user/v1/register/resend_otp",
+            json=payload,
+            headers=self.headers,
+            catch_response=True,
+        ) as response:
+            if response.status_code in [200, 400]:
+                response.success()
+            else:
+                response.failure(
+                    f"Resend OTP failed: {response.status_code} - {response.text}"
+                )

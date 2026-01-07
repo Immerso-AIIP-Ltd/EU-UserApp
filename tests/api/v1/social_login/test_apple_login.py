@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -9,27 +10,30 @@ from app.main import app
 
 # Mock dependencies
 @pytest.fixture
-def mock_apple_service():
-    with patch("app.api.v1.social_login.views.AppleOAuthService") as MockService:
-        service_instance = MockService.return_value
+def mock_apple_service() -> Any:
+    with patch("app.api.v1.social_login.views.AppleOAuthService") as mock_service:
+        service_instance = mock_service.return_value
         yield service_instance
 
 
 @pytest.fixture
-def mock_social_login_service():
+def mock_social_login_service() -> Any:
     with patch(
         "app.api.v1.service.social_login_service.SocialLoginService",
-    ) as MockSocialService:
-        yield MockSocialService
+    ) as mock_social_service:
+        yield mock_social_service
 
 
 @pytest.mark.asyncio
-async def test_apple_login_success(mock_apple_service, mock_social_login_service):
+async def test_apple_login_success(
+    mock_apple_service: Any,
+    mock_social_login_service: Any,
+) -> None:
     # Setup
     mock_apple_service.verify_id_token = AsyncMock()
     mock_social_login_service.apple_login = AsyncMock(
         return_value={
-            "auth_token": "valid_token",
+            "auth_token": "valid_token",  # nosec S105
             "user": {
                 "user_id": "123",
                 "email": "test@example.com",
@@ -42,7 +46,7 @@ async def test_apple_login_success(mock_apple_service, mock_social_login_service
     async with AsyncClient(app=app, base_url="http://test") as ac:
         response = await ac.post(
             "/api/v1/social/apple_login",
-            json={"user_id": "apple_123", "token": "valid_apple_token"},
+            json={"user_id": "apple_123", "token": "valid_apple_token"},  # nosec S105
             headers={
                 "x-api-client": "ios",
                 "x-device-id": "device_123",
@@ -55,21 +59,22 @@ async def test_apple_login_success(mock_apple_service, mock_social_login_service
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
-    assert data["data"]["auth_token"] == "valid_token"
+    assert data["data"]["auth_token"] == "valid_token"  # noqa: S105
     assert data["message"] == "User logged in successfully"
 
 
 @pytest.mark.asyncio
-async def test_apple_login_invalid_token(mock_apple_service):
+async def test_apple_login_invalid_token(mock_apple_service: Any) -> None:
     # Setup - simulate exception during verification of service creation
     # Note: verification happens inside the service.verify_id_token call
     mock_apple_service.verify_id_token = AsyncMock(side_effect=InvalidSocialToken())
 
-    # We need to ensure SocialLoginService calls verify_id_token, so we probably shouldn't mock SocialLoginService entirely
-    # OR we can just rely on the fact that if SocialLoginService fails, the view handles it.
-    # In integration tests, we'd want to test the full flow. Here we test the view.
+    # OR we can just rely on the fact that if SocialLoginService fails,
+    # the view handles it. In integration tests, we'd want to test the full flow.
+    # Here we test the view.
 
-    # If we mock SocialLoginService.apple_login to raise the exception, it simulates the service layer failing
+    # If we mock SocialLoginService.apple_login to raise the exception, it
+    # simulates the service layer failing.
     with patch(
         "app.api.v1.service.social_login_service.SocialLoginService.apple_login",
         side_effect=InvalidSocialToken(),
@@ -77,7 +82,7 @@ async def test_apple_login_invalid_token(mock_apple_service):
         async with AsyncClient(app=app, base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/social/apple_login",
-                json={"user_id": "apple_123", "token": "invalid_token"},
+                json={"user_id": "apple_123", "token": "invalid_token"},  # nosec S105
                 headers={
                     "x-api-client": "ios",
                     "x-device-id": "device_123",

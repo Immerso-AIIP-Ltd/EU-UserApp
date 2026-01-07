@@ -21,7 +21,7 @@ from app.core.constants import (
     SuccessMessages,
 )
 from app.core.exceptions.exceptions import (
-    DeviceNotInvited,
+    DeviceNotInvitedError,
     ValidationError,
 )
 from app.db.dependencies import get_db_session
@@ -45,7 +45,7 @@ async def check_device_invite_status(
         CacheKeyTemplates.CACHE_KEY_DEVICE_INVITE_STATUS,
         device_id=device_id,
         platform=headers.get(RequestParams.PLATFORM),
-        version=headers.get(RequestParams.API_VERSION),
+        version=headers.get(RequestParams.APP_VERSION),
         country=headers.get(RequestParams.COUNTRY),
     )
 
@@ -65,7 +65,7 @@ async def check_device_invite_status(
     )
 
     if not data or data[0].get(RequestParams.COUPON_ID) is None:
-        raise DeviceNotInvited(detail=ErrorMessages.DEVICE_NOT_INVITED)
+        raise DeviceNotInvitedError(detail=ErrorMessages.DEVICE_NOT_INVITED)
 
     await set_cache(cache, cache_key, data, CacheTTL.TTL_INVITE_DEVICE)
 
@@ -122,7 +122,7 @@ async def invite_device(
         CacheKeyTemplates.CACHE_KEY_DEVICE_INVITE_STATUS,
         device_id=payload.device_id,
         platform=headers.get(RequestParams.PLATFORM),
-        version=headers.get(RequestParams.API_VERSION),
+        version=headers.get(RequestParams.APP_VERSION),
         country=headers.get(RequestParams.COUNTRY),
     )
     await cache.delete(cache_key)

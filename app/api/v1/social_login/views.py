@@ -31,6 +31,7 @@ async def google_login(
     cache: Redis = Depends(get_redis_connection),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
 ) -> JSONResponse:
+    print("login_data", login_data)
     """
     Google Login / Sign Up API.
 
@@ -49,14 +50,14 @@ async def google_login(
         "country": headers.get("country"),
         "user_agent": request.headers.get("User-Agent"),
     }
-
+    print("request_data", request_data)
     data = await SocialLoginService.google_login(
         google_service=google_service,
         request_data=request_data,
         db_session=db_session,
         cache=cache,
     )
-
+    print("data", data)
     return standard_response(
         message=SuccessMessages.USER_LOGGED_IN,
         request=request,
@@ -118,7 +119,7 @@ async def facebook_login(
 
     Logs in a user via Facebook OAuth. Creates a new account if it does not exist.
     """
-    facebook_service = FacebookOAuthService(login_data.token)
+    facebook_service = FacebookOAuthService(login_data.access_token)
     request_data = {
         "uid": login_data.uid,
         "client_id": headers.get("api_client"),
@@ -127,7 +128,6 @@ async def facebook_login(
         "country": headers.get("country"),
         "user_agent": request.headers.get("User-Agent"),
     }
-    print("request_data", request_data)
     data = await SocialLoginService.facebook_login(
         facebook_service=facebook_service,
         request_data=request_data,

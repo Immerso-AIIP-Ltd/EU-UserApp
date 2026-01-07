@@ -6,14 +6,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.service.device_redis_service import DeviceTokenRedisService
-from app.core.exceptions.exceptions import DeviceAlreadyRegistered, DeviceNotRegistered
+from app.core.exceptions.exceptions import (
+    DeviceAlreadyRegisteredError,
+    DeviceNotRegisteredError,
+)
 from app.db.utils import execute_query
 
 
 class DeviceService:
+    """Service to handle device registration, updates, and user linking."""
 
     @staticmethod
     async def is_device_registered(device_id: str, db_session: AsyncSession) -> bool:
+        """Check if a device is already registered in the database."""
         rows = await execute_query(
             UserQueries.CHECK_DEVICE_EXISTS,
             {"device_id": device_id},
@@ -28,11 +33,9 @@ class DeviceService:
         cache: Redis | None,
         **attrs: Any,
     ) -> dict[str, Any]:
-        """
-        Creates a new device.
-        """
+        """Creates a new device."""
         if await DeviceService.is_device_registered(device_id, db_session):
-            raise DeviceAlreadyRegistered("Device already registered")
+            raise DeviceAlreadyRegisteredError("Device already registered")
 
         # Prepare default values matching the query params
         params = {
@@ -56,9 +59,7 @@ class DeviceService:
         cache: Redis,
         **kwargs: Any,
     ) -> None:
-        """
-        Updates device details.
-        """
+        """Updates device details."""
         params = {
             "device_id": device_id,
             "device_type": kwargs.get("device_type"),
@@ -69,13 +70,14 @@ class DeviceService:
 
     @staticmethod
     async def get_device(device_id: str, db_session: AsyncSession) -> dict[str, Any]:
+        """Gets device by ID."""
         rows = await execute_query(
             UserQueries.GET_DEVICE_BY_ID,
             {"device_id": device_id},
             db_session,
         )
         if not rows:
-            raise DeviceNotRegistered("Device not registered")
+            raise DeviceNotRegisteredError("Device not registered")
         return dict(rows[0])
 
     @staticmethod
@@ -89,9 +91,7 @@ class DeviceService:
         uuid: str | None = None,
         session: AsyncSession | None = None,
     ) -> None:
-        """
-        Links a device to a user and syncs token to Redis.
-        """
+        """Links a device to a user and syncs token to Redis."""
         # Handle aliases
         final_user_uuid = user_uuid or uuid
         final_session = db_session or session
@@ -132,12 +132,10 @@ class DeviceService:
         db_session: AsyncSession,
         cache: Redis,
     ) -> None:
-        """
-        Deactivates a device for a user.
-        """
+        """Deactivates a device for a user."""
         try:
             device = await DeviceService.get_device(device_id, db_session)
-        except DeviceNotRegistered:
+        except DeviceNotRegisteredError:
             logger.warning(f"Device {device_id} not found during deactivation")
             return
 
@@ -162,9 +160,7 @@ class DeviceService:
         payload: dict[str, Any],
         client_ip: str | None,
     ) -> None:
-        """
-        Ensures device exists, creating it if necessary.
-        """
+        """Ensures device exists, creating it if necessary."""
         if not await DeviceService.is_device_registered(device_id, session):
             await DeviceService.create_device(
                 device_id,
@@ -179,9 +175,7 @@ class DeviceService:
 
     @staticmethod
     async def get_device_attrs(session: AsyncSession, device_id: str) -> dict[str, Any]:
-        """
-        Get device attributes for payload update.
-        """
+        """Get device attributes for payload update."""
         try:
             device = await DeviceService.get_device(device_id, session)
             return {
@@ -189,5 +183,5 @@ class DeviceService:
                 "device_name": device.get("device_name"),
                 "push_token": device.get("push_token"),
             }
-        except DeviceNotRegistered:
+        except DeviceNotRegisteredError:
             return {}

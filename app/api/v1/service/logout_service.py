@@ -7,6 +7,8 @@ from app.db.utils import execute_query
 
 
 class UserLogoutService:
+    """Service for handling user logout and account deactivation."""
+
     @staticmethod
     async def logout(
         user_uuid: str,
@@ -17,7 +19,8 @@ class UserLogoutService:
     ) -> None:
         """
         Logs out the user by invalidating the token in Redis and updating the database.
-        And deactivates the device.
+
+        Also deactivates the device.
         """
         from app.api.v1.service.auth_service import AuthService
         from app.api.v1.service.device_service import DeviceService
@@ -56,9 +59,7 @@ class UserLogoutService:
         db_session: AsyncSession,
         cache: Redis,
     ) -> None:
-        """
-        Deactivates the user account and logs them out of the current device.
-        """
+        """Deactivates the user account and logs them out of the current device."""
         # 1. Mark user as deactivated in DB
         await execute_query(
             UserQueries.UPDATE_USER_DEACTIVATED,

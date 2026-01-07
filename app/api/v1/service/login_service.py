@@ -8,11 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.queries import UserQueries
 from app.api.v1.schemas import LoginRequest
 from app.api.v1.service.auth_service import AuthService
-from app.core.exceptions.exceptions import UnauthorizedError, UserNotFoundException
+from app.core.exceptions.exceptions import UnauthorizedError, UserNotFoundError
 from app.db.utils import execute_query
 
 
 class LoginService:
+    """Service for handling user login."""
 
     @staticmethod
     async def login_user(
@@ -22,6 +23,7 @@ class LoginService:
         db_session: AsyncSession,
         cache: Redis,
     ) -> tuple[dict[str, Any], str, int]:
+        """Authenticates a user and generates a login token."""
 
         rows = await execute_query(
             UserQueries.GET_USER_FOR_LOGIN,
@@ -34,7 +36,7 @@ class LoginService:
         )
 
         if not rows:
-            raise UserNotFoundException("User not found")
+            raise UserNotFoundError("User not found")
 
         user = dict(rows[0])
         user_id = user["id"]

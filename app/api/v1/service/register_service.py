@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-import pytz
+import pytz  # type: ignore
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.register.task import (
@@ -12,19 +12,21 @@ from app.db.models.user_app import User
 
 
 class UserProfileService:
+    """Service for handling user profile data."""
+
     @staticmethod
     def set_first_name_and_last_name(name: str | None) -> tuple[str | None, str | None]:
+        """Splits a full name into first and last name."""
         if name:
             name_array = name.rsplit(" ", 1)
             if len(name_array) > 1:
                 return name_array[0], name_array[1]
-            else:
-                return name_array[0] if name_array[0] else None, None
-        else:
-            return None, None
+            return name_array[0] if name_array[0] else None, None
+        return None, None
 
 
 class UserRegisterService:
+    """Service for handling user registration."""
 
     @staticmethod
     async def create_user(
@@ -39,17 +41,18 @@ class UserRegisterService:
         activated: str = "YES",
         user_agent: str | None = None,
     ) -> User:
+        """Creates a new user account."""
 
         firstname, lastname = UserProfileService.set_first_name_and_last_name(name)
         user_uuid = uuid.uuid4()
         now = datetime.now(pytz.utc)
 
-        # Note: 'get_random_bigint' was in service.py. implementing locally or importing if needed.
-        # Simple random implementation
-        import random
+        # Note: 'get_random_bigint' was in service.py.
+        # implementing locally or importing if needed.
+        import secrets
 
-        BIGINT_LIMIT = 2**63
-        activation_code = random.randint(0, BIGINT_LIMIT)
+        bigint_limit = 2**63
+        activation_code = secrets.randbelow(bigint_limit)
 
         legacy_user = User(
             uuid=user_uuid,
@@ -89,7 +92,8 @@ class UserRegisterService:
     ) -> None:
         """
         Creates/Syncs Postgres user if needed.
+
         Currently a placeholder as implementation was missing.
         """
-        # Logic to create additional postgres user records if separated from 'User' model
-        # For now, we assume 'User' model IS the PG user.
+        # Logic to create additional postgres user records if separated from 'User'
+        # model. For now, we assume 'User' model IS the PG user.

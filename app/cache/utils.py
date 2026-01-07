@@ -10,6 +10,7 @@ logger = logging.getLogger(
 
 
 async def sadd(redis_client: Redis, key: str, val: str) -> None:
+    """Add a member to a set in Redis."""
     try:
         await redis_client.sadd(key, val)  # type: ignore[misc]
     except Exception as e:
@@ -17,6 +18,7 @@ async def sadd(redis_client: Redis, key: str, val: str) -> None:
 
 
 async def srem(redis_client: Redis, key: str, val: str) -> None:
+    """Remove a member from a set in Redis."""
     try:
         await redis_client.srem(key, val)  # type: ignore[misc]
     except Exception as e:
@@ -24,6 +26,7 @@ async def srem(redis_client: Redis, key: str, val: str) -> None:
 
 
 async def smembers(redis_client: Redis, key: str) -> List[str]:
+    """Get all members of a set in Redis."""
     try:
         members = await redis_client.smembers(key)  # type: ignore[misc]
         return [
@@ -35,6 +38,7 @@ async def smembers(redis_client: Redis, key: str) -> List[str]:
 
 
 async def lpush(redis_client: Redis, key: str, val: str) -> None:
+    """Push a value to the beginning of a list in Redis."""
     try:
         await redis_client.lpush(key, val)  # type: ignore[misc]
     except Exception as e:
@@ -42,6 +46,7 @@ async def lpush(redis_client: Redis, key: str, val: str) -> None:
 
 
 async def get_list(redis_client: Redis, key: str) -> List[str]:
+    """Get all items from a list in Redis."""
     try:
         items = await redis_client.lrange(key, 0, -1)  # type: ignore[misc]
         return [val.decode("utf-8") if isinstance(val, bytes) else val for val in items]
@@ -51,6 +56,7 @@ async def get_list(redis_client: Redis, key: str) -> List[str]:
 
 
 async def lrem(redis_client: Redis, key: str, count: int, val: str) -> None:
+    """Remove occurrences of a value from a list in Redis."""
     try:
         await redis_client.lrem(key, count, val)  # type: ignore[misc]
     except Exception as e:
@@ -63,6 +69,7 @@ async def set_dict(
     val: Any,
     timeout: Optional[int] = None,
 ) -> None:
+    """Set a dictionary or list as a JSON string in Redis with an optional timeout."""
     try:
         if isinstance(val, (dict, list)):
             val = json.dumps(val)
@@ -74,6 +81,7 @@ async def set_dict(
 
 
 async def get_val(redis_client: Redis, key: str) -> Optional[str]:
+    """Retrieve a string value from Redis by key."""
     try:
         val = await redis_client.get(key)
         if val and isinstance(val, bytes):
@@ -90,6 +98,7 @@ async def set_val(
     val: str,
     timeout: Optional[int] = None,
 ) -> None:
+    """Set a string value in Redis with an optional timeout."""
     try:
         await redis_client.set(key, val)
         if timeout:
@@ -99,6 +108,7 @@ async def set_val(
 
 
 async def remove_key(redis_client: Redis, key: str) -> None:
+    """Delete a key from Redis."""
     try:
         await redis_client.delete(key)
     except Exception as e:
@@ -106,6 +116,7 @@ async def remove_key(redis_client: Redis, key: str) -> None:
 
 
 async def incr_val(redis_client: Redis, key: str) -> None:
+    """Increment the integer value of a key in Redis."""
     try:
         await redis_client.incr(key)
     except Exception as e:
@@ -113,6 +124,7 @@ async def incr_val(redis_client: Redis, key: str) -> None:
 
 
 async def expire_key(redis_client: Redis, key: str, timeout: int) -> None:
+    """Set a timeout on a key in Redis."""
     try:
         await redis_client.expire(key, timeout)
     except Exception as e:

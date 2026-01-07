@@ -66,17 +66,18 @@ class UserQueries:
         """
         SELECT id
         FROM user_app.user
-        WHERE 
+        WHERE
             (CAST(:email AS VARCHAR) IS NOT NULL AND email = :email)
             OR
-            (CAST(:mobile AS VARCHAR) IS NOT NULL AND mobile = :mobile AND calling_code = :calling_code)
+            (CAST(:mobile AS VARCHAR) IS NOT NULL AND mobile = :mobile
+             AND calling_code = :calling_code)
         LIMIT 1;
         """,
     )
 
     GET_USERNAME_BY_EMAIL = text(
         """
-        SELECT up.firstname 
+        SELECT up.firstname
         FROM user_app.user u
         JOIN user_app.user_profile up ON u.id = up.id
         WHERE u.email = :email
@@ -154,13 +155,13 @@ class UserQueries:
     # ==================== LOGIN ====================
     GET_USER_FOR_LOGIN = text(
         """
-        SELECT 
-            u.id, 
-            u.email, 
-            u.mobile, 
-            u.calling_code, 
-            u.password, 
-            u.state, 
+        SELECT
+            u.id,
+            u.email,
+            u.mobile,
+            u.calling_code,
+            u.password,
+            u.state,
             u.is_password_set,
             u.failed_login_attempts,
             u.account_locked_until,
@@ -169,14 +170,15 @@ class UserQueries:
         FROM user_app.user u
         LEFT JOIN user_app.user_profile p ON u.id = p.id
         WHERE (u.email = :email AND :email IS NOT NULL)
-           OR (u.mobile = :mobile AND u.calling_code = :calling_code AND :mobile IS NOT NULL);
+           OR (u.mobile = :mobile AND u.calling_code = :calling_code
+               AND :mobile IS NOT NULL);
         """,
     )
 
     RECORD_LOGIN_SUCCESS = text(
         """
         UPDATE user_app.user
-        SET 
+        SET
             failed_login_attempts = 0,
             account_locked_until = NULL,
             last_login_at = NOW(),
@@ -188,10 +190,11 @@ class UserQueries:
     RECORD_LOGIN_FAILURE = text(
         """
         UPDATE user_app.user
-        SET 
+        SET
             failed_login_attempts = failed_login_attempts + 1,
-            account_locked_until = CASE 
-                WHEN failed_login_attempts + 1 >= :max_attempts THEN NOW() + INTERVAL '1 hour'
+            account_locked_until = CASE
+                WHEN failed_login_attempts + 1 >= :max_attempts
+                THEN NOW() + INTERVAL '1 hour'
                 ELSE NULL
             END
         WHERE id = :user_id
@@ -241,9 +244,12 @@ class UserQueries:
             p.nick_name,
             TO_CHAR(p.birth_date, 'DD/MM/YYYY') AS birth_date,
             JSONB_BUILD_OBJECT(
-                'facebook', (SELECT provider FROM user_app.social_identity_provider WHERE user_id = u.id AND provider = 'facebook' LIMIT 1),
-                'apple', (SELECT provider FROM user_app.social_identity_provider WHERE user_id = u.id AND provider = 'apple' LIMIT 1),
-                'google', (SELECT provider FROM user_app.social_identity_provider WHERE user_id = u.id AND provider = 'google' LIMIT 1)
+                'facebook', (SELECT provider FROM user_app.social_identity_provider
+                             WHERE user_id = u.id AND provider = 'facebook' LIMIT 1),
+                'apple', (SELECT provider FROM user_app.social_identity_provider
+                          WHERE user_id = u.id AND provider = 'apple' LIMIT 1),
+                'google', (SELECT provider FROM user_app.social_identity_provider
+                           WHERE user_id = u.id AND provider = 'google' LIMIT 1)
             ) AS identity_providers
         FROM user_app.user u
         LEFT JOIN user_app.user_profile p ON u.id = p.id
@@ -344,7 +350,9 @@ class UserQueries:
     CHECK_FRIEND_INVITE_EXISTS_MOBILE = text(
         """
         SELECT id FROM user_app.friend_invite
-        WHERE inviter_id = :inviter_id AND invited_mobile = :mobile AND invited_calling_code = :calling_code
+        WHERE inviter_id = :inviter_id
+          AND invited_mobile = :mobile
+          AND invited_calling_code = :calling_code
         LIMIT 1;
         """,
     )
@@ -452,7 +460,8 @@ class UserQueries:
 
     GET_USER_BY_SOCIAL_IDENTITY = text(
         """
-        SELECT u.id, u.email, u.mobile, u.calling_code, u.state, sip.provider_user_id as social_id
+        SELECT u.id, u.email, u.mobile, u.calling_code, u.state,
+               sip.provider_user_id as social_id
         FROM user_app.user u
         JOIN user_app.social_identity_provider sip ON u.id = sip.user_id
         WHERE sip.provider = :provider AND sip.provider_user_id = :social_id
@@ -462,26 +471,53 @@ class UserQueries:
 
     SIGNUP_WITH_SOCIAL_DATA = text(
         """
-        SELECT * FROM user_app.signup_with_social(
-            :provider,
-            :social_id,
-            :email,
-            :name,
-            :country,
-            :platform,
-            :user_agent
-        );
+        WITH new_user AS (
+            INSERT INTO user_app.user (
+                email,
+                mobile,
+                calling_code,
+                login_type,
+                state,
+                is_email_verified,
+                created_at,
+                modified_at
+            )
+            VALUES (
+                CAST(:email AS VARCHAR),
+                '',
+                '',
+                :provider,
+                'active',
+                TRUE,
+                NOW(),
+                NOW()
+            )
+            RETURNING id, email
+        ),
+        new_profile AS (
+            INSERT INTO user_app.user_profile (
+                id,
+                firstname,
+                country_code,
+                created_at,
+                modified_at
+            )
+            SELECT id, CAST(:name AS VARCHAR), CAST(:country AS VARCHAR), NOW(), NOW()
+            FROM new_user
+        )
+        SELECT id, email FROM new_user;
         """,
     )
 
     UPSERT_SOCIAL_IDENTITY_PROVIDER = text(
         """
-        INSERT INTO user_app.social_identity_provider (user_id, provider, provider_user_id, provider_token, created_at)
+        INSERT INTO user_app.social_identity_provider
+        (user_id, provider, provider_user_id, token, created_at)
         VALUES (:user_id, :provider, :social_id, :token, NOW())
         ON CONFLICT (user_id, provider) DO UPDATE SET
             provider_user_id = EXCLUDED.provider_user_id,
-            provider_token = EXCLUDED.provider_token,
-            updated_at = NOW();
+            token = EXCLUDED.token,
+            modified_at = NOW();
         """,
     )
 
@@ -489,7 +525,7 @@ class UserQueries:
     UPDATE_AUTH_SESSION_LOGOUT = text(
         """
         UPDATE user_app.authentication_session
-        SET 
+        SET
             is_active = FALSE,
             logged_out_at = NOW(),
             logout_reason = 'user_initiated'
@@ -500,7 +536,7 @@ class UserQueries:
     UPDATE_USER_DEACTIVATED = text(
         """
         UPDATE user_app.user
-        SET 
+        SET
             state = 'deactivated',
             deactivated_at = NOW(),
             modified_at = NOW()
@@ -511,6 +547,15 @@ class UserQueries:
     GET_APP_CONSUMER = text(
         """
         SELECT id, client_id, client_secret, partner_code
+        FROM user_app.app_consumer
+        WHERE client_id = :client_id
+        LIMIT 1;
+        """,
+    )
+
+    GET_CLIENT_SECRET = text(
+        """
+        SELECT client_secret
         FROM user_app.app_consumer
         WHERE client_id = :client_id
         LIMIT 1;
@@ -542,40 +587,10 @@ class UserQueries:
         """,
     )
 
-    GET_USER_FOR_LOGIN = text(
-        """
-        SELECT id, email, mobile, calling_code, password, state
-        FROM user_app.user
-        WHERE 
-            (email = :email OR mobile = :mobile)
-        """,
-    )
-
-    GET_CLIENT_SECRET = text(
-        """
-        SELECT client_secret
-        FROM user_app.app_consumer
-        WHERE client_id = :client_id
-        LIMIT 1
-        """,
-    )
-
-    GET_USER_PROFILE = text(
-        """
-        SELECT 
-            id AS user_id,
-            email,
-            CONCAT(firstname, ' ', lastname) AS name,
-            image_url AS image
-        FROM user_app.user_profile
-        WHERE id = :user_id
-        """,
-    )
-
     GET_USER_BY_EMAIL = text(
         """
         SELECT id, email, mobile, calling_code, state
-        FROM user_app.waitlist
+        FROM user_app.user
         WHERE email = :email
         """,
     )
@@ -583,7 +598,7 @@ class UserQueries:
     GET_USER_BY_MOBILE = text(
         """
         SELECT id, email, mobile, calling_code, state
-        FROM user_app.waitlist
+        FROM user_app.user
         WHERE mobile = :mobile AND calling_code = :calling_code
         """,
     )
@@ -640,7 +655,7 @@ class UserQueries:
     UPDATE_DEVICE = text(
         """
         UPDATE user_app.device
-        SET 
+        SET
             device_type = COALESCE(:device_type, device_type),
             device_name = COALESCE(:device_name, device_name),
             push_token = COALESCE(:push_token, push_token),
@@ -652,7 +667,7 @@ class UserQueries:
     LINK_DEVICE_TO_USER = text(
         """
         UPDATE user_app.device
-        SET 
+        SET
             user_id = :user_id,
             user_token = :user_token,
             device_active = TRUE,
@@ -665,7 +680,7 @@ class UserQueries:
     DEACTIVATE_DEVICE = text(
         """
         UPDATE user_app.device
-        SET 
+        SET
             device_active = FALSE,
             date_deactivated = NOW(),
             modified_at = NOW()
@@ -683,7 +698,7 @@ class UserQueries:
 
     GET_ACTIVE_DEVICES_FOR_USER = text(
         """
-        SELECT * FROM user_app.device 
+        SELECT * FROM user_app.device
         WHERE user_id = :user_id AND device_active = TRUE
         """,
     )
