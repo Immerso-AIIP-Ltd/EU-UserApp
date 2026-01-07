@@ -304,8 +304,8 @@ async def verify_otp_register(
         
         if fa_token:
             auth_token = fa_token
-            # Set expiry to match FA token (300s default in service)
-            token_expiry = int(time.time()) + 300
+            # Set expiry to match FA token (300s default in service -> 600s)
+            token_expiry = int(time.time()) + 600
             
     except Exception as e:
         print(f"Failed to sync/issue FusionAuth token in register: {e}")

@@ -78,8 +78,8 @@ class LoginService:
                  raise UnauthorizedError("Failed to issue FusionAuth token: No token received")
             
             token = fa_token
-            # FA default TTL is 300s
-            expires_at = int(time.time()) + 300
+            # FA default TTL is 300s -> updated to 600s
+            expires_at = int(time.time()) + 600
 
         except Exception as e:
              # Raise an error if FusionAuth token cannot be issued

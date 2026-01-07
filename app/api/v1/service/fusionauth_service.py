@@ -117,7 +117,7 @@ class FusionAuthService:
 
         jwt_request = {
             "claims": claims,
-            "timeToLiveInSeconds": 300
+            "timeToLiveInSeconds": 600
         }
         
         response = client.vend_jwt(jwt_request)
