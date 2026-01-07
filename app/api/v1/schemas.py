@@ -238,6 +238,13 @@ class ChangePasswordRequest(BaseModel):
     new_password_confirm: str = Field(..., description=Description.NEW_PASSWORD_CONFIRM)
 
 
+class SetForgotPasswordRequest(BaseModel):
+    """Request schema for /user/v1/user/set_forgot_password."""
+
+    email: EmailStr = Field(..., description=Description.EMAIL)
+    password: str = Field(..., description=Description.PASSWORD)
+
+
 class UpdateProfileRequest(BaseModel):
     """Request schema for /user/v1/user/profile PUT."""
 
@@ -521,5 +528,24 @@ class ChangePasswordResponse(BaseModel):
     status: bool = True
     message: str
     data: Dict[str, Any] = {}
+    meta: Dict[str, Any] = {}
+    error: Dict[str, Any] = {}
+
+
+class SetForgotPasswordData(BaseModel):
+    """Data schema for Set Forgot Password response."""
+
+    auth_token: str
+    token: str = ""
+    token_secret: str = ""
+    auth_token_expiry: int
+
+
+class SetForgotPasswordResponse(BaseModel):
+    """Response schema for Set Forgot Password."""
+
+    status: str = "success"
+    message: str = "Password reset successful"
+    data: SetForgotPasswordData
     meta: Dict[str, Any] = {}
     error: Dict[str, Any] = {}

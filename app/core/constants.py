@@ -481,6 +481,7 @@ class SuccessMessages:
     PASSWORD_CHANGED_SUCCESS = "Password changed successfully."  # noqa: S105
     USER_LOGGED_OUT_SUCCESS = "User was logged out successfully."
     USER_DEACTIVATED_SUCCESS = "Your account has been successfully deactivated."
+    PASSWORD_RESET_SUCCESS = "Password reset successful"
     USER_REGISTERED_VERIFIED = "User registered and verified successfully."
     WAITLIST_QUEUE_STATUS = (
         "You're #{0} in the queue, with this {1}. We'll notify you when it is ready."

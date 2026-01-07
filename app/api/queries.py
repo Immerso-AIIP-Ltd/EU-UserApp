@@ -605,7 +605,8 @@ class UserQueries:
     UPDATE_USER_PASSWORD = text(
         """
         UPDATE user_app.user
-        SET password = :password
+        SET password = :password,
+            is_password_set = TRUE
         WHERE id = :user_id
         """,
     )
