@@ -114,6 +114,12 @@ class Settings(BaseSettings):
 
     facebook_client_id: str = Field(...)
     facebook_client_secret: str = Field(...)
+
+    # FusionAuth Settings
+    fusionauth_url: str = Field(...)
+    fusionauth_api_key: str = Field(...)
+    fusionauth_client_id: str = Field(...)
+
     # Other settings
     CACHE_TIMEOUT_FOR_EMAIL_DNS: int = 300
     skip_partner_auth_redis_check: list[str] = []

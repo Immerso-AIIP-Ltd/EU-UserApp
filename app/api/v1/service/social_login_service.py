@@ -10,6 +10,8 @@ from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
 from app.api.v1.service.google_oauth_service import GoogleOAuthService
 from app.db.models.user_app import User
 from app.db.utils import execute_query
+from app.api.v1.service.fusionauth_service import FusionAuthService
+import asyncio
 
 
 class SocialLoginService:
@@ -104,6 +106,23 @@ class SocialLoginService:
             cache=cache,
             device_id=request_data["device_id"],
         )
+
+        # FusionAuth Integration
+        try:
+            user_uuid_str = str(user_id)
+            user_email = user.get("email")
+
+            # 1. Sync User (Ensure exists)
+            await asyncio.to_thread(FusionAuthService.create_fusion_user, user_uuid_str, user_email)
+
+            # 2. Issue Token
+            fa_token = await asyncio.to_thread(FusionAuthService.issue_token, user_uuid_str)
+            
+            if fa_token:
+                token = fa_token
+        except Exception as e:
+            print(f"Failed to issue FusionAuth token in google_login: {e}")
+            raise Exception("Failed to issue FusionAuth token") from e
 
         # Get user details for response
         profile_rows = await execute_query(
@@ -207,6 +226,23 @@ class SocialLoginService:
             device_id=request_data["device_id"],
         )
 
+        # FusionAuth Integration
+        try:
+            user_uuid_str = str(user_id)
+            user_email = user.get("email")
+
+            # 1. Sync User (Ensure exists)
+            await asyncio.to_thread(FusionAuthService.create_fusion_user, user_uuid_str, user_email)
+
+            # 2. Issue Token
+            fa_token = await asyncio.to_thread(FusionAuthService.issue_token, user_uuid_str)
+            
+            if fa_token:
+                token = fa_token
+        except Exception as e:
+            print(f"Failed to issue FusionAuth token in apple_login: {e}")
+            raise Exception("Failed to issue FusionAuth token") from e
+
         # Get user details for response
         profile_rows = await execute_query(
             UserQueries.GET_USER_PROFILE,
@@ -306,6 +342,23 @@ class SocialLoginService:
             cache=cache,
             device_id=request_data["device_id"],
         )
+
+        # FusionAuth Integration
+        try:
+            user_uuid_str = str(user_id)
+            user_email = user.get("email")
+
+            # 1. Sync User (Ensure exists)
+            await asyncio.to_thread(FusionAuthService.create_fusion_user, user_uuid_str, user_email)
+
+            # 2. Issue Token
+            fa_token = await asyncio.to_thread(FusionAuthService.issue_token, user_uuid_str)
+            
+            if fa_token:
+                token = fa_token
+        except Exception as e:
+            print(f"Failed to issue FusionAuth token in facebook_login: {e}")
+            raise Exception("Failed to issue FusionAuth token") from e
 
         # Get user details for response
         profile_rows = await execute_query(

@@ -1,4 +1,5 @@
 from typing import Any
+import logging
 
 import bcrypt
 from fastapi import APIRouter, Depends, Header, Request
@@ -226,12 +227,17 @@ async def verify_otp_register(
     )
     redis_key = template.format(receiver=receiver, intent=intent.value)
     cached_otp = await cache.get(redis_key)
+    
+    # DEBUG LOGGING
+    logger = logging.getLogger(__name__)
+    logger.info(f"Verifying OTP for {receiver}. Received: {otp}. Cached Raw: {cached_otp}")
 
     if (
         not cached_otp
         or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
         or (isinstance(cached_otp, str) and cached_otp != otp)
     ):
+        logger.warning(f"OTP Mismatch or Expired for {receiver}")
         raise OtpExpiredError
 
     await cache.delete(redis_key)
@@ -280,6 +286,32 @@ async def verify_otp_register(
         device_id=device_id,
         db_session=db_session,
     )
+    
+    # Sync with FusionAuth and Issue Token
+    try:
+        from app.api.v1.service.fusionauth_service import FusionAuthService
+        import asyncio
+        import time
+        
+        user_uuid_str = str(data[ProcessParams.ID])
+        user_email = data.get(RequestParams.EMAIL)
+        
+        # 1. Sync User (Wait for it, because we need it to exist before issuing token)
+        await asyncio.to_thread(FusionAuthService.create_fusion_user, user_uuid_str, user_email)
+        
+        # 2. Issue Token
+        fa_token = await asyncio.to_thread(FusionAuthService.issue_token, user_uuid_str)
+        
+        if fa_token:
+            auth_token = fa_token
+            # Set expiry to match FA token (300s default in service)
+            token_expiry = int(time.time()) + 300
+            
+    except Exception as e:
+        print(f"Failed to sync/issue FusionAuth token in register: {e}")
+        # Log and continue using local token if FusionAuth fails
+        pass
+
     await db_session.commit()
     # Device Registration
     device_info = await get_device_info(request)
@@ -306,9 +338,6 @@ async def verify_otp_register(
                 params=device_params,
             )
             await db_session.commit()
-
-        # if device id is provided, we need to pass on device attributes
-        # in the payload for the login api
 
     data_dict: dict[str, Any] = dict(data)  # type: ignore
     # attach token to response
