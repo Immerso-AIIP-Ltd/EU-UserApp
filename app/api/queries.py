@@ -471,15 +471,41 @@ class UserQueries:
 
     SIGNUP_WITH_SOCIAL_DATA = text(
         """
-        SELECT * FROM user_app.signup_with_social(
-            :provider,
-            :social_id,
-            :email,
-            :name,
-            :country,
-            :platform,
-            :user_agent
-        );
+        WITH new_user AS (
+            INSERT INTO user_app.user (
+                email,
+                mobile,
+                calling_code,
+                login_type,
+                state,
+                is_email_verified,
+                created_at,
+                modified_at
+            )
+            VALUES (
+                CAST(:email AS VARCHAR),
+                '',
+                '',
+                CAST(:provider AS VARCHAR)::user_app.logintype,
+                'active',
+                TRUE,
+                NOW(),
+                NOW()
+            )
+            RETURNING id, email
+        ),
+        new_profile AS (
+            INSERT INTO user_app.user_profile (
+                id,
+                firstname,
+                country_code,
+                created_at,
+                modified_at
+            )
+            SELECT id, CAST(:name AS VARCHAR), CAST(:country AS VARCHAR), NOW(), NOW()
+            FROM new_user
+        )
+        SELECT id, email FROM new_user;
         """,
     )
 
@@ -564,7 +590,7 @@ class UserQueries:
     GET_USER_BY_EMAIL = text(
         """
         SELECT id, email, mobile, calling_code, state
-        FROM user_app.waitlist
+        FROM user_app.user
         WHERE email = :email
         """,
     )
@@ -572,7 +598,7 @@ class UserQueries:
     GET_USER_BY_MOBILE = text(
         """
         SELECT id, email, mobile, calling_code, state
-        FROM user_app.waitlist
+        FROM user_app.user
         WHERE mobile = :mobile AND calling_code = :calling_code
         """,
     )

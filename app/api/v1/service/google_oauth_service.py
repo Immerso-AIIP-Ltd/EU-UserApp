@@ -69,21 +69,16 @@ class GoogleOAuthService:
             raise InvalidSocialTokenError from e
 
     async def get_email(self) -> Any:
-        """Get the user's email."""
         return self.email
 
     async def get_name(self) -> Any:
-        """Get the user's name."""
         return self.name
 
     async def get_uid(self) -> Any:
-        """Get the user's UID."""
         return self.uid
 
     async def get_token(self) -> Any:
-        """Get the ID token."""
         return self.id_token
 
     async def get_expiry(self) -> Any:
-        """Get the token expiry."""
         return self.expiry
