@@ -92,5 +92,5 @@ jobs:
           yq e ".image.tag = \"${IMAGE_TAG}\"" -i "$service"
 
           git add "$service"
-          git commit -m "chore: update eu-user image tag to ${IMAGE_TAG}" || echo "No changes to commit"
+          git commit -m "chore: update eu-userapp image tag to ${IMAGE_TAG}" || echo "No changes to commit"
           git push origin eros-universe-test
