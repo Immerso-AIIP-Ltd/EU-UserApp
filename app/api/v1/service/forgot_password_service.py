@@ -62,6 +62,7 @@ class ForgotPasswordService:
         )
 
         return Messages.OTP_SENT
+
     @staticmethod
     async def set_forgot_password(
         db: AsyncSession,

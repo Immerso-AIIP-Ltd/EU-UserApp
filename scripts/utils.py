@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from loguru import logger
 from sqlalchemy import text
-from app.core.constants import AppConfig, MeiliSearchIndexes
+from app.core.constants import AppUserApp, MeiliSearchIndexes
 from app.settings import settings
 from app.db.factory import DatabaseFactory
 from app.api.queries import GET_GAMES_QUERY, GET_TOOLS_QUERY, GET_CATEGORIES_QUERY
@@ -219,19 +219,19 @@ def get_tasks():
             GET_GAMES_QUERY,
             MeiliSearchIndexes.PLAY_GAME,
             "_template_play_game_v1",
-            AppConfig.DB_BASE_PLAY,
+            AppUserApp.DB_BASE_PLAY,
         ),
         (
             GET_TOOLS_QUERY,
             MeiliSearchIndexes.ETERNAL_TOOL,
             "_template_eternal_tool_v1",
-            AppConfig.DB_BASE_CATALOGUE,
+            AppUserApp.DB_BASE_CATALOGUE,
         ),
         (
             GET_CATEGORIES_QUERY,
             MeiliSearchIndexes.PLAY_CATEGORY,
             "_template_play_category_v1",
-            AppConfig.DB_BASE_PLAY,
+            AppUserApp.DB_BASE_PLAY,
         ),
     ]
 

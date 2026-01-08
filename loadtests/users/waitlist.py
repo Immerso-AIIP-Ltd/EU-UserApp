@@ -41,13 +41,16 @@ class WaitlistUser(HttpUser):
         }
 
         with self.client.post(
-            "/user/v1/social/waitlist", json=payload, headers=self.headers, catch_response=True
+            "/user/v1/social/waitlist",
+            json=payload,
+            headers=self.headers,
+            catch_response=True,
         ) as response:
             if response.status_code == 200:
                 response.success()
                 self.joined = True
             elif response.status_code == 409:
-                response.success() # Already in waitlist
+                response.success()  # Already in waitlist
                 self.joined = True
             else:
                 response.failure(

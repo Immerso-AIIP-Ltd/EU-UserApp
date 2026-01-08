@@ -2,10 +2,10 @@
 
 
 # General
-class AppConfig:
+class AppUserApp:
     """Application configuration."""
 
-    NAME = "EU-Config"
+    NAME = "EU-UserApp"
     VERSION = "1.0.0"
     REDIS_MAX_CONNECTIONS = 100
     REDIS_SOCKET_CONNECT_TIMEOUT = 5
