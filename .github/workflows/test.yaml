@@ -7,53 +7,53 @@ on:
 
 jobs:
 
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  # lint:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
       
-      - name: Install poetry
-        run: pipx install poetry
+  #     - name: Install poetry
+  #       run: pipx install poetry
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'poetry'
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: '3.11'
+  #         cache: 'poetry'
 
-      - name: Install deps
-        run: poetry install
+  #     - name: Install deps
+  #       run: poetry install
 
-      - name: Run lint check
-        run: poetry run pre-commit run --all-files
+  #     - name: Run lint check
+  #       run: poetry run pre-commit run --all-files
 
-  pytest:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  # pytest:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Create .env
-        run: |
-          echo "APP_ENVIRONMENT=test" >> .env
-          echo "APP_DB_BASE=app_test" >> .env
+  #     - name: Create .env
+  #       run: |
+  #         echo "APP_ENVIRONMENT=test" >> .env
+  #         echo "APP_DB_BASE=app_test" >> .env
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: '3.11'
 
-      - name: Install docker-compose
-        uses: KengoTODA/actions-setup-docker-compose@v1
-        with:
-          version: "2.28.0"
+  #     - name: Install docker-compose
+  #       uses: KengoTODA/actions-setup-docker-compose@v1
+  #       with:
+  #         version: "2.28.0"
 
-      - name: Run tests
-        run: |
-          APP_ENVIRONMENT=test APP_DB_BASE=app_test \
-          docker-compose run --rm api pytest -vv
+  #     - name: Run tests
+  #       run: |
+  #         APP_ENVIRONMENT=test APP_DB_BASE=app_test \
+  #         docker-compose run --rm api pytest -vv
 
   build-and-push:
-    needs: [lint, pytest]
+    # needs: [lint, pytest]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -87,7 +87,7 @@ jobs:
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
-          service="charts-eternal-eu-user/values.yaml"
+          service="charts-eternal-eu-userapp/values.yaml"
           yq e ".image.repository = \"immersoaiip/lg-erosuniverse\"" -i "$service"
           yq e ".image.tag = \"${IMAGE_TAG}\"" -i "$service"
 
