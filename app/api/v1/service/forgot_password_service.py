@@ -62,32 +62,7 @@ class ForgotPasswordService:
         )
 
         return Messages.OTP_SENT
-
-    @staticmethod
-    async def verify_otp_mail(
-        db: AsyncSession,
-        email: str,
-        otp: str,
-        cache: Redis,
-    ) -> bool:
-        """Verify OTP for email."""
-        redis_key = CacheKeyTemplates.OTP_EMAIL.format(
-            receiver=email,
-            intent=Intents.FORGOT_PASSWORD,
-        )
-        cached_otp = await cache.get(redis_key)
-
-        if not cached_otp or (
-            isinstance(cached_otp, bytes) and cached_otp.decode() != otp
-        ):
-            return False
-
-        # We don't delete yet as we might need it for redirect?
-        # Actually, standard is to delete and provide a reset token.
-        # But user flow says redirect to set_forgot_password.
-        await cache.delete(redis_key)
-        return True
-
+        
     @staticmethod
     async def set_forgot_password(
         db: AsyncSession,
