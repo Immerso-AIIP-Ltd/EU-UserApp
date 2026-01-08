@@ -13,6 +13,8 @@ from app.settings import settings
 
 
 class GoogleOAuthService:
+    """Service to handle Google OAuth verification."""
+
     NAME = "google"
 
     def __init__(self, id_token: str, platform: str) -> None:
@@ -24,6 +26,7 @@ class GoogleOAuthService:
         self.expiry: Optional[datetime] = None
 
     async def verify_id_token(self) -> Any:
+        """Verify the Google ID token."""
         try:
             if self.platform == "ios":
                 google_client_id = settings.google_ios_client_id
@@ -58,17 +61,22 @@ class GoogleOAuthService:
             logger.exception(f"Unexpected error during Google verification: {e}")
             raise InvalidSocialTokenError from e
 
-    async def get_uid(self):
+    async def get_uid(self) -> Optional[str]:
+        """Get the verified user ID."""
         return self.uid
 
-    async def get_email(self):
+    async def get_email(self) -> Optional[str]:
+        """Get the verified user email."""
         return self.email
 
-    async def get_name(self):
+    async def get_name(self) -> Optional[str]:
+        """Get the verified user name."""
         return self.name
 
-    async def get_expiry(self):
+    async def get_expiry(self) -> Optional[datetime]:
+        """Get the verified token expiry."""
         return self.expiry
 
-    async def get_token(self):
+    async def get_token(self) -> str:
+        """Get the ID token."""
         return self.id_token

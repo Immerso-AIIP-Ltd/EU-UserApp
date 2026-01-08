@@ -1,6 +1,7 @@
 from datetime import date
 from enum import Enum
 from typing import Any, Dict, Generic, List, Optional, Self, TypeVar, Union
+from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
@@ -418,7 +419,7 @@ class GenericResponse(BaseModel, Generic[T]):
 class UserProfileData(BaseModel):
     """Data schema for User Profile."""
 
-    uuid: str
+    uuid: Union[str, UUID]
     email: Optional[str] = None
     name: Optional[str] = None
     firstname: Optional[str] = None

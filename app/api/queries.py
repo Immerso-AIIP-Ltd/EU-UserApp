@@ -107,6 +107,7 @@ class UserQueries:
             mobile,
             calling_code,
             password,
+            is_password_set,
             login_type,
             type,
             is_email_verified,
@@ -118,6 +119,7 @@ class UserQueries:
             :mobile,
             :calling_code,
             :password,
+            TRUE,
             :login_type,
             :type,
             CASE WHEN CAST(:login_type AS varchar) = 'email' THEN TRUE ELSE FALSE END,
@@ -137,6 +139,58 @@ class UserQueries:
             :otp,
             :password,
             :intent
+        );
+        """,
+    )
+
+    GET_USER_COUNT = text(
+        """
+        SELECT COUNT(*) FROM user_app.user;
+        """,
+    )
+
+    INSERT_USER_PROFILE = text(
+        """
+        INSERT INTO user_app.user_profile (
+            id,
+            firstname,
+            lastname,
+            birth_date,
+            avatar_id,
+            image_url,
+            created_at,
+            modified_at
+        )
+        VALUES (
+            :user_id,
+            :firstname,
+            :lastname,
+            :birth_date,
+            :avatar_id,
+            :image_url,
+            NOW(),
+            NOW()
+        );
+        """,
+    )
+
+    INSERT_OTP_VERIFICATION = text(
+        """
+        INSERT INTO user_app.otp_verification (
+            id,
+            email,
+            mobile,
+            calling_code,
+            created_at,
+            modified_at
+        )
+        VALUES (
+            :user_id,
+            :email,
+            :mobile,
+            :calling_code,
+            NOW(),
+            NOW()
         );
         """,
     )
@@ -646,7 +700,7 @@ class UserQueries:
             device_id, user_id, device_name, platform, device_type,
             device_active, user_token, created_at, modified_at
         ) VALUES (
-            :device_id, :user_id, :device_name, :device_type, :platform,
+            :device_id, :user_id, :device_name, :platform, :device_type,
             TRUE, :user_token, NOW(), NOW()
         )
         RETURNING device_id

@@ -2,7 +2,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
-from app.api.v1.register.otp import GenerateOtpService
+from app.api.v1.service.register_otp import GenerateOtpService
 from app.core.constants import CacheKeyTemplates, Intents, Messages
 from app.core.exceptions import AccountBlockedError, UserNotFoundError
 from app.db.utils import execute_query

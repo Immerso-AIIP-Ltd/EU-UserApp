@@ -7,9 +7,9 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
-from app.api.v1.register import deeplinks
-from app.api.v1.register.commservice import call_communication_api
-from app.api.v1.register.task import block_ip_for_24_hours
+from app.api.v1.service import register_deeplinks
+from app.api.v1.service.register_commservice import call_communication_api
+from app.api.v1.service.register_task import block_ip_for_24_hours
 from app.core.constants import (
     CacheKeyTemplates,
     CacheTTL,
@@ -151,7 +151,7 @@ class GenerateOtpService:
                     CommParams.SUBJECT: EmailSubjects.ONE_TIME_PASSWORD,
                     CommParams.MESSAGE: EmailMessages.ONE_TIME_PASSWORD.format(otp),
                 }
-            await call_communication_api(deeplinks.MAIL_SEND_URL, payload)
+            await call_communication_api(register_deeplinks.MAIL_SEND_URL, payload)
         except Exception as e:
             logger.error(LogMessages.EMAIL_SEND_FAILED.format(e))
             raise exceptions.CommServiceAPICallFailedError from e
@@ -219,7 +219,10 @@ class GenerateOtpService:
         }
 
         try:
-            response = await call_communication_api(deeplinks.SMS_SEND_URL, sms_payload)
+            response = await call_communication_api(
+                register_deeplinks.SMS_SEND_URL,
+                sms_payload,
+            )
             if response and response.get(CommParams.STATUS) != ResponseParams.SUCCESS:
                 logger.error(LogMessages.SMS_SEND_FAILED.format(response))
         except Exception as e:

@@ -8,11 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.queries import UserQueries
 from app.api.v1.schemas import (
     ChangePasswordRequest,
-    ChangePasswordResponse,
     ForgotPasswordRequest,
-    ForgotPasswordResponse,
     LoginRequest,
-    SetForgotPasswordResponse,
     SetForgotPasswordRequest,
     UserProfileData,
 )
@@ -109,7 +106,7 @@ async def forgot_password(
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     db: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
-) -> ForgotPasswordResponse:
+) -> JSONResponse:
     """
     Forgot password handler using email or mobile.
 
@@ -152,7 +149,7 @@ async def change_password(
     payload: ChangePasswordRequest,
     headers: dict[str, Any] = Depends(validate_common_headers),
     db_session: AsyncSession = Depends(get_db_session),
-) -> ChangePasswordResponse:
+) -> JSONResponse:
     """
     Change user password.
 
@@ -176,6 +173,7 @@ async def change_password(
         request=request,
         data=data,
     )
+
 
 @router.post("/set_forgot_password")
 async def set_forgot_password(

@@ -31,7 +31,6 @@ async def google_login(
     cache: Redis = Depends(get_redis_connection),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
 ) -> JSONResponse:
-    print("login_data", login_data)
     """
     Google Login / Sign Up API.
 
@@ -50,14 +49,12 @@ async def google_login(
         "country": headers.get("country"),
         "user_agent": request.headers.get("User-Agent"),
     }
-    print("request_data", request_data)
     data = await SocialLoginService.google_login(
         google_service=google_service,
         request_data=request_data,
         db_session=db_session,
         cache=cache,
     )
-    print("data", data)
     return standard_response(
         message=SuccessMessages.USER_LOGGED_IN,
         request=request,
