@@ -12,16 +12,3 @@ from loadtests.users.device import DeviceUser
 
 # Import and register the bootstrap function
 from loadtests.common.bootstrap import bootstrap_all
-
-# To run the tests, use the following command:
-# locust -f loadtests/locustfile.py
-
-from locust import HttpUser, task
-
-
-class SanityUser(HttpUser):
-    weight = 1
-
-    @task
-    def ping(self):
-        self.client.get("/user/v1/internal/monitoring/health")

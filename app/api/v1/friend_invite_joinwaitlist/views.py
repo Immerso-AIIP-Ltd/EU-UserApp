@@ -10,7 +10,6 @@ from app.api.queries import UserQueries
 from app.api.v1.schemas import (
     FriendInviteObject,
     FriendInviteRequest,
-    FriendInviteResponse,
     ResendWaitlistOtpRequest,
     VerifyWaitlistRequest,
     WaitlistRequest,
@@ -607,7 +606,7 @@ async def resend_waitlist_otp(
     )
 
 
-@router.post("/friend_invite", response_model=FriendInviteResponse)
+@router.post("/friend_invite")
 async def friend_invite(
     request: Request,
     payload: FriendInviteRequest,

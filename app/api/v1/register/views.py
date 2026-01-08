@@ -194,10 +194,11 @@ async def register_with_profile(
         intent=Intents.REGISTRATION,
     )
 
+    response_data = {LoginParams.REDIRECT_URL: redirect_url}
     return standard_response(
         message=SuccessMessages.USER_CREATED_REDIRECT_OTP,
         request=request,
-        data={LoginParams.REDIRECT_URL: redirect_url},
+        data=response_data,
     )
 
 

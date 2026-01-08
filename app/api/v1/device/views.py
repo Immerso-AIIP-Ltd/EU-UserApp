@@ -127,11 +127,12 @@ async def invite_device(
     )
     await cache.delete(cache_key)
 
+    response_data = {
+        RequestParams.DEVICE_ID: payload.device_id,
+        RequestParams.COUPON_ID: payload.coupon_id,
+    }
     return standard_response(
         message=SuccessMessages.DEVICE_INVITED,
         request=request,
-        data={
-            RequestParams.DEVICE_ID: payload.device_id,
-            RequestParams.COUPON_ID: payload.coupon_id,
-        },
+        data=response_data,
     )

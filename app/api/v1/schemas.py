@@ -43,6 +43,7 @@ class IntentEnum(str, Enum):
     REGISTRATION = "registration"
     WAITLIST = "waitlist"
     UPDATE_PROFILE = "update_profile"
+    FORGOT_PASSWORD = "forgot_password"
 
 
 class PlatformEnum(str, Enum):
@@ -167,7 +168,7 @@ class VerifyOTPRegisterRequest(BaseModel):
         description=Description.CALLING_CODE,
     )
     otp: str = Field(..., description=Description.OTP)
-    password: str = Field(..., description=Description.PASSWORD)
+    password: Optional[str] = Field(default=None, description=Description.PASSWORD)
     intent: IntentEnum = Field(
         default=IntentEnum.REGISTRATION,
         description=Description.INTENT,

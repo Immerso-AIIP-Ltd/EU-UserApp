@@ -2,8 +2,8 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
-from app.api.v1.service.register_otp import GenerateOtpService
-from app.core.constants import CacheKeyTemplates, Intents, Messages
+from app.api.v1.register.otp import GenerateOtpService
+from app.core.constants import Intents, Messages
 from app.core.exceptions import AccountBlockedError, UserNotFoundError
 from app.db.utils import execute_query
 
@@ -62,7 +62,6 @@ class ForgotPasswordService:
         )
 
         return Messages.OTP_SENT
-        
     @staticmethod
     async def set_forgot_password(
         db: AsyncSession,

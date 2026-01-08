@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.schemas import (
     FacebookLoginRequest,
     SocialLoginRequest,
-    SocialLoginResponse,
 )
 from app.api.v1.service.apple_oauth_service import AppleOAuthService
 from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
@@ -23,7 +22,7 @@ from app.utils.validate_headers import validate_headers_without_auth
 router = APIRouter()
 
 
-@router.post("/google_login", response_model=SocialLoginResponse)
+@router.post("/google_login")
 async def google_login(
     request: Request,
     login_data: SocialLoginRequest,
@@ -62,7 +61,7 @@ async def google_login(
     )
 
 
-@router.post("/apple_login", response_model=SocialLoginResponse)
+@router.post("/apple_login")
 async def apple_login(
     request: Request,
     login_data: SocialLoginRequest,
@@ -103,7 +102,7 @@ async def apple_login(
     )
 
 
-@router.post("/facebook_login", response_model=SocialLoginResponse)
+@router.post("/facebook_login")
 async def facebook_login(
     request: Request,
     login_data: FacebookLoginRequest,
