@@ -8,10 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.queries import UserQueries
 from app.api.v1.schemas import (
     ChangePasswordRequest,
-    ChangePasswordResponse,
     ForgotPasswordRequest,
-    ForgotPasswordResponse,
     LoginRequest,
+    SetForgotPasswordRequest,
     UserProfileData,
 )
 from app.api.v1.service.auth_service import AuthService
@@ -104,14 +103,14 @@ async def login_user(
     )
 
 
-@router.post("/forgot_password", response_model=ForgotPasswordResponse)
+@router.post("/forgot_password")
 async def forgot_password(
     request: Request,
     payload: ForgotPasswordRequest,
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     db: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
-) -> ForgotPasswordResponse:
+) -> JSONResponse:
     """
     Forgot password handler using email or mobile.
 
@@ -140,16 +139,21 @@ async def forgot_password(
             cache,
         )
 
-    return ForgotPasswordResponse(status=True, message=message, data={})
+    data: dict[str, Any] = {}
+    return standard_response(
+        message=message,
+        request=request,
+        data=data,
+    )
 
 
-@router.put("/change_password", response_model=ChangePasswordResponse)
+@router.put("/change_password")
 async def change_password(
     request: Request,
     payload: ChangePasswordRequest,
     headers: dict[str, Any] = Depends(validate_common_headers),
     db_session: AsyncSession = Depends(get_db_session),
-) -> ChangePasswordResponse:
+) -> JSONResponse:
     """
     Change user password.
 
@@ -167,8 +171,46 @@ async def change_password(
         db_session=db_session,
     )
 
-    return ChangePasswordResponse(
-        status=True,
+    data: dict[str, Any] = {}
+    return standard_response(
         message=SuccessMessages.PASSWORD_CHANGED_SUCCESS,
-        data={},
+        request=request,
+        data=data,
+    )
+
+
+@router.post("/set_forgot_password")
+async def set_forgot_password(
+    request: Request,
+    payload: SetForgotPasswordRequest,
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
+    db: AsyncSession = Depends(get_db_session),
+    cache: Redis = Depends(get_redis_connection),
+) -> JSONResponse:
+    """Set new password after OTP verification."""
+    device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
+    client_id = headers.get(HeaderKeys.X_API_CLIENT) or headers.get(
+        HeaderKeys.API_CLIENT,
+    )
+
+    token, expires_at = await ForgotPasswordService.set_forgot_password(
+        db=db,
+        email=str(payload.email),
+        password=payload.password,
+        client_id=str(client_id),
+        device_id=str(device_id),
+        cache=cache,
+    )
+
+    response_data = {
+        "auth_token": token,
+        "token": "",
+        "token_secret": "",
+        "auth_token_expiry": expires_at,
+    }
+
+    return standard_response(
+        message=SuccessMessages.PASSWORD_RESET_SUCCESS,
+        request=request,
+        data=response_data,
     )

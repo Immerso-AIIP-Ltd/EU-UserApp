@@ -23,12 +23,16 @@ class WaitlistUser(HttpUser):
         }
         self.email = None
         self.is_verified = False
+        self.joined = False
 
     @task(3)
     def join_waitlist(self):
         """
         Scenario: User joins the waitlist.
         """
+        if self.joined:
+            return
+
         self.email = f"waitlist_{''.join(random.choices(string.ascii_lowercase, k=10))}@example.com"
         payload = {
             "device_id": self.device_id,
@@ -37,10 +41,17 @@ class WaitlistUser(HttpUser):
         }
 
         with self.client.post(
-            "/user/v1/waitlist", json=payload, headers=self.headers, catch_response=True
+            "/user/v1/social/waitlist",
+            json=payload,
+            headers=self.headers,
+            catch_response=True,
         ) as response:
             if response.status_code == 200:
                 response.success()
+                self.joined = True
+            elif response.status_code == 409:
+                response.success()  # Already in waitlist
+                self.joined = True
             else:
                 response.failure(
                     f"Join waitlist failed: {response.status_code} - {response.text}"
@@ -59,7 +70,7 @@ class WaitlistUser(HttpUser):
         }
 
         with self.client.post(
-            "/user/v1/waitlist_resend_otp",
+            "/user/v1/social/waitlist_resend_otp",
             json=payload,
             headers=self.headers,
             catch_response=True,
@@ -89,7 +100,7 @@ class WaitlistUser(HttpUser):
 
         # The API requires x-device-id in headers (already in self.headers)
         with self.client.post(
-            "/user/v1/friend_invite",
+            "/user/v1/social/friend_invite",
             json=payload,
             headers=self.headers,
             catch_response=True,

@@ -86,7 +86,6 @@ class Settings(BaseSettings):
     brevo_profile_update_success_template_id: str = "15"
     erosuniverse_website_url: str = "https://dev.erosuniverse.com/"
     brevo_reset_url: str = "https://dev.erosuniverse.com/forgotPwd"
-    forgot_mobile_password_response: str = "OTP sent you successfully"
 
     # Communication Service settings
     comm_service_x_api_client: str = "CZgbPYnmcj5iyEH9tg0GYvB4lm9gGQ9qs6jQwllV"
@@ -111,6 +110,8 @@ class Settings(BaseSettings):
     apple_team_id: str = Field(...)
     apple_key_id: str = Field(...)
     apple_private_key: str = Field(...)
+    apple_public_key_url: str = Field(default="https://appleid.apple.com/auth/keys")
+    apple_issuer: str = Field(default="https://appleid.apple.com")
 
     facebook_client_id: str = Field(...)
     facebook_client_secret: str = Field(...)
@@ -278,4 +279,4 @@ class Settings(BaseSettings):
     )
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]

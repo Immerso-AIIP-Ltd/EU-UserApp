@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.schemas import (
     FacebookLoginRequest,
     SocialLoginRequest,
-    SocialLoginResponse,
 )
 from app.api.v1.service.apple_oauth_service import AppleOAuthService
 from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
@@ -23,7 +22,7 @@ from app.utils.validate_headers import validate_headers_without_auth
 router = APIRouter()
 
 
-@router.post("/google_login", response_model=SocialLoginResponse)
+@router.post("/google_login")
 async def google_login(
     request: Request,
     login_data: SocialLoginRequest,
@@ -31,7 +30,6 @@ async def google_login(
     cache: Redis = Depends(get_redis_connection),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
 ) -> JSONResponse:
-    print("login_data", login_data)
     """
     Google Login / Sign Up API.
 
@@ -50,14 +48,12 @@ async def google_login(
         "country": headers.get("country"),
         "user_agent": request.headers.get("User-Agent"),
     }
-    print("request_data", request_data)
     data = await SocialLoginService.google_login(
         google_service=google_service,
         request_data=request_data,
         db_session=db_session,
         cache=cache,
     )
-    print("data", data)
     return standard_response(
         message=SuccessMessages.USER_LOGGED_IN,
         request=request,
@@ -65,7 +61,7 @@ async def google_login(
     )
 
 
-@router.post("/apple_login", response_model=SocialLoginResponse)
+@router.post("/apple_login")
 async def apple_login(
     request: Request,
     login_data: SocialLoginRequest,
@@ -106,7 +102,7 @@ async def apple_login(
     )
 
 
-@router.post("/facebook_login", response_model=SocialLoginResponse)
+@router.post("/facebook_login")
 async def facebook_login(
     request: Request,
     login_data: FacebookLoginRequest,

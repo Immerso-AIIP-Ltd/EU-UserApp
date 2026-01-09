@@ -101,25 +101,25 @@ class AppleOAuthService:
             logger.exception(AppleLogMessages.UNEXPECTED_ERROR.format(e))
             raise InvalidSocialTokenError from e
 
-    async def get_email(self) -> Any:
+    async def get_email(self) -> Optional[str]:
         """Get the user's email."""
         return self.email
 
-    async def get_name(self) -> Any:
+    async def get_name(self) -> Optional[str]:
         """Get the user's name (placeholder for Apple's separate name object)."""
         # Apple ID token does not contain name.
         # Name is sent only on first login in a separate JSON object.
         # Since our schema doesn't capture it currenty, we return None.
         return None
 
-    async def get_uid(self) -> Any:
+    async def get_uid(self) -> Optional[str]:
         """Get the user's UID."""
         return self.uid
 
-    async def get_token(self) -> Any:
+    async def get_token(self) -> str:
         """Get the ID token."""
         return self.id_token
 
-    async def get_expiry(self) -> Any:
+    async def get_expiry(self) -> Optional[datetime]:
         """Get the token expiry."""
         return self.expiry

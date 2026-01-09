@@ -7,18 +7,17 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
-from app.api.v1.register import deeplinks
-from app.api.v1.register.commservice import call_communication_api
-from app.api.v1.register.otp import GenerateOtpService
-from app.api.v1.register.task import get_device_info
 from app.api.v1.schemas import (
     FriendInviteObject,
     FriendInviteRequest,
-    FriendInviteResponse,
     ResendWaitlistOtpRequest,
     VerifyWaitlistRequest,
     WaitlistRequest,
 )
+from app.api.v1.service import register_deeplinks as deeplinks
+from app.api.v1.service.register_commservice import call_communication_api
+from app.api.v1.service.register_otp import GenerateOtpService
+from app.api.v1.service.register_task import get_device_info
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import (
     CacheKeyTemplates,
@@ -496,6 +495,7 @@ async def verify_waitlist(
         params={ProcessParams.ID: entry.id},
         db_session=db_session,
     )
+
     await db_session.commit()
 
     updated_row = updated_entry[0]
@@ -606,7 +606,7 @@ async def resend_waitlist_otp(
     )
 
 
-@router.post("/friend_invite", response_model=FriendInviteResponse)
+@router.post("/friend_invite")
 async def friend_invite(
     request: Request,
     payload: FriendInviteRequest,

@@ -43,6 +43,7 @@ class IntentEnum(str, Enum):
     REGISTRATION = "registration"
     WAITLIST = "waitlist"
     UPDATE_PROFILE = "update_profile"
+    FORGOT_PASSWORD = "forgot_password"
 
 
 class PlatformEnum(str, Enum):
@@ -167,7 +168,7 @@ class VerifyOTPRegisterRequest(BaseModel):
         description=Description.CALLING_CODE,
     )
     otp: str = Field(..., description=Description.OTP)
-    password: str = Field(..., description=Description.PASSWORD)
+    password: Optional[str] = Field(default=None, description=Description.PASSWORD)
     intent: IntentEnum = Field(
         default=IntentEnum.REGISTRATION,
         description=Description.INTENT,
@@ -237,6 +238,13 @@ class ChangePasswordRequest(BaseModel):
 
     new_password: str = Field(..., description=Description.NEW_PASSWORD)
     new_password_confirm: str = Field(..., description=Description.NEW_PASSWORD_CONFIRM)
+
+
+class SetForgotPasswordRequest(BaseModel):
+    """Request schema for /user/v1/user/set_forgot_password."""
+
+    email: EmailStr = Field(..., description=Description.EMAIL)
+    password: str = Field(..., description=Description.PASSWORD)
 
 
 class UpdateProfileRequest(BaseModel):
@@ -522,5 +530,24 @@ class ChangePasswordResponse(BaseModel):
     status: bool = True
     message: str
     data: Dict[str, Any] = {}
+    meta: Dict[str, Any] = {}
+    error: Dict[str, Any] = {}
+
+
+class SetForgotPasswordData(BaseModel):
+    """Data schema for Set Forgot Password response."""
+
+    auth_token: str
+    token: str = ""
+    token_secret: str = ""
+    auth_token_expiry: int
+
+
+class SetForgotPasswordResponse(BaseModel):
+    """Response schema for Set Forgot Password."""
+
+    status: str = "success"
+    message: str = "Password reset successful"
+    data: SetForgotPasswordData
     meta: Dict[str, Any] = {}
     error: Dict[str, Any] = {}

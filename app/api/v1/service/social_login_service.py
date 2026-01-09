@@ -26,7 +26,6 @@ class SocialLoginService:
     ) -> dict[str, Any]:
         """Handle Google Social Login business logic."""
         # 1. Verify Google ID Token
-        # await google_service.verify_id_token(request_data["uid"])
         await google_service.verify_id_token()
 
         # 2. Get user by social login

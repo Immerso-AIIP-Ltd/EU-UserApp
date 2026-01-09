@@ -192,7 +192,7 @@ async def execute_query(
             ),
         )
 
-        if result and result.returns_rows:
+        if result and result.returns_rows:  # type: ignore[attr-defined]
             rows = result.mappings().all()
             logger.debug(f"Query returned {len(rows)} rows")
             return rows

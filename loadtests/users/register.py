@@ -48,10 +48,7 @@ class RegisterUser(HttpUser):
             else:
                 response.failure(f"Registration failed: {response.text}")
 
-    # Note: Verify OTP requires knowing the OTP which is stored in Redis/sent via email.
-    # We skip it for pure load testing of the registration initiation endpoint,
-    # or it would require a way to fetch the OTP from Redis (which Locust shouldn't do directly ideally).
-    @task(2)
+    @task(1)
     def resend_otp(self):
         """
         Load test OTP resend (rate limiting, Redis, validation)
@@ -61,7 +58,7 @@ class RegisterUser(HttpUser):
 
         payload = {
             "email": self.email,
-            "intent": "register",
+            "intent": "registration",
         }
 
         with self.client.post(
