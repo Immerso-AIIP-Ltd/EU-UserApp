@@ -5,8 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
-from app.core.constants import Description, SuccessMessages, Headers
-
+from app.core.constants import Description, Headers, SuccessMessages
 
 
 class CacheStats(BaseModel):
@@ -560,21 +559,51 @@ class DeviceRegisterRequest(BaseModel):
     device_id: str = Field(..., description=Headers.X_DEVICE_ID)
     device_name: Optional[str] = Field(default=None, description=Headers.X_DEVICE_NAME)
     device_type: Optional[str] = Field(default=None, description=Headers.X_DEVICE_TYPE)
-    platform: Optional[PlatformEnum] = Field(default=None, description=Headers.X_PLATFORM)
+    platform: Optional[PlatformEnum] = Field(
+        default=None,
+        description=Headers.X_PLATFORM,
+    )
     push_token: Optional[str] = Field(default=None, description=Description.PUSH_TOKEN)
     device_ip: Optional[str] = Field(default=None, description=Description.DEVICE_IP)
     is_vpn: Optional[bool] = Field(default=False, description=Description.IS_VPN)
-    is_anonymous_proxy: Optional[bool] = Field(default=False, description=Description.IS_ANONYMOUS_PROXY)
-    residency_verified: Optional[bool] = Field(default=False, description=Description.RESIDENCY_VERIFIED)
+    is_anonymous_proxy: Optional[bool] = Field(
+        default=False,
+        description=Description.IS_ANONYMOUS_PROXY,
+    )
+    residency_verified: Optional[bool] = Field(
+        default=False,
+        description=Description.RESIDENCY_VERIFIED,
+    )
     is_rooted: Optional[bool] = Field(default=False, description=Description.IS_ROOTED)
-    is_jailbroken: Optional[bool] = Field(default=False, description=Description.IS_JAILBROKEN)
-    device_active: Optional[bool] = Field(default=True, description=Description.DEVICE_ACTIVE)
+    is_jailbroken: Optional[bool] = Field(
+        default=False,
+        description=Description.IS_JAILBROKEN,
+    )
+    device_active: Optional[bool] = Field(
+        default=True,
+        description=Description.DEVICE_ACTIVE,
+    )
     drm_type: Optional[str] = Field(default=None, description=Description.DRM_TYPE)
-    hardware_encryption: Optional[bool] = Field(default=False, description=Description.HARDWARE_ENCRYPTION)
-    transaction_type: Optional[str] = Field(default=None, description=Description.TRANSACTION_TYPE)
-    is_ip_legal: Optional[bool] = Field(default=True, description=Description.IS_IP_LEGAL)
-    native_token: Optional[str] = Field(default=None, description=Description.NATIVE_TOKEN)
-    date_deactivated: Optional[Any] = Field(default=None, description=Description.DATE_DEACTIVATED)
+    hardware_encryption: Optional[bool] = Field(
+        default=False,
+        description=Description.HARDWARE_ENCRYPTION,
+    )
+    transaction_type: Optional[str] = Field(
+        default=None,
+        description=Description.TRANSACTION_TYPE,
+    )
+    is_ip_legal: Optional[bool] = Field(
+        default=True,
+        description=Description.IS_IP_LEGAL,
+    )
+    native_token: Optional[str] = Field(
+        default=None,
+        description=Description.NATIVE_TOKEN,
+    )
+    date_deactivated: Optional[Any] = Field(
+        default=None,
+        description=Description.DATE_DEACTIVATED,
+    )
 
 
 class DeviceRegisterResponse(GenericResponse[DeviceInviteData]):

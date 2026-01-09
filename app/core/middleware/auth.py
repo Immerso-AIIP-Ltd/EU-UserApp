@@ -29,7 +29,7 @@ async def get_current_user(
     elif request.headers.get("x-api-token"):
         # Fallback to x-api-token
         token_str = request.headers.get("x-api-token")
-    
+
     if not token_str:
         # raise UnauthorizedError(detail="Missing authentication token")
         return {}
@@ -37,8 +37,10 @@ async def get_current_user(
     try:
         # Try verifying with FusionAuth first
         try:
-            from app.api.v1.service.fusionauth_service import FusionAuthService
             import asyncio
+
+            from app.api.v1.service.fusionauth_service import FusionAuthService
+
             # Run sync verification in thread
             payload = await asyncio.to_thread(FusionAuthService.verify_token, token_str)
             if "sub" in payload and "user_id" not in payload:

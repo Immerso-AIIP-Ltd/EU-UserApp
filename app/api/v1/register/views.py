@@ -1,5 +1,5 @@
-from typing import Any
 import logging
+from typing import Any
 
 import bcrypt
 from fastapi import APIRouter, Depends, Header, Request
@@ -15,7 +15,6 @@ from app.api.v1.schemas import (
     ResendOTPRequest,
     VerifyOTPRegisterRequest,
 )
-from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.register_otp import GenerateOtpService
 from app.api.v1.service.register_service import UserVerifyService
 from app.api.v1.service.register_task import get_device_info
@@ -43,7 +42,6 @@ from app.core.exceptions.exceptions import (
     ValidationError,
 )
 from app.db.dependencies import get_db_session
-from app.db.models.user_app import User
 from app.db.utils import execute_query
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import (
@@ -352,10 +350,12 @@ async def _verify_and_consume_otp(
     )
     redis_key = template.format(receiver=receiver, intent=intent)
     cached_otp = await cache.get(redis_key)
-    
+
     # DEBUG LOGGING
     logger = logging.getLogger(__name__)
-    logger.info(f"Verifying OTP for {receiver}. Received: {otp}. Cached Raw: {cached_otp}")
+    logger.info(
+        f"Verifying OTP for {receiver}. Received: {otp}. Cached Raw: {cached_otp}",
+    )
 
     if (
         not cached_otp
@@ -502,10 +502,11 @@ async def _finalize_registration_and_auth(
     cached_data: dict[str, Any],
 ) -> tuple[str | None, int | None]:
     """Register device, sync to FusionAuth, and generate auth token."""
-    from app.api.v1.service.fusionauth_service import FusionAuthService
     import asyncio
     import time
-    
+
+    from app.api.v1.service.fusionauth_service import FusionAuthService
+
     device_id = headers.get(RequestParams.DEVICE_ID)
     device_info = await get_device_info(request)
 
@@ -515,14 +516,18 @@ async def _finalize_registration_and_auth(
     # 2. Sync to FusionAuth and Issue Token
     auth_token = None
     token_expiry = None
-    
+
     user_uuid_str = str(user_id)
     user_email = cached_data.get(RequestParams.EMAIL)
-    
+
     try:
         # Sync User
-        await asyncio.to_thread(FusionAuthService.create_fusion_user, user_uuid_str, user_email)
-        
+        await asyncio.to_thread(
+            FusionAuthService.create_fusion_user,
+            user_uuid_str,
+            user_email,
+        )
+
         # Issue Token
         fa_token = await asyncio.to_thread(
             FusionAuthService.issue_token,
@@ -530,12 +535,12 @@ async def _finalize_registration_and_auth(
             None,
             {RequestParams.DEVICE_ID: device_id},
         )
-        
+
         if fa_token:
             auth_token = fa_token
             # Set expiry (configurable)
             token_expiry = int(time.time()) + CacheTTL.TOKEN_EXPIRY
-            
+
     except Exception as e:
         logger.error(f"FusionAuth Error: {e}")
 

@@ -23,13 +23,16 @@ from app.core.constants import (
 )
 from app.core.exceptions.exceptions import (
     DeviceNotInvitedError,
-    ValidationError,
     DeviceRegistrationError,
+    ValidationError,
 )
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform, execute_query
 from app.utils.standard_response import standard_response
-from app.utils.validate_headers import validate_headers_without_auth, validate_headers_without_x_device_id
+from app.utils.validate_headers import (
+    validate_headers_without_auth,
+    validate_headers_without_x_device_id,
+)
 
 router = APIRouter()
 
@@ -154,7 +157,9 @@ async def register_device(
             params={
                 RequestParams.DEVICE_ID: payload.device_id,
                 RequestParams.DEVICE_NAME: payload.device_name,
-                RequestParams.PLATFORM: payload.platform.value if payload.platform else None,
+                RequestParams.PLATFORM: (
+                    payload.platform.value if payload.platform else None
+                ),
                 RequestParams.DEVICE_TYPE: payload.device_type,
                 RequestParams.PUSH_TOKEN: payload.push_token,
                 RequestParams.DEVICE_IP: payload.device_ip,
@@ -176,8 +181,10 @@ async def register_device(
         await db_session.commit()
     except Exception as e:
 
-        raise DeviceRegistrationError(detail=f"{ErrorMessages.DEVICE_REGISTRATION_FAILED}: {e!s}") from e
-    
+        raise DeviceRegistrationError(
+            detail=f"{ErrorMessages.DEVICE_REGISTRATION_FAILED}: {e!s}",
+        ) from e
+
     device_uuid = str(device_rows[0][ProcessParams.ID])
 
     return standard_response(

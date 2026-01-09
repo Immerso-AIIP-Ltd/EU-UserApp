@@ -34,7 +34,9 @@ from app.core.middleware.auth import get_user_from_x_token
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform
 from app.utils.standard_response import standard_response
-from app.utils.validate_headers import validate_common_headers, validate_headers_without_auth
+from app.utils.validate_headers import (
+    validate_headers_without_auth,
+)
 
 router = APIRouter()
 

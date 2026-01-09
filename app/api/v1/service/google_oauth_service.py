@@ -35,7 +35,9 @@ class GoogleOAuthService:
             else:
                 # Allow both client IDs for testing/web
                 # google_client_id = settings.google_client_id
-                google_client_id = None # Disable audience check strictly for debugging/unblocking
+                google_client_id = (
+                    None  # Disable audience check strictly for debugging/unblocking
+                )
 
             id_info = google.oauth2.id_token.verify_oauth2_token(
                 self.id_token,

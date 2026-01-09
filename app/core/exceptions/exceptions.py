@@ -549,6 +549,8 @@ class FusionAuthException(AppError):
             message=detail,
             error_code=ErrorCodes.FUSION_AUTH_ERROR_CODE,
         )
+
+
 class OtpNotVerifiedError(AppError):
     """Exception for unverified OTP during profile update."""
 
