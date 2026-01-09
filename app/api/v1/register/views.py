@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.schemas import (
+    IntentEnum,
     RegisterWithProfileRequest,
     ResendOTPRequest,
     VerifyOTPRegisterRequest,
@@ -223,6 +224,18 @@ async def verify_otp_register(
     # 1. Verify and Consume OTP
     await _verify_and_consume_otp(cache, receiver, receiver_type, intent.value, otp)
 
+    if intent == IntentEnum.FORGOT_PASSWORD:
+        redirect_url = RedirectTemplates.SET_FORGOT_PASSWORD.format(
+            type=receiver_type,
+            receiver=receiver,
+            intent=intent.value,
+        )
+        return standard_response(
+            message=SuccessMessages.OTP_VERIFIED,
+            request=request,
+            data={LoginParams.REDIRECT_URL: redirect_url},
+        )
+
     # 2. Retrieve Cached Registration Data
     cached_data = await _get_cached_registration_data(cache, receiver)
 
@@ -283,13 +296,19 @@ async def _verify_and_consume_otp(
     redis_key = template.format(receiver=receiver, intent=intent)
     cached_otp = await cache.get(redis_key)
 
-    if (
-        not cached_otp
-        or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
-        or (isinstance(cached_otp, str) and cached_otp != otp)
-    ):
+    # 1. Check if OTP exists
+    if not cached_otp:
         raise OtpExpiredError
 
+    # 2. Verify OTP
+    if (isinstance(cached_otp, bytes) and cached_otp.decode() != otp) or (
+        isinstance(cached_otp, str) and cached_otp != otp
+    ):
+        from app.core.exceptions.exceptions import OtpInvalidError
+
+        raise OtpInvalidError
+
+    # 3. Consume OTP
     await cache.delete(redis_key)
 
 
