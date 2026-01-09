@@ -9,6 +9,7 @@ from app.api.queries import UserQueries
 from app.api.v1.schemas import (
     DeviceInviteData,
     DeviceInviteRequest,
+    DeviceRegisterRequest,
 )
 from app.cache.base import build_cache_key, get_cache, set_cache
 from app.cache.dependencies import get_redis_connection
@@ -23,11 +24,12 @@ from app.core.constants import (
 from app.core.exceptions.exceptions import (
     DeviceNotInvitedError,
     ValidationError,
+    DeviceRegistrationError,
 )
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform, execute_query
 from app.utils.standard_response import standard_response
-from app.utils.validate_headers import validate_headers_without_auth
+from app.utils.validate_headers import validate_headers_without_auth, validate_headers_without_x_device_id
 
 router = APIRouter()
 
@@ -135,4 +137,51 @@ async def invite_device(
         message=SuccessMessages.DEVICE_INVITED,
         request=request,
         data=response_data,
+    )
+
+
+@router.post("/register")
+async def register_device(
+    request: Request,
+    payload: DeviceRegisterRequest,
+    db_session: AsyncSession = Depends(get_db_session),
+    headers: dict[str, Any] = Depends(validate_headers_without_x_device_id),
+) -> JSONResponse:
+    """Register a new device."""
+    try:
+        device_rows = await execute_query(
+            query=UserQueries.REGISTER_DEVICE,
+            params={
+                RequestParams.DEVICE_ID: payload.device_id,
+                RequestParams.DEVICE_NAME: payload.device_name,
+                RequestParams.PLATFORM: payload.platform.value if payload.platform else None,
+                RequestParams.DEVICE_TYPE: payload.device_type,
+                RequestParams.PUSH_TOKEN: payload.push_token,
+                RequestParams.DEVICE_IP: payload.device_ip,
+                RequestParams.IS_VPN: payload.is_vpn,
+                RequestParams.IS_ANONYMOUS_PROXY: payload.is_anonymous_proxy,
+                RequestParams.RESIDENCY_VERIFIED: payload.residency_verified,
+                RequestParams.IS_ROOTED: payload.is_rooted,
+                RequestParams.IS_JAILBROKEN: payload.is_jailbroken,
+                RequestParams.DEVICE_ACTIVE: payload.device_active,
+                RequestParams.DRM_TYPE: payload.drm_type,
+                RequestParams.HARDWARE_ENCRYPTION: payload.hardware_encryption,
+                RequestParams.TRANSACTION_TYPE: payload.transaction_type,
+                RequestParams.IS_IP_LEGAL: payload.is_ip_legal,
+                RequestParams.NATIVE_TOKEN: payload.native_token,
+                RequestParams.DATE_DEACTIVATED: payload.date_deactivated,
+            },
+            db_session=db_session,
+        )
+        await db_session.commit()
+    except Exception as e:
+
+        raise DeviceRegistrationError(detail=f"{ErrorMessages.DEVICE_REGISTRATION_FAILED}: {e!s}") from e
+    
+    device_uuid = str(device_rows[0][ProcessParams.ID])
+
+    return standard_response(
+        message=SuccessMessages.DEVICE_REGISTERED_SUCCESS,
+        request=request,
+        data={RequestParams.DEVICE_ID: device_uuid},
     )

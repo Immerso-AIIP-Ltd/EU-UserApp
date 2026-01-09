@@ -4,9 +4,11 @@ import requests
 import json
 import jwt
 from jwt import PyJWKClient
-from fastapi import HTTPException, status
+from fastapi import status
 from fusionauth.fusionauth_client import FusionAuthClient
+from app.core.constants import CacheTTL, ErrorMessages
 from app.settings import settings
+from app.core.exceptions.exceptions import FusionAuthException
 
 # Global cache for JWKS
 _jwks_client = None
@@ -41,8 +43,7 @@ class FusionAuthService:
             )
             return payload
         except Exception as e:
-            # print(f"Token verification failed: {e}")
-            raise HTTPException(status_code=401, detail="Could not validate credentials")
+            raise FusionAuthException(http_code=HTTPStatus.UNAUTHORIZED, detail=ErrorMessages.FUSION_AUTH_VALIDATION_ERROR) from e
 
     @classmethod
     def create_fusion_user(cls, user_uuid: str, email: str = None):
@@ -84,7 +85,8 @@ class FusionAuthService:
                 })
                 if not reg_response.was_successful():
                      # print(f"Failed to register existing user: {reg_response.error_response}")
-                     raise HTTPException(status_code=500, detail="Failed to register user to application")
+                     
+                     raise FusionAuthException(http_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=ErrorMessages.FUSION_AUTH_REGISTRATION_ERROR)
 
             return user_uuid
         
@@ -96,7 +98,7 @@ class FusionAuthService:
             return response.success_response["user"]["id"]
         else:
             # print(f"Failed to create FA user: {response.error_response}")
-            raise HTTPException(status_code=500, detail="Failed to sync user with Authentication Provider")
+            raise FusionAuthException(http_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=ErrorMessages.FUSION_AUTH_SYNC_ERROR)
 
     @classmethod
     def issue_token(cls, fusion_user_id: str, roles: list = None, user_details: dict = None):
@@ -117,7 +119,7 @@ class FusionAuthService:
 
         jwt_request = {
             "claims": claims,
-            "timeToLiveInSeconds": 600
+            "timeToLiveInSeconds": CacheTTL.TOKEN_EXPIRY
         }
         
         response = client.vend_jwt(jwt_request)
@@ -126,4 +128,4 @@ class FusionAuthService:
             return response.success_response["token"]
         else:
             # print(f"Failed to issue token: {response.error_response}")
-            raise HTTPException(status_code=500, detail="Authentication Provider could not issue token")
+            raise FusionAuthException(http_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=ErrorMessages.FUSION_AUTH_TOKEN_ERROR)

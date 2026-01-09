@@ -523,3 +523,29 @@ class InvalidCredentialsError(AppError):
         self.code = ErrorCodes.UNAUTHORIZED_CODE
         self.message = message
         super().__init__(message=message)
+
+
+class DeviceRegistrationError(AppError):
+    """Raised when device registration fails."""
+
+    def __init__(self, detail: str = "Device registration failed") -> None:
+        super().__init__(
+            http_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=detail,
+            error_code=ErrorCodes.DEVICE_REGISTRATION_ERROR_CODE,
+        )
+
+
+class FusionAuthException(AppError):
+    """Base exception for FusionAuth related errors."""
+
+    def __init__(
+        self,
+        detail: str = "FusionAuth operation failed",
+        http_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
+    ) -> None:
+        super().__init__(
+            http_code=http_code,
+            message=detail,
+            error_code=ErrorCodes.FUSION_AUTH_ERROR_CODE,
+        )

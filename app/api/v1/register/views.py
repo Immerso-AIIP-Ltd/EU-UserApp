@@ -266,6 +266,7 @@ async def verify_otp_register(
         user_id,
         headers,
         cache,
+        cached_data,
     )
 
     # 8. Prepare response
@@ -428,66 +429,75 @@ async def _log_otp_verification(
     await execute_query(
         query=UserQueries.INSERT_OTP_VERIFICATION,
         db_session=db_session,
+        params={
+            RequestParams.USER_ID: user_id,
+            RequestParams.EMAIL: cached_data.get(RequestParams.EMAIL),
+            RequestParams.MOBILE: cached_data.get(RequestParams.MOBILE),
+            RequestParams.CALLING_CODE: cached_data.get(RequestParams.CALLING_CODE),
+        },
     )
+
+
+async def _finalize_registration_and_auth(
+    request: Request,
+    db_session: AsyncSession,
+    user_id: Any,
+    headers: dict[str, Any],
+    cache: Redis,
+    cached_data: dict[str, Any],
+) -> tuple[str | None, int | None]:
+    """Register device, sync to FusionAuth, and generate auth token."""
+    from app.api.v1.service.fusionauth_service import FusionAuthService
+    import asyncio
+    import time
     
-    # Sync with FusionAuth and Issue Token
+    device_id = headers.get(RequestParams.DEVICE_ID)
+    device_info = await get_device_info(request)
+
+    # 1. Device Registration (if needed)
+    # Logic moved to separate endpoint or handled elsewhere if required.
+
+    # 2. Sync to FusionAuth and Issue Token
+    auth_token = None
+    token_expiry = None
+    
+    user_uuid_str = str(user_id)
+    user_email = cached_data.get(RequestParams.EMAIL)
+    
     try:
-        from app.api.v1.service.fusionauth_service import FusionAuthService
-        import asyncio
-        import time
-        
-        user_uuid_str = str(data[ProcessParams.ID])
-        user_email = data.get(RequestParams.EMAIL)
-        
-        # 1. Sync User (Wait for it, because we need it to exist before issuing token)
+        # Sync User
         await asyncio.to_thread(FusionAuthService.create_fusion_user, user_uuid_str, user_email)
         
-        # 2. Issue Token
-        fa_token = await asyncio.to_thread(FusionAuthService.issue_token, user_uuid_str)
+        # Issue Token
+        fa_token = await asyncio.to_thread(
+            FusionAuthService.issue_token,
+            user_uuid_str,
+            None,
+            {RequestParams.DEVICE_ID: device_id},
+        )
         
         if fa_token:
             auth_token = fa_token
-            # Set expiry to match FA token (300s default in service -> 600s)
-            token_expiry = int(time.time()) + 600
+            # Set expiry (configurable)
+            token_expiry = int(time.time()) + CacheTTL.TOKEN_EXPIRY
             
     except Exception as e:
-        print(f"Failed to sync/issue FusionAuth token in register: {e}")
-        # Log and continue using local token if FusionAuth fails
-        pass
+        logger.error(f"FusionAuth Error: {e}")
 
-    await db_session.commit()
-    # Device Registration
-    device_info = await get_device_info(request)
-
-    if device_id:
-        # Check if device exists
-        device_attrs = await execute_query(
-            query=UserQueries.CHECK_DEVICE_EXISTS,
+    # 3. Link Device to User (Update local DB with FA token)
+    if device_id and auth_token:
+        await execute_query(
+            query=UserQueries.LINK_DEVICE_TO_USER,
             db_session=db_session,
-            params={RequestParams.DEVICE_ID: device_id},
+            params={
+                RequestParams.DEVICE_ID: device_id,
+                RequestParams.USER_ID: user_id,
+                RequestParams.USER_TOKEN: auth_token,
+            },
         )
 
-        if not device_attrs:
-            # Register device initially without token
-            await execute_query(
-                query=UserQueries.INSERT_DEVICE,
-                db_session=db_session,
-                params=device_params,
-            )
-            await db_session.commit()
-
-    data_dict: dict[str, Any] = dict(data)  # type: ignore
-    # attach token to response
-    data_dict[RequestParams.TOKEN] = auth_token
-    data_dict[RequestParams.TOKEN_EXPIRY] = token_expiry
-    user_id = str(user_rows[0][ProcessParams.ID])
-    data_dict[ProcessParams.ID] = user_id
-
-    return standard_response(
-        request=request,
-        message=SuccessMessages.USER_REGISTERED_VERIFIED,
-        data=data_dict,
-    )
+    await db_session.commit()
+    return auth_token, token_expiry
 
 
 @router.post("/resend_otp")

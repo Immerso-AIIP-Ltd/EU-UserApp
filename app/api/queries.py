@@ -743,6 +743,44 @@ class UserQueries:
         """,
     )
 
+    REGISTER_DEVICE = text(
+        """
+        INSERT INTO user_app.device AS d (
+            device_id, device_name, platform, device_type,
+            push_token, device_active, device_ip, is_vpn, is_anonymous_proxy,
+            residency_verified, is_rooted, is_jailbroken, drm_type,
+            hardware_encryption, transaction_type, is_ip_legal, native_token,
+            date_deactivated, created_at, modified_at
+        ) VALUES (
+            :device_id, :device_name, :platform, :device_type,
+            :push_token, :device_active, :device_ip, :is_vpn, :is_anonymous_proxy,
+            :residency_verified, :is_rooted, :is_jailbroken, :drm_type,
+            :hardware_encryption, :transaction_type, :is_ip_legal, :native_token,
+            :date_deactivated, NOW(), NOW()
+        )
+        ON CONFLICT (device_id) DO UPDATE SET
+            device_name = COALESCE(EXCLUDED.device_name, d.device_name),
+            platform = COALESCE(EXCLUDED.platform, d.platform),
+            device_type = COALESCE(EXCLUDED.device_type, d.device_type),
+            push_token = COALESCE(EXCLUDED.push_token, d.push_token),
+            device_active = COALESCE(EXCLUDED.device_active, d.device_active),
+            device_ip = COALESCE(EXCLUDED.device_ip, d.device_ip),
+            is_vpn = COALESCE(EXCLUDED.is_vpn, d.is_vpn),
+            is_anonymous_proxy = COALESCE(EXCLUDED.is_anonymous_proxy, d.is_anonymous_proxy),
+            residency_verified = COALESCE(EXCLUDED.residency_verified, d.residency_verified),
+            is_rooted = COALESCE(EXCLUDED.is_rooted, d.is_rooted),
+            is_jailbroken = COALESCE(EXCLUDED.is_jailbroken, d.is_jailbroken),
+            drm_type = COALESCE(EXCLUDED.drm_type, d.drm_type),
+            hardware_encryption = COALESCE(EXCLUDED.hardware_encryption, d.hardware_encryption),
+            transaction_type = COALESCE(EXCLUDED.transaction_type, d.transaction_type),
+            is_ip_legal = COALESCE(EXCLUDED.is_ip_legal, d.is_ip_legal),
+            native_token = COALESCE(EXCLUDED.native_token, d.native_token),
+            date_deactivated = COALESCE(EXCLUDED.date_deactivated, d.date_deactivated),
+            modified_at = NOW()
+        RETURNING id;
+        """,
+    )
+
     DEACTIVATE_USER_AUTH_TOKEN = text(
         """
         UPDATE user_app.user_auth_token
