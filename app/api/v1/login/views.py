@@ -17,7 +17,11 @@ from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.change_password_service import ChangePasswordService
 from app.api.v1.service.forgot_password_service import ForgotPasswordService
 from app.api.v1.service.login_service import LoginService
+from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.cache.dependencies import get_redis_connection
+import logging
+
+logger = logging.getLogger(__name__)
 from app.core.constants import (
     HeaderKeys,
     Messages,
@@ -88,9 +92,9 @@ async def login_user(
 
     response_data = {
         RequestParams.AUTH_TOKEN: token,
-        RequestParams.AUTH_TOKEN_EXPIRY: expires_at,
         RequestParams.USER: user_response,
     }
+
 
     return standard_response(
         message=SuccessMessages.USER_LOGGED_IN,

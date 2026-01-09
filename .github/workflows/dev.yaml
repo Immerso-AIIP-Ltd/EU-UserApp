@@ -95,7 +95,7 @@ jobs:
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
-          service="charts-eternal-eu-user/values.yaml"
+          service="charts-eternal-eu-userapp/values.yaml"
           yq e ".image.repository = \"immersoaiip/lg-erosuniverse\"" -i "$service"
           yq e ".image.tag = \"${IMAGE_TAG}\"" -i "$service"
 
