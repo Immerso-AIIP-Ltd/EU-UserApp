@@ -339,6 +339,7 @@ class RedirectTemplates:
     """Redirect URL templates for mobile app navigation."""
 
     VERIFY_OTP = "erosnowapp://verify_otp?{type}={receiver}&intent={intent}"
+    SET_FORGOT_PASSWORD = "erosnowapp://set_forgot_password?{type}={receiver}&intent={intent}"  # noqa: S105
 
 
 class CeleryQueues:
@@ -473,6 +474,7 @@ class SuccessMessages:
     USER_PROFILE_RETRIEVED = "User Information Retrieved"
     USER_LOGGED_IN = "User logged in successfully"
     OTP_SENT = "OTP sent successfully"
+    OTP_VERIFIED = "OTP verified successfully"
     EMAIL_OR_MOBILE_REQUIRED = "Either email or mobile number is required."
     USER_NOT_FOUND = "User not found."
     ACCOUNT_LOCKED = (

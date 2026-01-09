@@ -43,7 +43,7 @@ class IntentEnum(str, Enum):
     REGISTRATION = "registration"
     WAITLIST = "waitlist"
     UPDATE_PROFILE = "update_profile"
-    FORGOT_PASSWORD = "forgot_password"
+    FORGOT_PASSWORD = "forgot_password"  # noqa: S105
 
 
 class PlatformEnum(str, Enum):
