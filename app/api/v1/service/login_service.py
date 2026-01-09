@@ -59,6 +59,33 @@ class LoginService:
             device_id=device_id or "",
         )
 
+        # FusionAuth Integration
+        try:
+            from app.api.v1.service.fusionauth_service import FusionAuthService
+            import asyncio
+            import time
+            
+            user_uuid_str = str(user_id)
+            user_email = user.get("email")
+            
+            # 1. Sync User (Ensure exists)
+            await asyncio.to_thread(FusionAuthService.create_fusion_user, user_uuid_str, user_email)
+            
+            # 2. Issue Token
+            fa_token = await asyncio.to_thread(FusionAuthService.issue_token, user_uuid_str)
+            
+            if not fa_token:
+                 raise UnauthorizedError("Failed to issue FusionAuth token: No token received")
+            
+            token = fa_token
+            # FA default TTL is 300s -> updated to 600s
+            expires_at = int(time.time()) + 600
+
+        except Exception as e:
+             # Raise an error if FusionAuth token cannot be issued
+             # print(f"Failed to issue FusionAuth token: {e}")
+             raise UnauthorizedError(f"Failed to issue FusionAuth token: {e}")
+
         # Link device to user
         from app.api.v1.service.device_service import DeviceService
 
