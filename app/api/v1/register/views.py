@@ -236,7 +236,63 @@ async def verify_otp_register(
             data={LoginParams.REDIRECT_URL: redirect_url},
         )
 
-    # 2. Retrieve Cached Registration Data
+    if intent == IntentEnum.UPDATE_PROFILE:
+        # Fetch user to get ID
+        if receiver_type == RequestParams.EMAIL:
+             user_rows = await execute_query(
+                 query=UserQueries.GET_USER_BY_EMAIL,
+                 params={RequestParams.EMAIL: receiver},
+                 db_session=db_session
+             )
+        else:
+             user_rows = await execute_query(
+                 query=UserQueries.GET_USER_BY_MOBILE,
+                 params={
+                     RequestParams.MOBILE: mobile,
+                     RequestParams.CALLING_CODE: calling_code
+                 },
+                 db_session=db_session
+             )
+        
+        if not user_rows:
+             raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
+        
+        user_id = user_rows[0].id
+
+        # Update verification status
+        await execute_query(
+            query=UserQueries.UPDATE_USER_VERIFIED,
+            params={
+                RequestParams.USER_ID: user_id,
+                "type": receiver_type
+            },
+            db_session=db_session
+        )
+        
+        await db_session.commit()
+        
+        # Invalidate Profile Cache
+        # We need to reconstruct the cache key.
+        # However, we don't have full headers here (platform, version, country) easily accessible 
+        # unless passed or we iterate.
+        # But wait, standard headers should be present.
+        
+        cache_key = build_cache_key(
+            CacheKeyTemplates.CACHE_KEY_USER_PROFILE,
+            **{
+                RequestParams.USER_ID: user_id,
+                RequestParams.PLATFORM: headers.get(RequestParams.PLATFORM),
+                RequestParams.VERSION: headers.get(RequestParams.APP_VERSION),
+                RequestParams.COUNTRY: headers.get(RequestParams.COUNTRY),
+            },
+        )
+        await cache.delete(cache_key)
+
+        return standard_response(
+            message=SuccessMessages.OTP_VERIFIED,
+            request=request,
+            data={LoginParams.REDIRECT_URL: None}, # UI likely redirects to profile
+        )
     cached_data = await _get_cached_registration_data(cache, receiver)
 
     # 3. Register User in DB

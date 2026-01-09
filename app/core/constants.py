@@ -567,6 +567,8 @@ class ErrorCodes:
     INVALID_SOCIAL_UID_CODE = "US401"
     INVALID_SOCIAL_TOKEN_CODE = "US401"  # noqa: S105
     APPLE_KEY_FETCH_ERROR_CODE = "US500"
+    US404 = "US404"
+    US402 = "US402"
 
 
 class ErrorMessages:
@@ -692,6 +694,7 @@ class Intents:
     UPDATE_EMAIL = "update_email"
     UPDATE_MOBILE = "update_mobile"
     WAITLIST = "waitlist"
+    UPDATE_PROFILE = "update_profile"
 
 
 class Description(str):

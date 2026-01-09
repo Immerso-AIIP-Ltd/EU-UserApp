@@ -141,40 +141,6 @@ async def forgot_password(
         request=request,
         data=data,
     )
-
-
-@router.put("/change_password")
-async def change_password(
-    request: Request,
-    payload: ChangePasswordRequest,
-    headers: dict[str, Any] = Depends(validate_common_headers),
-    db_session: AsyncSession = Depends(get_db_session),
-) -> JSONResponse:
-    """
-    Change user password.
-
-    Requires valid x-api-token in headers.
-    """
-    # 1. Get user UUID from token
-    # validate_common_headers confirms presence, but does not verify. We verify here.
-    user_id = await AuthService.verify_user_token(headers, db_session)
-
-    # 2. Call service
-    await ChangePasswordService.change_password(
-        user_uuid=user_id,
-        new_password=payload.new_password,
-        new_password_confirm=payload.new_password_confirm,
-        db_session=db_session,
-    )
-
-    data: dict[str, Any] = {}
-    return standard_response(
-        message=SuccessMessages.PASSWORD_CHANGED_SUCCESS,
-        request=request,
-        data=data,
-    )
-
-
 @router.post("/set_forgot_password")
 async def set_forgot_password(
     request: Request,
@@ -210,3 +176,37 @@ async def set_forgot_password(
         request=request,
         data=response_data,
     )
+
+
+@router.put("/change_password")
+async def change_password(
+    request: Request,
+    payload: ChangePasswordRequest,
+    headers: dict[str, Any] = Depends(validate_common_headers),
+    db_session: AsyncSession = Depends(get_db_session),
+) -> JSONResponse:
+    """
+    Change user password.
+
+    Requires valid x-api-token in headers.
+    """
+    # 1. Get user UUID from token
+    # validate_common_headers confirms presence, but does not verify. We verify here.
+    user_id = await AuthService.verify_user_token(headers, db_session)
+
+    # 2. Call service
+    await ChangePasswordService.change_password(
+        user_uuid=user_id,
+        new_password=payload.new_password,
+        new_password_confirm=payload.new_password_confirm,
+        db_session=db_session,
+    )
+
+    data: dict[str, Any] = {}
+    return standard_response(
+        message=SuccessMessages.PASSWORD_CHANGED_SUCCESS,
+        request=request,
+        data=data,
+    )
+
+

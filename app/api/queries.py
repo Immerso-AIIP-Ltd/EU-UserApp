@@ -313,7 +313,26 @@ class UserQueries:
 
     UPDATE_USER_PROFILE = text(
         """
-        SELECT * FROM user_app.update_user_profile(
+        SELECT
+            uuid,
+            email,
+            TRIM(CONCAT(firstname, ' ', lastname)) AS name,
+            firstname,
+            lastname,
+            mobile,
+            calling_code,
+            image,
+            country,
+            CAST(gender AS VARCHAR) as gender,
+            about_me,
+            birth_day,
+            birth_month,
+            birth_year,
+            avatar_id,
+            is_password_set,
+            nick_name,
+            (birth_day || '/' || birth_month || '/' || birth_year) AS birth_date
+        FROM user_app.update_user_profile(
             :user_id,
             :name,
             :gender,
@@ -678,6 +697,17 @@ class UserQueries:
         UPDATE user_app.user_auth_token
         SET is_active = False
         WHERE token = :token AND device_id = :device_id
+        """,
+    )
+
+    UPDATE_USER_VERIFIED = text(
+        """
+        UPDATE user_app.user
+        SET
+            is_email_verified = CASE WHEN :type = 'email' THEN TRUE ELSE is_email_verified END,
+            is_mobile_verified = CASE WHEN :type = 'mobile' THEN TRUE ELSE is_mobile_verified END,
+            modified_at = NOW()
+        WHERE id = :user_id;
         """,
     )
 
