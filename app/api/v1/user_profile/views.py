@@ -13,23 +13,23 @@ from app.api.v1.schemas import (
     UpdateProfileRequest,
     UserProfileData,
 )
+from app.api.v1.service.register_otp import GenerateOtpService
 from app.cache.base import build_cache_key, get_cache, set_cache
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import (
     CacheKeyTemplates,
     CacheTTL,
     ErrorMessages,
+    Intent,
     LoginParams,
     RedirectTemplates,
     RequestParams,
     SuccessMessages,
-    Intent,
 )
 from app.core.exceptions.exceptions import (
     ProfileFetchError,
     UserNotFoundError,
 )
-from app.api.v1.service.register_otp import GenerateOtpService
 from app.core.middleware.auth import get_user_from_x_token
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform
@@ -222,14 +222,8 @@ async def update_email_mobile(
         if not data or len(data) == 0:
             raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
 
-        updated_contact = data[0]
-        
         # Determine receiver and type
-        rx_type = (
-            RequestParams.EMAIL
-            if contact_update.email
-            else RequestParams.MOBILE
-        )
+        rx_type = RequestParams.EMAIL if contact_update.email else RequestParams.MOBILE
         receiver = (
             contact_update.email
             if contact_update.email
@@ -239,9 +233,7 @@ async def update_email_mobile(
         # Generate OTP
         # We pass x_forwarded_for as IP.
         # Since this is an authenticated request, we can get client IP from request.
-        client_ip = (
-            request.client.host if request.client else RequestParams.LOCALHOST
-        )
+        client_ip = request.client.host if request.client else RequestParams.LOCALHOST
         # Check for x-forwarded-for header
         x_ff = request.headers.get("x-forwarded-for")
         if x_ff:
@@ -267,9 +259,11 @@ async def update_email_mobile(
         )
 
         return standard_response(
-            message=SuccessMessages.EMAIL_UPDATED
-            if contact_update.email
-            else SuccessMessages.MOBILE_UPDATED,
+            message=(
+                SuccessMessages.EMAIL_UPDATED
+                if contact_update.email
+                else SuccessMessages.MOBILE_UPDATED
+            ),
             request=request,
             data={LoginParams.REDIRECT_URL: redirect_url},
         )

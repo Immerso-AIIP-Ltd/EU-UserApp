@@ -51,8 +51,9 @@ async def get_user_from_x_token(
     This relies on the gateway having already validated the token.
     """
     if not x_api_token:
-        # This case is largely handled by validate_common_headers or the Header(...) required field
-        raise UserTokenNotFoundError()
+        # This case is largely handled by validate_common_headers or the
+        # Header(...) required field
+        raise UserTokenNotFoundError
 
     try:
         # Decode without verification
@@ -63,7 +64,7 @@ async def get_user_from_x_token(
             options={"verify_signature": False},
         )
     except jwt.DecodeError as e:
-        raise InvalidServiceTokenError() from e
+        raise InvalidServiceTokenError from e
     except Exception as e:
         # Fallback to unauthorized for unknown decoding errors
         raise UnauthorizedError(detail=f"Could not decode token: {e!s}") from e

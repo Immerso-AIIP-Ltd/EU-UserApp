@@ -141,6 +141,8 @@ async def forgot_password(
         request=request,
         data=data,
     )
+
+
 @router.post("/set_forgot_password")
 async def set_forgot_password(
     request: Request,
@@ -208,5 +210,3 @@ async def change_password(
         request=request,
         data=data,
     )
-
-

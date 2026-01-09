@@ -704,8 +704,10 @@ class UserQueries:
         """
         UPDATE user_app.user
         SET
-            is_email_verified = CASE WHEN :type = 'email' THEN TRUE ELSE is_email_verified END,
-            is_mobile_verified = CASE WHEN :type = 'mobile' THEN TRUE ELSE is_mobile_verified END,
+            is_email_verified = CASE
+                WHEN :type = 'email' THEN TRUE ELSE is_email_verified END,
+            is_mobile_verified = CASE
+                WHEN :type = 'mobile' THEN TRUE ELSE is_mobile_verified END,
             modified_at = NOW()
         WHERE id = :user_id;
         """,
