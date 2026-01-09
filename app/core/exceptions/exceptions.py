@@ -549,3 +549,17 @@ class FusionAuthException(AppError):
             message=detail,
             error_code=ErrorCodes.FUSION_AUTH_ERROR_CODE,
         )
+class OtpNotVerifiedError(AppError):
+    """Exception for unverified OTP during profile update."""
+
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = "OTP not verified for updated email or mobile"
+    error_code = ErrorCodes.US404
+
+
+class VerificationRequiredError(AppError):
+    """Exception when verification is required."""
+
+    http_code = status.HTTP_402_PAYMENT_REQUIRED  # User requested US402
+    message = "Verification required"
+    error_code = ErrorCodes.US402

@@ -719,6 +719,7 @@ class Intents:
     UPDATE_EMAIL = "update_email"
     UPDATE_MOBILE = "update_mobile"
     WAITLIST = "waitlist"
+    UPDATE_PROFILE = "update_profile"
 
 
 class Description(str):

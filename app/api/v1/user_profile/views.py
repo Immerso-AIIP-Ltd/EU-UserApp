@@ -13,12 +13,16 @@ from app.api.v1.schemas import (
     UpdateProfileRequest,
     UserProfileData,
 )
+from app.api.v1.service.register_otp import GenerateOtpService
 from app.cache.base import build_cache_key, get_cache, set_cache
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import (
     CacheKeyTemplates,
     CacheTTL,
     ErrorMessages,
+    Intent,
+    LoginParams,
+    RedirectTemplates,
     RequestParams,
     SuccessMessages,
 )
@@ -26,7 +30,7 @@ from app.core.exceptions.exceptions import (
     ProfileFetchError,
     UserNotFoundError,
 )
-from app.core.middleware.auth import get_current_user
+from app.core.middleware.auth import get_user_from_x_token
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform
 from app.utils.standard_response import standard_response
@@ -41,10 +45,12 @@ async def get_user_profile(
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_user_from_x_token),
 ) -> JSONResponse:
     """Get authenticated user's profile using x-api-token."""
-    user_id = current_user.get("user_id")
+    user_id = current_user.get(RequestParams.UUID) or current_user.get(
+        RequestParams.USER_ID,
+    )
     if not user_id:
         raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
 
@@ -75,7 +81,12 @@ async def get_user_profile(
 
         user_profile = data[0]
 
-        await set_cache(cache, cache_key, user_profile, ttl=CacheTTL.TTL_USER_PROFILE)
+        await set_cache(
+            cache,
+            cache_key,
+            user_profile,
+            ttl=CacheTTL.TTL_USER_PROFILE,
+        )
 
         return standard_response(
             message=SuccessMessages.USER_PROFILE_RETRIEVED,
@@ -99,10 +110,12 @@ async def update_user_profile(
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_user_from_x_token),
 ) -> JSONResponse:
     """Update authenticated user's profile."""
-    user_id = current_user.get(RequestParams.USER_ID)
+    user_id = current_user.get(RequestParams.UUID) or current_user.get(
+        RequestParams.USER_ID,
+    )
     if not user_id:
         raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
 
@@ -140,7 +153,12 @@ async def update_user_profile(
         user_profile = data[0]
 
         # Update cache with new data
-        await set_cache(cache, cache_key, user_profile, ttl=CacheTTL.TTL_USER_PROFILE)
+        await set_cache(
+            cache,
+            cache_key,
+            user_profile,
+            ttl=CacheTTL.TTL_USER_PROFILE,
+        )
 
         return standard_response(
             message=SuccessMessages.PROFILE_UPDATED,
@@ -164,10 +182,12 @@ async def update_email_mobile(
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_user_from_x_token),
 ) -> JSONResponse:
     """Update authenticated user's email or mobile."""
-    user_id = current_user.get(RequestParams.USER_ID)
+    user_id = current_user.get(RequestParams.UUID) or current_user.get(
+        RequestParams.USER_ID,
+    )
     if not user_id:
         raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
 
@@ -202,18 +222,50 @@ async def update_email_mobile(
         if not data or len(data) == 0:
             raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
 
-        updated_contact = data[0]
-
-        message = (
-            SuccessMessages.EMAIL_UPDATED
+        # Determine receiver and type
+        rx_type = RequestParams.EMAIL if contact_update.email else RequestParams.MOBILE
+        receiver = (
+            contact_update.email
             if contact_update.email
-            else SuccessMessages.MOBILE_UPDATED
+            else f"{contact_update.calling_code}{contact_update.mobile}".lstrip("+")
+        )
+
+        # Generate OTP
+        # We pass x_forwarded_for as IP.
+        # Since this is an authenticated request, we can get client IP from request.
+        client_ip = request.client.host if request.client else RequestParams.LOCALHOST
+        # Check for x-forwarded-for header
+        x_ff = request.headers.get("x-forwarded-for")
+        if x_ff:
+            client_ip = x_ff.split(",")[0].strip()
+
+        await GenerateOtpService.generate_otp(
+            redis_client=cache,
+            receiver=receiver,
+            receiver_type=rx_type,
+            intent=Intent.UPDATE_PROFILE,
+            x_forwarded_for=client_ip,
+            is_resend=False,
+            db_session=db_session,
+            mobile=contact_update.mobile,
+            calling_code=contact_update.calling_code,
+        )
+
+        # Construct Redirect URL
+        redirect_url = RedirectTemplates.VERIFY_OTP.format(
+            type=rx_type,
+            receiver=receiver,
+            intent=Intent.UPDATE_PROFILE,
         )
 
         return standard_response(
-            message=message,
+            message=(
+                SuccessMessages.EMAIL_UPDATED
+                if contact_update.email
+                else SuccessMessages.MOBILE_UPDATED
+            ),
             request=request,
-            data=updated_contact,
+            data={LoginParams.REDIRECT_URL: redirect_url},
         )
 
     except UserNotFoundError:
