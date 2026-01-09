@@ -26,6 +26,9 @@ class HTTPStatus:
     BAD_REQUEST = 400
     NOT_FOUND = 404
     INTERNAL_SERVER_ERROR = 500
+    UNAUTHORIZED = 401
+    FORBIDDEN = 403
+    
 
 
 class HTTPMethods:
@@ -94,6 +97,7 @@ class CacheTTL:
     TTL_INVITE_DEVICE = 60
     TTL_USER_PROFILE = 3600
     OTP_EXPIRY = 180
+    TOKEN_EXPIRY = 3600  # 1 hour
 
 
 class QueryTimeouts:
@@ -181,6 +185,20 @@ class RequestParams:
     PARTNER_ID = "partner_id"
     CLIENT_ID = "client_id"
     CLIENT_SECRET = "client_secret"  # noqa: S105
+    PUSH_TOKEN = "push_token"
+    DEVICE_IP = "device_ip"
+    IS_VPN = "is_vpn"
+    IS_ANONYMOUS_PROXY = "is_anonymous_proxy"
+    RESIDENCY_VERIFIED = "residency_verified"
+    IS_ROOTED = "is_rooted"
+    IS_JAILBROKEN = "is_jailbroken"
+    DEVICE_ACTIVE = "device_active"
+    DRM_TYPE = "drm_type"
+    HARDWARE_ENCRYPTION = "hardware_encryption"
+    TRANSACTION_TYPE = "transaction_type"
+    IS_IP_LEGAL = "is_ip_legal"
+    NATIVE_TOKEN = "native_token"
+    DATE_DEACTIVATED = "date_deactivated"
 
 
 class DnsRecordTypes:
@@ -499,6 +517,7 @@ class SuccessMessages:
     PROFILE_UPDATED = "Profile Updated"
     EMAIL_UPDATED = "User Email updated successfully."
     MOBILE_UPDATED = "User Mobile updated successfully."
+    DEVICE_REGISTERED_SUCCESS = "Device registered successfully"
 
 
 class ErrorCodes:
@@ -530,9 +549,9 @@ class ErrorCodes:
     COUNTRY_DATA_NOT_FOUND_CODE = "US23"
     LANGUAGES_NOT_FOUND_CODE = "US24"
     TRANSLATIONS_NOT_FOUND_CODE = "US25"
-    DEVICE_NOT_INVITED = "US100"
-    COUPON_ID_INVALID = "US400"
-    COUPON_EXPIRED = "US200"
+    DEVICE_NOT_INVITED = "US041"
+    COUPON_ID_INVALID = "US042"
+    COUPON_EXPIRED = "US043"
     EMAIL_OR_MOBILE_REQUIRED = "US004"
     CALLING_CODE_REQUIRED = "US018"
     PASSWORD_REQUIRED = "US017"  # noqa: S105
@@ -561,13 +580,14 @@ class ErrorCodes:
     US404 = "US404"
     US409 = "US409"
     US403 = "US403"
-    USER_TOKEN_NOT_FOUND_CODE = "US401"  # noqa: S105
-    FACEBOOK_AUTH_ERROR_CODE = "US401"
-    GOOGLE_WRONG_ISSUER_CODE = "US401"
-    INVALID_SOCIAL_UID_CODE = "US401"
-    INVALID_SOCIAL_TOKEN_CODE = "US401"  # noqa: S105
-    APPLE_KEY_FETCH_ERROR_CODE = "US500"
-    US402 = "US402"
+    USER_TOKEN_NOT_FOUND_CODE = "US033"  # noqa: S105
+    FACEBOOK_AUTH_ERROR_CODE = "US034"
+    GOOGLE_WRONG_ISSUER_CODE = "US035"
+    INVALID_SOCIAL_UID_CODE = "US036"
+    INVALID_SOCIAL_TOKEN_CODE = "US037"  # noqa: S105
+    APPLE_KEY_FETCH_ERROR_CODE = "US038"
+    DEVICE_REGISTRATION_ERROR_CODE = "US039"
+    FUSION_AUTH_ERROR_CODE = "US040"
 
 
 class ErrorMessages:
@@ -642,6 +662,11 @@ class ErrorMessages:
     USER_NOT_FOUND_DETAILS = "No user exists with the provided email or mobile."
 
     FACEBOOK_AUTH_ERROR = "Facebook authentication failed."
+    DEVICE_REGISTERED = "Device registered successfully."
+    FUSION_AUTH_VALIDATION_ERROR = "Could not validate credentials"
+    FUSION_AUTH_REGISTRATION_ERROR = "Failed to register user to application"
+    FUSION_AUTH_SYNC_ERROR = "Failed to sync user with Authentication Provider"
+    FUSION_AUTH_TOKEN_ERROR = "Authentication Provider could not issue token"
     GOOGLE_WRONG_ISSUER = "Invalid Google issuer."
     INVALID_SOCIAL_UID = "Social UID mismatch."
     INVALID_SOCIAL_TOKEN = "Invalid social token."  # noqa: S105
@@ -649,6 +674,7 @@ class ErrorMessages:
     INVALID_EMAIL_DOMAIN = "Invalid email domain"
     EMAIL_DOES_NOT_EXIST = "Email doesn't exist"
     EMAIL_DOMAIN_CONNECTION_ERROR = "Email domain connection error"
+    DEVICE_REGISTRATION_FAILED = "Device registration failed"
 
 
 class Headers:
@@ -751,6 +777,20 @@ class Description(str):
     INVITED_LIST = "List of emails or contact objects"
     SOCIAL_USER_ID = "Social User ID"
     OAUTH_TOKEN = "OAuth Token"  # noqa: S105
+    PUSH_TOKEN = "Push notification token"
+    DEVICE_IP = "IP address of the device"
+    IS_VPN = "Whether the device is using a VPN"
+    IS_ANONYMOUS_PROXY = "Whether the device is strictly an anonymous proxy"
+    RESIDENCY_VERIFIED = "Whether residency matches"
+    IS_ROOTED = "Whether the device is rooted"
+    IS_JAILBROKEN = "Whether the device is jailbroken"
+    DEVICE_ACTIVE = "Whether the device is active"
+    DRM_TYPE = "Digital Rights Management type"
+    HARDWARE_ENCRYPTION = "Whether hardware encryption is enabled"
+    TRANSACTION_TYPE = "Type of transaction"
+    IS_IP_LEGAL = "Whether IP is legal"
+    NATIVE_TOKEN = "Native token"
+    DATE_DEACTIVATED = "Date when the device was deactivated"
 
 
 class LoggerConfigs:

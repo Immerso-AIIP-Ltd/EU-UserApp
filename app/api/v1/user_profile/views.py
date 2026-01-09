@@ -34,7 +34,7 @@ from app.core.middleware.auth import get_user_from_x_token
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform
 from app.utils.standard_response import standard_response
-from app.utils.validate_headers import validate_common_headers
+from app.utils.validate_headers import validate_common_headers, validate_headers_without_auth
 
 router = APIRouter()
 
@@ -43,7 +43,7 @@ router = APIRouter()
 async def get_user_profile(
     request: Request,
     db_session: AsyncSession = Depends(get_db_session),
-    headers: dict[str, Any] = Depends(validate_common_headers),
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
     current_user: dict[str, Any] = Depends(get_user_from_x_token),
 ) -> JSONResponse:
@@ -108,7 +108,7 @@ async def update_user_profile(
     request: Request,
     profile_update: UpdateProfileRequest,
     db_session: AsyncSession = Depends(get_db_session),
-    headers: dict[str, Any] = Depends(validate_common_headers),
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
     current_user: dict[str, Any] = Depends(get_user_from_x_token),
 ) -> JSONResponse:
@@ -180,7 +180,7 @@ async def update_email_mobile(
     request: Request,
     contact_update: UpdateEmailMobileRequest,
     db_session: AsyncSession = Depends(get_db_session),
-    headers: dict[str, Any] = Depends(validate_common_headers),
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
     current_user: dict[str, Any] = Depends(get_user_from_x_token),
 ) -> JSONResponse:
