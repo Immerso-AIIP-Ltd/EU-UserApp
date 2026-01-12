@@ -555,16 +555,16 @@ class OtpNotVerifiedError(AppError):
     """Exception for unverified OTP during profile update."""
 
     http_code = status.HTTP_400_BAD_REQUEST
-    message = "OTP not verified for updated email or mobile"
-    error_code = ErrorCodes.US404
+    message = ErrorMessages.OTP_NOT_VERIFIED_FOR_UPDATED_EMAIL_OR_MOBILE
+    error_code = ErrorCodes.OTP_NOT_VERIFIED_CODE
 
 
 class VerificationRequiredError(AppError):
     """Exception when verification is required."""
 
     http_code = status.HTTP_402_PAYMENT_REQUIRED  # User requested US402
-    message = "Verification required"
-    error_code = ErrorCodes.US402
+    message = ErrorMessages.VERIFICATION_REQUIRED
+    error_code = ErrorCodes.VERIFICATION_REQUIRED_CODE
 
 
 class BootstrapKeyIdNotConfiguredError(AppError):
@@ -581,3 +581,4 @@ class FailedToGenerateRefreshTokenError(AppError):
     http_code = status.HTTP_400_BAD_REQUEST
     message = "Failed to generate refresh token via FusionAuth"
     error_code = ErrorCodes.FAILED_TO_GENERATE_REFRESH_TOKEN_CODE
+

@@ -1,12 +1,13 @@
 import random
 import string
-from locust import HttpUser, task, between
+
+from locust import HttpUser, between, task
 
 
 class SocialUser(HttpUser):
     wait_time = between(1, 5)
 
-    def on_start(self):
+    def on_start(self) -> None:
         self.headers = {
             "Content-Type": "application/json",
             "x-device-id": "loadtest-device-"
@@ -19,7 +20,7 @@ class SocialUser(HttpUser):
         }
 
     @task
-    def google_login(self):
+    def google_login(self) -> None:
         # We expect this to fail with 401/400 because the token is fake.
         # But it tests the endpoint reachability and handling of invalid tokens.
         payload = {
@@ -37,16 +38,13 @@ class SocialUser(HttpUser):
         ) as response:
             if response.status_code in [400, 401, 200]:  # 200 if mock is enabled
                 response.success()
+            elif response.status_code == 500:
+                response.failure(f"Google login failed with 500: {response.text}")
             else:
-                # If it returns 500, that's bad error handling, so we mark failure.
-                # If it returns 403 or others, we might want to investigate.
-                if response.status_code == 500:
-                    response.failure(f"Google login failed with 500: {response.text}")
-                else:
-                    response.success()  # Accepting other codes as we know token is fake
+                response.success()  # Accepting other codes as we know token is fake
 
     @task
-    def facebook_login(self):
+    def facebook_login(self) -> None:
         payload = {
             "access_token": "fake_facebook_token_"
             + "".join(random.choices(string.ascii_letters, k=20)),
@@ -61,8 +59,7 @@ class SocialUser(HttpUser):
         ) as response:
             if response.status_code in [400, 401, 200]:
                 response.success()
+            elif response.status_code == 500:
+                response.failure(f"Facebook login failed with 500: {response.text}")
             else:
-                if response.status_code == 500:
-                    response.failure(f"Facebook login failed with 500: {response.text}")
-                else:
-                    response.success()
+                response.success()

@@ -1,14 +1,15 @@
 import random
 import string
-from locust import HttpUser, task, between
+
+from locust import HttpUser, between, task
 
 
 class DeviceUser(HttpUser):
     wait_time = between(1, 5)
 
-    def on_start(self):
+    def on_start(self) -> None:
         self.device_id = "loadtest-device-" + "".join(
-            random.choices(string.ascii_lowercase + string.digits, k=10)
+            random.choices(string.ascii_lowercase + string.digits, k=10),
         )
         self.headers = {
             "Content-Type": "application/json",
@@ -21,7 +22,7 @@ class DeviceUser(HttpUser):
         }
 
     @task
-    def check_device_invite(self):
+    def check_device_invite(self) -> None:
         # This checks the current device ID status
         with self.client.get(
             f"/user/v1/device/{self.device_id}",
@@ -33,11 +34,11 @@ class DeviceUser(HttpUser):
                 response.success()
             else:
                 response.failure(
-                    f"Check device invite failed: {response.status_code} - {response.text}"
+                    f"Check device invite failed: {response.status_code} - {response.text}",
                 )
 
     @task
-    def invite_device(self):
+    def invite_device(self) -> None:
         # We need a valid coupon_id to test this properly.
         # With a fake coupon, we expect 400.
         payload = {
@@ -55,5 +56,5 @@ class DeviceUser(HttpUser):
                 response.success()
             else:
                 response.failure(
-                    f"Invite device failed: {response.status_code} - {response.text}"
+                    f"Invite device failed: {response.status_code} - {response.text}",
                 )

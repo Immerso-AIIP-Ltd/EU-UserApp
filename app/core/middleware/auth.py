@@ -1,15 +1,19 @@
 from contextlib import suppress
 from typing import Any, Dict
 
+import asyncio
 import jwt
 from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from loguru import logger
 
 from app.core.exceptions.exceptions import (
     InvalidServiceTokenError,
     UnauthorizedError,
     UserTokenNotFoundError,
 )
+
+from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.settings import settings
 
 security = HTTPBearer(auto_error=False)
@@ -46,9 +50,6 @@ async def get_current_user(
 
     # Try verifying with FusionAuth first
     with suppress(Exception):
-        import asyncio
-
-        from app.api.v1.service.fusionauth_service import FusionAuthService
 
         # Run sync verification in thread
         payload = await asyncio.to_thread(FusionAuthService.verify_token, token_str)

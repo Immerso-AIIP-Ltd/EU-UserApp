@@ -15,7 +15,6 @@ from app.api.v1.schemas import (
     ResendOTPRequest,
     VerifyOTPRegisterRequest,
 )
-from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.register_otp import GenerateOtpService
 from app.api.v1.service.register_service import UserVerifyService
 from app.cache.base import build_cache_key, get_cache, set_cache

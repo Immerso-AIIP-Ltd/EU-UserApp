@@ -1,14 +1,16 @@
 import re
 from datetime import datetime
+
 from loguru import logger
 from sqlalchemy import text
+
+from app.api.queries import GET_CATEGORIES_QUERY, GET_GAMES_QUERY, GET_TOOLS_QUERY
 from app.core.constants import AppUserApp, MeiliSearchIndexes
-from app.settings import settings
 from app.db.factory import DatabaseFactory
-from app.api.queries import GET_GAMES_QUERY, GET_TOOLS_QUERY, GET_CATEGORIES_QUERY
+from app.settings import settings
 
 
-def get_dummy_hashtags():
+def get_dummy_hashtags() -> list[dict[str, str]]:
     """Returns dummy data for Hashtags index."""
     tags = [
         "#action",
@@ -28,12 +30,12 @@ def get_dummy_hashtags():
             {
                 "id": f"tag_{i}",
                 "tag": tag,
-            }
+            },
         )
     return data
 
 
-def get_dummy_history():
+def get_dummy_history() -> list[dict[str, Any]]:
     """Returns dummy data for Query History index."""
     queries = [
         "minecraft",
@@ -55,12 +57,12 @@ def get_dummy_history():
                 "query": query,
                 "popularity": 100 - i,
                 "updated_at": datetime.now().isoformat(),
-            }
+            },
         )
     return data
 
 
-def get_dummy_mini_apps():
+def get_dummy_mini_apps() -> list[dict[str, Any]]:
     """Returns dummy data for Super App index."""
     apps = ["eros-create", "eros-eternal", "eros-now", "eros-play", "eros-world"]
     data = []
@@ -74,12 +76,13 @@ def get_dummy_mini_apps():
                 "icon_url": f"https://example.com/{app_id}.png",
                 "app_url": f"https://example.com/{app_id}",
                 "rating": 4.5 + (i * 0.1) % 0.5,  # Dummy rating
-            }
+            },
         )
     return data
 
 
-def get_sortable_attributes(ranking_rules):
+def get_sortable_attributes(ranking_rules: list[str]) -> list[str]:
+    """Extract sortable attributes from ranking rules."""
     sortable = set()
     for rule in ranking_rules:
         match = re.search(r"(asc|desc)\((.*)\)", rule)
@@ -88,12 +91,13 @@ def get_sortable_attributes(ranking_rules):
     return list(sortable)
 
 
-async def fetch_data(query_str, db_base):
+async def fetch_data(query_str: str, db_base: str) -> list[dict[str, Any]]:
     """Fetch data from database using the provided SQL query."""
     logger.debug(f"Executing query: {query_str.strip().splitlines()[0]}...")
 
     db_factory = DatabaseFactory(
-        db_url=str(settings.db_url(db_base)), db_echo=settings.db_echo
+        db_url=str(settings.db_url(db_base)),
+        db_echo=settings.db_echo,
     )
 
     data = []
@@ -120,7 +124,10 @@ async def fetch_data(query_str, db_base):
     return data
 
 
-def setup_index(client, index_name, config, data):
+def setup_index(
+    client: Any, index_name: str, config: dict[str, Any], data: list[dict[str, Any]]
+) -> None:
+    """Setup a MeiliSearch index with config and data."""
     logger.debug(f"Setting up index: {index_name}")
 
     if not data:
@@ -137,7 +144,7 @@ def setup_index(client, index_name, config, data):
             logger.debug(f"Index '{index_name}' already exists.")
         else:
             logger.error(
-                f"Note: create_index failed with: {e}. Attempting to proceed with existing index."
+                f"Note: create_index failed with: {e}. Attempting to proceed with existing index.",
             )
 
     index = client.index(index_name)
@@ -171,7 +178,8 @@ def setup_index(client, index_name, config, data):
         logger.error(f"Error adding documents: {e}")
 
 
-def check_config(client, config):
+def check_config(client: Any, config: dict[str, Any]) -> None:
+    """Check and setup template indexes if present in config."""
 
     logger.debug("Loading index configs...")
 
@@ -212,7 +220,8 @@ def check_config(client, config):
         logger.debug("Config key _template_query_history_v1 not found. Skipping.")
 
 
-def get_tasks():
+def get_tasks() -> list[tuple[str, str, str, str]]:
+    """Get list of indexing tasks (query, index, config_key, db)."""
 
     return [
         (
@@ -236,13 +245,16 @@ def get_tasks():
     ]
 
 
-async def process_tasks(tasks, config, client):
+async def process_tasks(
+    tasks: list[tuple[str, str, str, str]], config: dict[str, Any], client: Any
+) -> None:
+    """Process indexing tasks sequentially."""
 
     for query, index_name, config_key, db_base in tasks:
         logger.debug(f"\n--- Processing {index_name} ---")
         if config_key not in config:
             logger.debug(
-                f"Config key {config_key} not found in indexes.json. Skipping."
+                f"Config key {config_key} not found in indexes.json. Skipping.",
             )
             continue
 

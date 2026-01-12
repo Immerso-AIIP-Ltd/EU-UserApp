@@ -546,7 +546,6 @@ class ErrorCodes:
     COUNTRY_NOT_FOUND_CODE = "US16"
     COUNTRY_LOCALES_FETCHED_CODE = "US17"
     LANGUAGE_NOT_FOUND_CODE = "US18"
-    BAD_REQUEST_CODE = "US19"
     UNAUTHORIZED_CODE = "US20"
     FORBIDDEN_CODE = "US21"
     CONFIGURATIONS_NOT_FOUND_CODE = "US22"
@@ -576,7 +575,6 @@ class ErrorCodes:
     # Login Specific
     USER_NOT_FOUND_LOGIN_CODE = "US002"
     INCORRECT_PASSWORD_CODE = "US021"  # noqa: S105
-    ACCOUNT_LOCKED_CODE = "US003"
     UNAUTHORIZED_LOGIN_CODE = "US401"
     INVALID_INPUT_CODE = "US029"
     CLIENT_ID_VALIDATION_FAILED_CODE = "US030"
@@ -704,6 +702,10 @@ class ErrorMessages:
     DEVICE_ALREADY_REGISTERED = "Device already registered"
     PRIVATE_KEY_NOT_FOUND = "Private Key not found on server"
     DB_ERROR = "Database Error"
+    VERIFICATION_REQUIRED = "Verification required"
+    OTP_NOT_VERIFIED_FOR_UPDATED_EMAIL_OR_MOBILE = (
+        "OTP not verified for updated email or mobile"
+    )
 
 
 class Headers:

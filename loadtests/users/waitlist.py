@@ -1,17 +1,16 @@
 import random
 import string
-from locust import HttpUser, task, between
+
+from locust import HttpUser, between, task
 
 
 class WaitlistUser(HttpUser):
     wait_time = between(1, 3)
 
-    def on_start(self):
-        """
-        Setup initial headers for each user session.
-        """
+    def on_start(self) -> None:
+        """Setup initial headers for each user session."""
         self.device_id = "loadtest-device-" + "".join(
-            random.choices(string.ascii_lowercase + string.digits, k=10)
+            random.choices(string.ascii_lowercase + string.digits, k=10),
         )
         self.headers = {
             "Content-Type": "application/json",
@@ -26,10 +25,8 @@ class WaitlistUser(HttpUser):
         self.joined = False
 
     @task(3)
-    def join_waitlist(self):
-        """
-        Scenario: User joins the waitlist.
-        """
+    def join_waitlist(self) -> None:
+        """Scenario: User joins the waitlist."""
         if self.joined:
             return
 
@@ -54,14 +51,12 @@ class WaitlistUser(HttpUser):
                 self.joined = True
             else:
                 response.failure(
-                    f"Join waitlist failed: {response.status_code} - {response.text}"
+                    f"Join waitlist failed: {response.status_code} - {response.text}",
                 )
 
     @task(1)
-    def resend_otp(self):
-        """
-        Scenario: User requests to resend OTP for waitlist.
-        """
+    def resend_otp(self) -> None:
+        """Scenario: User requests to resend OTP for waitlist."""
         if not self.email:
             return
 
@@ -79,14 +74,12 @@ class WaitlistUser(HttpUser):
                 response.success()
             else:
                 response.failure(
-                    f"Resend OTP failed: {response.status_code} - {response.text}"
+                    f"Resend OTP failed: {response.status_code} - {response.text}",
                 )
 
     @task(2)
-    def friend_invite(self):
-        """
-        Scenario: User invites friends (Requires having joined waitlist).
-        """
+    def friend_invite(self) -> None:
+        """Scenario: User invites friends (Requires having joined waitlist)."""
         if not self.email:
             return
 
@@ -109,5 +102,5 @@ class WaitlistUser(HttpUser):
                 response.success()
             else:
                 response.failure(
-                    f"Friend invite failed: {response.status_code} - {response.text}"
+                    f"Friend invite failed: {response.status_code} - {response.text}",
                 )

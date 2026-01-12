@@ -1,15 +1,16 @@
 import random
 import string
-from locust import HttpUser, task, between
+
+from locust import HttpUser, between, task
 
 
 class ProfileUser(HttpUser):
     wait_time = between(1, 5)
     auth_token = None
 
-    def on_start(self):
+    def on_start(self) -> None:
         self.device_id = "loadtest-device-" + "".join(
-            random.choices(string.ascii_lowercase + string.digits, k=10)
+            random.choices(string.ascii_lowercase + string.digits, k=10),
         )
         self.headers = {
             "Content-Type": "application/json",
@@ -29,14 +30,16 @@ class ProfileUser(HttpUser):
             self.auth_token = auth_token
             self.headers["x-api-token"] = self.auth_token
         else:
-            print("Profile setup failed: Authentication helper failed")
+            pass
 
     @task(3)
-    def get_profile(self):
+    def get_profile(self) -> None:
         if not self.auth_token:
             return
         with self.client.get(
-            "/user/v1/user_profile/profile", headers=self.headers, catch_response=True
+            "/user/v1/user_profile/profile",
+            headers=self.headers,
+            catch_response=True,
         ) as response:
             if response.status_code == 200:
                 response.success()
@@ -44,7 +47,7 @@ class ProfileUser(HttpUser):
                 response.failure(f"Get profile failed: {response.text}")
 
     @task(1)
-    def update_profile(self):
+    def update_profile(self) -> None:
         if not self.auth_token:
             return
 

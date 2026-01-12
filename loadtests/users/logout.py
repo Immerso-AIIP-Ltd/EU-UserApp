@@ -1,6 +1,7 @@
 import random
 import string
-from locust import HttpUser, task, between
+
+from locust import HttpUser, between, task
 
 
 class LogoutUser(HttpUser):
@@ -8,9 +9,9 @@ class LogoutUser(HttpUser):
     auth_token = None
     device_id = None
 
-    def on_start(self):
+    def on_start(self) -> None:
         self.device_id = "loadtest-device-" + "".join(
-            random.choices(string.ascii_lowercase + string.digits, k=10)
+            random.choices(string.ascii_lowercase + string.digits, k=10),
         )
         self.headers = {
             "Content-Type": "application/json",
@@ -30,15 +31,17 @@ class LogoutUser(HttpUser):
             self.auth_token = auth_token
             self.headers["x-api-token"] = self.auth_token
         else:
-            print("Components setup failed: Authentication helper failed")
+            pass
 
     @task(1)
-    def logout_user(self):
+    def logout_user(self) -> None:
         if not self.auth_token:
             return
 
         with self.client.post(
-            "/user/v1/user/logout", headers=self.headers, catch_response=True
+            "/user/v1/user/logout",
+            headers=self.headers,
+            catch_response=True,
         ) as response:
             if response.status_code == 200:
                 response.success()

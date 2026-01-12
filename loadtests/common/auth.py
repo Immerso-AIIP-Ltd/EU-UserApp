@@ -1,6 +1,8 @@
 import random
 import string
+
 import redis
+
 from app.core.constants import CacheKeyTemplates, Intents
 
 
@@ -10,7 +12,7 @@ def register_and_login(client, headers):
     1. Register
     2. Fetch OTP from Redis
     3. Verify OTP
-    4. Login
+    4. Login.
     """
     email = (
         f"loadtest_{''.join(random.choices(string.ascii_lowercase, k=10))}@example.com"
@@ -38,6 +40,7 @@ def register_and_login(client, headers):
     # 2. Fetch OTP from Redis
     try:
         import os
+
         from app.settings import settings
 
         redis_pass = os.getenv("APP_REDIS_PASS") or settings.redis_pass
@@ -74,28 +77,23 @@ def register_and_login(client, headers):
                     )
                     # Key template from constants.py: "email_otp_{receiver}_{intent}"
                     otp_key = CacheKeyTemplates.OTP_EMAIL.format(
-                        receiver=email, intent=Intents.REGISTRATION
+                        receiver=email,
+                        intent=Intents.REGISTRATION,
                     )
                     otp = r.get(otp_key)
                     if otp:
                         break
                     # Even if no OTP, if ping works, we might just be looking at the wrong key
                     if r.ping():
-                        print(
-                            f"DEBUG: Connected to Redis at {target['host']}:{target['port']} with config {config}, but OTP not found for {email}"
-                        )
-                except Exception as host_e:
+                        pass
+                except Exception:
                     pass  # Silent failure to try next config
             if otp:
                 break
 
         if not otp:
-            print(
-                f"DEBUG: OTP not found in Redis for {email} after trying {hosts_to_try}"
-            )
             return None, None
-    except Exception as e:
-        print(f"Setup: Redis retrieval failed: {e}")
+    except Exception:
         return None, None
 
     # 3. Verify OTP

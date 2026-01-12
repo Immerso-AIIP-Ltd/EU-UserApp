@@ -1,6 +1,7 @@
 import random
 import string
-from locust import HttpUser, task, between
+
+from locust import HttpUser, between, task
 
 
 class LoginUser(HttpUser):
@@ -8,7 +9,7 @@ class LoginUser(HttpUser):
     weight = 1
     wait_time = between(1, 5)
 
-    def on_start(self):
+    def on_start(self) -> None:
         self.headers = {
             "Content-Type": "application/json",
             "x-device-id": "loadtest-device-"
@@ -21,7 +22,7 @@ class LoginUser(HttpUser):
         self.auth_token = None
 
     @task(2)
-    def login_user(self):
+    def login_user(self) -> None:
         email = f"loadtest_{''.join(random.choices(string.ascii_lowercase, k=5))}@example.com"
         password = "Password123!"
 
@@ -44,14 +45,12 @@ class LoginUser(HttpUser):
                 response.success()
             else:
                 response.failure(
-                    f"Login error: {response.status_code} - {response.text}"
+                    f"Login error: {response.status_code} - {response.text}",
                 )
 
     @task(1)
-    def change_password(self):
-        """
-        Calls change_password ONLY if login was successful
-        """
+    def change_password(self) -> None:
+        """Calls change_password ONLY if login was successful."""
         if not self.auth_token:
             return  # skip until logged in
 
@@ -79,11 +78,11 @@ class LoginUser(HttpUser):
                 response.success()  # expected in some cases
             else:
                 response.failure(
-                    f"Change password failed: {response.status_code} - {response.text}"
+                    f"Change password failed: {response.status_code} - {response.text}",
                 )
 
     @task(1)
-    def forgot_password(self):
+    def forgot_password(self) -> None:
         email = f"loadtest_{''.join(random.choices(string.ascii_lowercase, k=5))}@example.com"
 
         payload = {"email": email}
@@ -98,5 +97,5 @@ class LoginUser(HttpUser):
                 response.success()
             else:
                 response.failure(
-                    f"Forgot password failed: {response.status_code} - {response.text}"
+                    f"Forgot password failed: {response.status_code} - {response.text}",
                 )
