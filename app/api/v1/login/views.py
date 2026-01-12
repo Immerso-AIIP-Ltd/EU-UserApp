@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
@@ -10,6 +11,7 @@ from app.api.v1.schemas import (
     ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
+    RefreshTokenRequest,
     SetForgotPasswordRequest,
     UserProfileData,
 )
@@ -17,14 +19,10 @@ from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.change_password_service import ChangePasswordService
 from app.api.v1.service.forgot_password_service import ForgotPasswordService
 from app.api.v1.service.login_service import LoginService
-from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.cache.dependencies import get_redis_connection
-import logging
-
-logger = logging.getLogger(__name__)
 from app.core.constants import (
+    ErrorMessages,
     HeaderKeys,
-    Messages,
     ProcessParams,
     RequestParams,
     SuccessMessages,
@@ -37,6 +35,8 @@ from app.utils.validate_headers import (
     validate_common_headers,
     validate_headers_without_auth,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -56,7 +56,7 @@ async def login_user(
     )
 
     # 1. Login via service
-    user, token, expires_at = await LoginService.login_user(
+    user, token, refresh_token, expires_at = await LoginService.login_user(
         login_data=login_data,
         client_id=client_id,
         device_id=device_id,
@@ -92,9 +92,9 @@ async def login_user(
 
     response_data = {
         RequestParams.AUTH_TOKEN: token,
+        RequestParams.REFRESH_TOKEN: refresh_token,
         RequestParams.USER: user_response,
     }
-
 
     return standard_response(
         message=SuccessMessages.USER_LOGGED_IN,
@@ -119,7 +119,7 @@ async def forgot_password(
 
     # Validate email or mobile
     if not payload.validate_email_or_mobile():
-        raise InvalidInputError(Messages.EMAIL_OR_MOBILE_REQUIRED)
+        raise InvalidInputError(ErrorMessages.EMAIL_OR_MOBILE_REQUIRED)
 
     ip = request.client.host if request.client else "unknown"
 
@@ -213,4 +213,36 @@ async def change_password(
         message=SuccessMessages.PASSWORD_CHANGED_SUCCESS,
         request=request,
         data=data,
+    )
+
+
+@router.post("/refresh_token")
+async def refresh_token(
+    request: Request,
+    payload: RefreshTokenRequest,
+    db_session: AsyncSession = Depends(get_db_session),
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
+) -> JSONResponse:
+    """Refresh access token using refresh token."""
+    device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
+
+    if not device_id:
+        raise InvalidInputError(ErrorMessages.DEVICE_ID_MISSING)
+
+    token, new_refresh_token, expires_at = await AuthService.refresh_access_token(
+        db_session=db_session,
+        refresh_token=payload.refresh_token,
+        device_id=device_id,
+    )
+
+    response_data = {
+        RequestParams.AUTH_TOKEN: token,
+        RequestParams.REFRESH_TOKEN: new_refresh_token,
+        RequestParams.AUTH_TOKEN_EXPIRY: expires_at,
+    }
+
+    return standard_response(
+        message=SuccessMessages.TOKEN_REFRESHED_SUCCESSFULLY,
+        request=request,
+        data=response_data,
     )

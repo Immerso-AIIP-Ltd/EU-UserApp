@@ -5,8 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
-from app.core.constants import Description, SuccessMessages, Headers
-
+from app.core.constants import Description, ErrorMessages, Headers, SuccessMessages
 
 
 class CacheStats(BaseModel):
@@ -88,6 +87,12 @@ class DeviceInviteRequest(BaseModel):
     coupon_id: str = Field(..., description=Description.COUPON_ID)
 
 
+class RefreshTokenRequest(BaseModel):
+    """Request schema for refresh token."""
+
+    refresh_token: str = Field(..., description="Refresh Token")
+
+
 class LoginRequest(BaseModel):
     """Request schema for /user/v1/user/login."""
 
@@ -104,7 +109,7 @@ class LoginRequest(BaseModel):
         """Validate that either email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
-                "Either email or mobile with calling_code must be provided.",
+                ErrorMessages.EMAIL_OR_MOBILE_CC_REQUIRED,
             )
         return self
 
@@ -132,7 +137,7 @@ class RegisterWithProfileRequest(BaseModel):
         """Validate that either email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
-                "Either email or mobile with calling_code must be provided.",
+                ErrorMessages.EMAIL_OR_MOBILE_CC_REQUIRED,
             )
         return self
 
@@ -154,7 +159,7 @@ class VerifyOTPRequest(BaseModel):
         """Validate that either email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
-                "Either email or mobile with calling_code must be provided.",
+                ErrorMessages.EMAIL_OR_MOBILE_CC_REQUIRED,
             )
         return self
 
@@ -180,7 +185,7 @@ class VerifyOTPRegisterRequest(BaseModel):
         """Validate that either email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
-                "Either email or mobile with calling_code must be provided.",
+                ErrorMessages.EMAIL_OR_MOBILE_CC_REQUIRED,
             )
         return self
 
@@ -201,7 +206,7 @@ class ResendOTPRequest(BaseModel):
         """Validate that either email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
-                "Either email or mobile with calling_code must be provided.",
+                ErrorMessages.EMAIL_OR_MOBILE_CC_REQUIRED,
             )
         return self
 
@@ -221,7 +226,7 @@ class ForgotPasswordRequest(BaseModel):
         """Validate that either email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
-                "Either email or mobile with calling_code must be provided.",
+                ErrorMessages.EMAIL_OR_MOBILE_CC_REQUIRED,
             )
         return self
 
@@ -229,7 +234,7 @@ class ForgotPasswordRequest(BaseModel):
         """Check if email or mobile+calling_code is provided."""
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
-                "Either email or mobile with calling_code must be provided.",
+                ErrorMessages.EMAIL_OR_MOBILE_CC_REQUIRED,
             )
         return self
 
@@ -278,10 +283,10 @@ class UpdateEmailMobileRequest(BaseModel):
     def validate_one_field(self) -> Self:
         """Ensure only one contact method is provided."""
         if self.email and (self.mobile or self.calling_code):
-            raise ValueError("Provide only one contact method (email OR mobile).")
+            raise ValueError(ErrorMessages.PROVIDE_EMAIL_OR_MOBILE)
         if not self.email and not (self.mobile and self.calling_code):
             raise ValueError(
-                "Either email or mobile with calling_code must be provided.",
+                ErrorMessages.EMAIL_OR_MOBILE_CC_REQUIRED,
             )
         return self
 
@@ -303,7 +308,7 @@ class WaitlistRequest(BaseModel):
         """Validate that either email_id or mobile+calling_code is provided."""
         if not self.email_id and not (self.mobile and self.calling_code):
             raise ValueError(
-                "Either email_id or mobile with calling_code must be provided.",
+                ErrorMessages.EMAIL_OR_MOBILE_CC_REQUIRED,
             )
         return self
 
@@ -325,7 +330,7 @@ class VerifyWaitlistRequest(BaseModel):
         """Validate that either email_id or mobile+calling_code is provided."""
         if not self.email_id and not (self.mobile and self.calling_code):
             raise ValueError(
-                "Either email_id or mobile with calling_code must be provided.",
+                ErrorMessages.EMAIL_OR_MOBILE_CC_REQUIRED,
             )
         return self
 
@@ -345,7 +350,7 @@ class ResendWaitlistOtpRequest(BaseModel):
         """Validate that either email_id or mobile+calling_code is provided."""
         if not self.email_id and not (self.mobile and self.calling_code):
             raise ValueError(
-                "Either email_id or mobile with calling_code must be provided.",
+                ErrorMessages.EMAIL_OR_MOBILE_CC_REQUIRED,
             )
         return self
 
@@ -364,7 +369,7 @@ class FriendInviteObject(BaseModel):
     def validate_contact_info(self) -> Self:
         """Ensure either email or mobile+calling_code is present."""
         if not self.email and not (self.mobile and self.calling_code):
-            raise ValueError("Either email or mobile with calling_code is required.")
+            raise ValueError(ErrorMessages.EMAIL_OR_MOBILE_CC_REQUIRED)
         return self
 
 
@@ -384,7 +389,7 @@ class FriendInviteRequest(BaseModel):
     def validate_list(self) -> Self:
         """Ensure invited_list is not empty."""
         if not self.invited_list:
-            raise ValueError("invited_list cannot be empty.")
+            raise ValueError(ErrorMessages.INVITED_LIST_CANNOT_BE_EMPTY)
         return self
 
 
@@ -449,6 +454,7 @@ class AuthTokenData(BaseModel):
     """Data schema for Auth Token response."""
 
     auth_token: str
+    refresh_token: Optional[str] = None
     token: Optional[str] = None
     token_secret: Optional[str] = None
     auth_token_expiry: Optional[int] = None
@@ -548,10 +554,17 @@ class SetForgotPasswordResponse(BaseModel):
     """Response schema for Set Forgot Password."""
 
     status: str = "success"
-    message: str = "Password reset successful"
+    message: str = SuccessMessages.PASSWORD_RESET_SUCCESS
     data: SetForgotPasswordData
     meta: Dict[str, Any] = {}
     error: Dict[str, Any] = {}
+
+
+class DeviceBootstrapRequest(BaseModel):
+    """Request schema for device bootstrap (encrypted)."""
+
+    key: str = Field(..., description="RSA Encrypted AES Key")
+    data: str = Field(..., description="AES Encrypted Payload")
 
 
 class DeviceRegisterRequest(BaseModel):
@@ -560,22 +573,56 @@ class DeviceRegisterRequest(BaseModel):
     device_id: str = Field(..., description=Headers.X_DEVICE_ID)
     device_name: Optional[str] = Field(default=None, description=Headers.X_DEVICE_NAME)
     device_type: Optional[str] = Field(default=None, description=Headers.X_DEVICE_TYPE)
-    platform: Optional[PlatformEnum] = Field(default=None, description=Headers.X_PLATFORM)
+    platform: Optional[PlatformEnum] = Field(
+        default=None,
+        description=Headers.X_PLATFORM,
+    )
     push_token: Optional[str] = Field(default=None, description=Description.PUSH_TOKEN)
     device_ip: Optional[str] = Field(default=None, description=Description.DEVICE_IP)
     is_vpn: Optional[bool] = Field(default=False, description=Description.IS_VPN)
-    is_anonymous_proxy: Optional[bool] = Field(default=False, description=Description.IS_ANONYMOUS_PROXY)
-    residency_verified: Optional[bool] = Field(default=False, description=Description.RESIDENCY_VERIFIED)
+    is_anonymous_proxy: Optional[bool] = Field(
+        default=False,
+        description=Description.IS_ANONYMOUS_PROXY,
+    )
+    residency_verified: Optional[bool] = Field(
+        default=False,
+        description=Description.RESIDENCY_VERIFIED,
+    )
     is_rooted: Optional[bool] = Field(default=False, description=Description.IS_ROOTED)
-    is_jailbroken: Optional[bool] = Field(default=False, description=Description.IS_JAILBROKEN)
-    device_active: Optional[bool] = Field(default=True, description=Description.DEVICE_ACTIVE)
+    is_jailbroken: Optional[bool] = Field(
+        default=False,
+        description=Description.IS_JAILBROKEN,
+    )
+    device_active: Optional[bool] = Field(
+        default=True,
+        description=Description.DEVICE_ACTIVE,
+    )
     drm_type: Optional[str] = Field(default=None, description=Description.DRM_TYPE)
-    hardware_encryption: Optional[bool] = Field(default=False, description=Description.HARDWARE_ENCRYPTION)
-    transaction_type: Optional[str] = Field(default=None, description=Description.TRANSACTION_TYPE)
-    is_ip_legal: Optional[bool] = Field(default=True, description=Description.IS_IP_LEGAL)
-    native_token: Optional[str] = Field(default=None, description=Description.NATIVE_TOKEN)
-    date_deactivated: Optional[Any] = Field(default=None, description=Description.DATE_DEACTIVATED)
+    hardware_encryption: Optional[bool] = Field(
+        default=False,
+        description=Description.HARDWARE_ENCRYPTION,
+    )
+    transaction_type: Optional[str] = Field(
+        default=None,
+        description=Description.TRANSACTION_TYPE,
+    )
+    is_ip_legal: Optional[bool] = Field(
+        default=True,
+        description=Description.IS_IP_LEGAL,
+    )
+    native_token: Optional[str] = Field(
+        default=None,
+        description=Description.NATIVE_TOKEN,
+    )
+    date_deactivated: Optional[Any] = Field(
+        default=None,
+        description=Description.DATE_DEACTIVATED,
+    )
 
 
 class DeviceRegisterResponse(GenericResponse[DeviceInviteData]):
-    """Response schema for Device Registration. Reusing DeviceInviteData as it has device_id."""
+    """
+    Response schema for Device Registration.
+
+    Reusing DeviceInviteData as it has device_id.
+    """

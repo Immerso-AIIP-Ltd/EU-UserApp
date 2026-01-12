@@ -28,7 +28,6 @@ class HTTPStatus:
     INTERNAL_SERVER_ERROR = 500
     UNAUTHORIZED = 401
     FORBIDDEN = 403
-    
 
 
 class HTTPMethods:
@@ -167,6 +166,7 @@ class RequestParams:
     MOBILE_NUMBER = "mobile_number"
     EMAIL_ADDRESS = "email_address"
     AUTH_TOKEN = "auth_token"  # noqa: S105
+    REFRESH_TOKEN = "refresh_token"  # noqa: S105
     AUTH_TOKEN_EXPIRY = "auth_token_expiry"  # noqa: S105
     IMAGE = "image"
     USER = "user"
@@ -185,7 +185,7 @@ class RequestParams:
     PARTNER_ID = "partner_id"
     CLIENT_ID = "client_id"
     CLIENT_SECRET = "client_secret"  # noqa: S105
-    PUSH_TOKEN = "push_token"
+    PUSH_TOKEN = "push_token"  # noqa: S105
     DEVICE_IP = "device_ip"
     IS_VPN = "is_vpn"
     IS_ANONYMOUS_PROXY = "is_anonymous_proxy"
@@ -197,8 +197,9 @@ class RequestParams:
     HARDWARE_ENCRYPTION = "hardware_encryption"
     TRANSACTION_TYPE = "transaction_type"
     IS_IP_LEGAL = "is_ip_legal"
-    NATIVE_TOKEN = "native_token"
+    NATIVE_TOKEN = "native_token"  # noqa: S105
     DATE_DEACTIVATED = "date_deactivated"
+    UNKNOWN_DEVICE = "unknown_device"
 
 
 class DnsRecordTypes:
@@ -246,6 +247,8 @@ class DeviceNames:
     CHROME = " Chrome"
     EDGE = " Edge"
     FIREFOX = " Firefox"
+    UNKNOWN_DEVICE = "unknown_device"
+    BOOTSTRAP_DEVICE = "Bootstrap Device"
 
 
 class SocialProviders:
@@ -518,6 +521,7 @@ class SuccessMessages:
     EMAIL_UPDATED = "User Email updated successfully."
     MOBILE_UPDATED = "User Mobile updated successfully."
     DEVICE_REGISTERED_SUCCESS = "Device registered successfully"
+    TOKEN_REFRESHED_SUCCESSFULLY = "Token refreshed successfully"  # noqa: S105
 
 
 class ErrorCodes:
@@ -577,6 +581,7 @@ class ErrorCodes:
     INVALID_INPUT_CODE = "US029"
     CLIENT_ID_VALIDATION_FAILED_CODE = "US030"
     US400 = "US400"
+    US402 = "US402"
     US404 = "US404"
     US409 = "US409"
     US403 = "US403"
@@ -588,6 +593,8 @@ class ErrorCodes:
     APPLE_KEY_FETCH_ERROR_CODE = "US038"
     DEVICE_REGISTRATION_ERROR_CODE = "US039"
     FUSION_AUTH_ERROR_CODE = "US040"
+    BOOTSTRAP_KEY_ID_NOT_CONFIGURED_CODE = "US044"
+    FAILED_TO_GENERATE_REFRESH_TOKEN_CODE = "US045"  # noqa: S105
 
 
 class ErrorMessages:
@@ -604,6 +611,11 @@ class ErrorMessages:
     DB_DATA_ERROR = "Invalid data for database operation"
     DB_OPERATION_ERROR = "Database operational error occurred"
     DATA_VALIDATION_ERROR = "Pydantic data validation failed"
+    INVALID_TOKEN_TYPE = "Invalid token type"  # noqa: S105
+    BOOTSTRAP_KEY_ID_NOT_CONFIGURED = "Bootstrap key ID not configured"
+    FAILED_TO_GENERATE_REFRESH_TOKEN = "Failed to generate refresh token via FusionAuth"  # noqa: S105
+    REFRESH_TOKEN_INVALID = "Invalid or expired refresh token"  # noqa: S105
+    ACCESS_TOKEN_ISSUE_FAILED = "Failed to issue new access token"  # noqa: S105
     CACHE_ERROR = "Cache operation failed"
     CACHE_SERIALIZATION_ERROR = "Cache serialization/deserialization error"
     CACHE_OPERATION_ERROR = "Cache operational error occurred"
@@ -666,7 +678,7 @@ class ErrorMessages:
     FUSION_AUTH_VALIDATION_ERROR = "Could not validate credentials"
     FUSION_AUTH_REGISTRATION_ERROR = "Failed to register user to application"
     FUSION_AUTH_SYNC_ERROR = "Failed to sync user with Authentication Provider"
-    FUSION_AUTH_TOKEN_ERROR = "Authentication Provider could not issue token"
+    FUSION_AUTH_TOKEN_ERROR = "Authentication Provider could not issue token"  # noqa: S105
     GOOGLE_WRONG_ISSUER = "Invalid Google issuer."
     INVALID_SOCIAL_UID = "Social UID mismatch."
     INVALID_SOCIAL_TOKEN = "Invalid social token."  # noqa: S105
@@ -675,6 +687,23 @@ class ErrorMessages:
     EMAIL_DOES_NOT_EXIST = "Email doesn't exist"
     EMAIL_DOMAIN_CONNECTION_ERROR = "Email domain connection error"
     DEVICE_REGISTRATION_FAILED = "Device registration failed"
+    # Duplicates removed here
+    DEVICE_ID_MISSING = "Device ID missing"
+    TIMESTAMP_MISSING = "Timestamp missing in payload"
+    REQUEST_EXPIRED = "Request expired (Timestamp check failed)"
+    INSTALL_ID_MISSING = "install_id missing"
+    INVALID_ENCRYPTED_DATA_LENGTH = "Invalid Encrypted Data Length"
+    KEY_RETRIEVAL_FAILED = "Key Retrieval Failed"
+    DECRYPTION_FAILED = "Decryption Failed"
+    EMAIL_OR_MOBILE_CC_REQUIRED = (
+        "Either email or mobile with calling_code must be provided."
+    )
+    INVITED_LIST_CANNOT_BE_EMPTY = "invited_list cannot be empty."
+    PAYLOAD_DECRYPTION_FAILED = "Payload Decryption Failed"
+    DEVICE_NOT_REGISTERED = "Device not registered"
+    DEVICE_ALREADY_REGISTERED = "Device already registered"
+    PRIVATE_KEY_NOT_FOUND = "Private Key not found on server"
+    DB_ERROR = "Database Error"
 
 
 class Headers:
@@ -777,7 +806,7 @@ class Description(str):
     INVITED_LIST = "List of emails or contact objects"
     SOCIAL_USER_ID = "Social User ID"
     OAUTH_TOKEN = "OAuth Token"  # noqa: S105
-    PUSH_TOKEN = "Push notification token"
+    PUSH_TOKEN = "Push notification token"  # noqa: S105
     DEVICE_IP = "IP address of the device"
     IS_VPN = "Whether the device is using a VPN"
     IS_ANONYMOUS_PROXY = "Whether the device is strictly an anonymous proxy"
@@ -789,7 +818,7 @@ class Description(str):
     HARDWARE_ENCRYPTION = "Whether hardware encryption is enabled"
     TRANSACTION_TYPE = "Type of transaction"
     IS_IP_LEGAL = "Whether IP is legal"
-    NATIVE_TOKEN = "Native token"
+    NATIVE_TOKEN = "Native token"  # noqa: S105
     DATE_DEACTIVATED = "Date when the device was deactivated"
 
 

@@ -603,6 +603,77 @@ class UserQueries:
             logged_out_at = NOW(),
             logout_reason = 'user_initiated'
         WHERE user_id = :user_id AND device_id = :device_id AND is_active = TRUE
+        RETURNING id;
+        """,
+    )
+
+    INSERT_AUTH_SESSION = text(
+        """
+        INSERT INTO user_app.authentication_session (
+            user_id,
+            device_id,
+            auth_token,
+            is_active,
+            auth_token_expiry,
+            created_at,
+            last_used_at,
+            user_agent,
+            ip_address
+        )
+        VALUES (
+            :user_id,
+            :device_id,
+            :auth_token,
+            TRUE,
+            :auth_token_expiry,
+            NOW(),
+            NOW(),
+            :user_agent,
+            :ip_address
+        )
+        RETURNING id;
+        """,
+    )
+
+    GET_AUTH_SESSION_BY_TOKEN = text(
+        """
+        SELECT *
+        FROM user_app.authentication_session
+        WHERE auth_token = :refresh_token
+          AND device_id = :device_id
+          AND is_active = TRUE
+          AND auth_token_expiry > NOW()
+        LIMIT 1;
+        """,
+    )
+
+    UPDATE_EXISTING_AUTH_SESSION = text(
+        """
+        UPDATE user_app.authentication_session
+        SET
+            auth_token = :auth_token,
+            auth_token_expiry = :auth_token_expiry,
+            is_active = TRUE,
+            last_used_at = NOW(),
+            user_agent = :user_agent,
+            ip_address = :ip_address
+        WHERE user_id = :user_id AND device_id = :device_id
+        RETURNING id;
+        """,
+    )
+
+    DELETE_AUTH_SESSIONS_FOR_DEVICE = text(
+        """
+        DELETE FROM user_app.authentication_session
+        WHERE user_id = :user_id AND device_id = :device_id;
+        """,
+    )
+
+    DEACTIVATE_OLD_SESSIONS = text(
+        """
+        UPDATE user_app.authentication_session
+        SET is_active = FALSE
+        WHERE device_id = :device_id AND user_id = :user_id AND is_active = TRUE;
         """,
     )
 
@@ -798,12 +869,18 @@ class UserQueries:
             device_active = COALESCE(EXCLUDED.device_active, d.device_active),
             device_ip = COALESCE(EXCLUDED.device_ip, d.device_ip),
             is_vpn = COALESCE(EXCLUDED.is_vpn, d.is_vpn),
-            is_anonymous_proxy = COALESCE(EXCLUDED.is_anonymous_proxy, d.is_anonymous_proxy),
-            residency_verified = COALESCE(EXCLUDED.residency_verified, d.residency_verified),
+            is_anonymous_proxy = COALESCE(
+                EXCLUDED.is_anonymous_proxy, d.is_anonymous_proxy
+            ),
+            residency_verified = COALESCE(
+                EXCLUDED.residency_verified, d.residency_verified
+            ),
             is_rooted = COALESCE(EXCLUDED.is_rooted, d.is_rooted),
             is_jailbroken = COALESCE(EXCLUDED.is_jailbroken, d.is_jailbroken),
             drm_type = COALESCE(EXCLUDED.drm_type, d.drm_type),
-            hardware_encryption = COALESCE(EXCLUDED.hardware_encryption, d.hardware_encryption),
+            hardware_encryption = COALESCE(
+                EXCLUDED.hardware_encryption, d.hardware_encryption
+            ),
             transaction_type = COALESCE(EXCLUDED.transaction_type, d.transaction_type),
             is_ip_legal = COALESCE(EXCLUDED.is_ip_legal, d.is_ip_legal),
             native_token = COALESCE(EXCLUDED.native_token, d.native_token),

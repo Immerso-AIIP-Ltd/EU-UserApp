@@ -69,8 +69,8 @@ class Settings(BaseSettings):
     # JWT Settings
     jwt_secret_key: str = "your-secret-key"  # Should be set via environment variable
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 30
-    user_token_days_to_expire: int = 90
+    jwt_access_token_expire_minutes: int = 60
+    user_token_days_to_expire: int = 30
 
     # Celery settings
     celery_broker_url: Optional[str] = None
@@ -120,6 +120,7 @@ class Settings(BaseSettings):
     fusionauth_url: str = Field(...)
     fusionauth_api_key: str = Field(...)
     fusionauth_client_id: str = Field(...)
+    fusionauth_bootstrap_key_id: Optional[str] = Field(default=None)
 
     # Other settings
     CACHE_TIMEOUT_FOR_EMAIL_DNS: int = 300

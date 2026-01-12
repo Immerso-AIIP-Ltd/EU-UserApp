@@ -86,8 +86,10 @@ class GenerateOtpService:
         """Generate and send OTP based on receiver type (email or mobile)."""
         # Generate OTP locally using secrets for security (S311)
         otp = "".join(secrets.choice(string.digits) for _ in range(4))
-        
-        logger.info(f"Generating OTP for {receiver} (type={receiver_type}, intent={intent})")
+
+        logger.info(
+            f"Generating OTP for {receiver} (type={receiver_type}, intent={intent})",
+        )
         # DEBUG LOGGING FOR OTP
         logger.info(f"Generated OTP: {otp}")
 

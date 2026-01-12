@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 from redis.asyncio import Redis
@@ -7,11 +8,11 @@ from app.api.queries import UserQueries
 from app.api.v1.service.apple_oauth_service import AppleOAuthService
 from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
+from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.api.v1.service.google_oauth_service import GoogleOAuthService
+from app.core.constants import DeviceNames, ErrorMessages
 from app.db.models.user_app import User
 from app.db.utils import execute_query
-from app.api.v1.service.fusionauth_service import FusionAuthService
-import asyncio
 
 
 class SocialLoginService:
@@ -78,7 +79,7 @@ class SocialLoginService:
 
         if not user:
             # This shouldn't happen if signup_with_social works
-            raise Exception("Failed to find or create user via social login")
+            raise Exception(ErrorMessages.FUSION_AUTH_REGISTRATION_ERROR)
 
         user_id = user["id"]
 
@@ -112,16 +113,22 @@ class SocialLoginService:
             user_email = user.get("email")
 
             # 1. Sync User (Ensure exists)
-            await asyncio.to_thread(FusionAuthService.create_fusion_user, user_uuid_str, user_email)
+            await asyncio.to_thread(
+                FusionAuthService.create_fusion_user,
+                user_uuid_str,
+                user_email,
+            )
 
             # 2. Issue Token
-            fa_token = await asyncio.to_thread(FusionAuthService.issue_token, user_uuid_str)
-            
+            fa_token = await asyncio.to_thread(
+                FusionAuthService.issue_token,
+                user_uuid_str,
+            )
+
             if fa_token:
                 token = fa_token
         except Exception as e:
-            # print(f"Failed to issue FusionAuth token in google_login: {e}")
-            raise Exception("Failed to issue FusionAuth token") from e
+            raise Exception(ErrorMessages.FUSION_AUTH_TOKEN_ERROR) from e
 
         # Get user details for response
         profile_rows = await execute_query(
@@ -131,8 +138,17 @@ class SocialLoginService:
         )
         user_profile = dict(profile_rows[0]) if profile_rows else {}
 
+        # Generate Refresh Token
+        refresh_token = await AuthService.create_refresh_session(
+            db_session=db_session,
+            user_id=str(user_id),
+            device_id=request_data.get("device_id") or DeviceNames.UNKNOWN_DEVICE,
+            user_agent=request_data.get("user_agent"),
+        )
+
         return {
             "auth_token": token,
+            "refresh_token": refresh_token,
             "user": {
                 "user_id": str(user_id),
                 "email": user_profile.get("email"),
@@ -198,7 +214,7 @@ class SocialLoginService:
                     user = dict(signup_rows[0])
 
         if not user:
-            raise Exception("Failed to find or create user via social login")
+            raise Exception(ErrorMessages.FUSION_AUTH_REGISTRATION_ERROR)
 
         user_id = user["id"]
 
@@ -231,16 +247,22 @@ class SocialLoginService:
             user_email = user.get("email")
 
             # 1. Sync User (Ensure exists)
-            await asyncio.to_thread(FusionAuthService.create_fusion_user, user_uuid_str, user_email)
+            await asyncio.to_thread(
+                FusionAuthService.create_fusion_user,
+                user_uuid_str,
+                user_email,
+            )
 
             # 2. Issue Token
-            fa_token = await asyncio.to_thread(FusionAuthService.issue_token, user_uuid_str)
-            
+            fa_token = await asyncio.to_thread(
+                FusionAuthService.issue_token,
+                user_uuid_str,
+            )
+
             if fa_token:
                 token = fa_token
         except Exception as e:
-            # print(f"Failed to issue FusionAuth token in apple_login: {e}")
-            raise Exception("Failed to issue FusionAuth token") from e
+            raise Exception(ErrorMessages.FUSION_AUTH_TOKEN_ERROR) from e
 
         # Get user details for response
         profile_rows = await execute_query(
@@ -250,8 +272,17 @@ class SocialLoginService:
         )
         user_profile = dict(profile_rows[0]) if profile_rows else {}
 
+        # Generate Refresh Token
+        refresh_token = await AuthService.create_refresh_session(
+            db_session=db_session,
+            user_id=str(user_id),
+            device_id=request_data.get("device_id") or DeviceNames.UNKNOWN_DEVICE,
+            user_agent=request_data.get("user_agent"),
+        )
+
         return {
             "auth_token": token,
+            "refresh_token": refresh_token,
             "user": {
                 "user_id": str(user_id),
                 "email": user_profile.get("email"),
@@ -317,7 +348,7 @@ class SocialLoginService:
                     user = dict(signup_rows[0])
 
         if not user:
-            raise Exception("Failed to find or create user via social login")
+            raise Exception(ErrorMessages.FUSION_AUTH_REGISTRATION_ERROR)
 
         user_id = user["id"]
 
@@ -348,16 +379,22 @@ class SocialLoginService:
             user_email = user.get("email")
 
             # 1. Sync User (Ensure exists)
-            await asyncio.to_thread(FusionAuthService.create_fusion_user, user_uuid_str, user_email)
+            await asyncio.to_thread(
+                FusionAuthService.create_fusion_user,
+                user_uuid_str,
+                user_email,
+            )
 
             # 2. Issue Token
-            fa_token = await asyncio.to_thread(FusionAuthService.issue_token, user_uuid_str)
-            
+            fa_token = await asyncio.to_thread(
+                FusionAuthService.issue_token,
+                user_uuid_str,
+            )
+
             if fa_token:
                 token = fa_token
         except Exception as e:
-            # print(f"Failed to issue FusionAuth token in facebook_login: {e}")
-            raise Exception("Failed to issue FusionAuth token") from e
+            raise Exception(ErrorMessages.FUSION_AUTH_TOKEN_ERROR) from e
 
         # Get user details for response
         profile_rows = await execute_query(
@@ -367,8 +404,17 @@ class SocialLoginService:
         )
         user_profile = dict(profile_rows[0]) if profile_rows else {}
 
+        # Generate Refresh Token
+        refresh_token = await AuthService.create_refresh_session(
+            db_session=db_session,
+            user_id=str(user_id),
+            device_id=request_data.get("device_id") or DeviceNames.UNKNOWN_DEVICE,
+            user_agent=request_data.get("user_agent"),
+        )
+
         return {
             "auth_token": token,
+            "refresh_token": refresh_token,
             "user": {
                 "user_id": str(user_id),
                 "email": user_profile.get("email"),

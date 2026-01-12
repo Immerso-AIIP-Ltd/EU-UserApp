@@ -465,7 +465,7 @@ class AppleKeyFetchError(AppError):
 
     def __init__(self) -> None:
         super().__init__(
-            http_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            http_code=status.HTTP_400_BAD_REQUEST,
             message=ErrorMessages.APPLE_KEY_FETCH_ERROR,
             error_code=ErrorCodes.APPLE_KEY_FETCH_ERROR_CODE,
         )
@@ -507,10 +507,10 @@ class DeviceNotRegisteredError(AppError):
 class InvalidServiceTokenError(AppError):
     """Raised when the service token is invalid."""
 
-    def __init__(self) -> None:
+    def __init__(self, message: str = ErrorMessages.USER_TOKEN_NOT_VALID) -> None:
         super().__init__(
             http_code=status.HTTP_401_UNAUTHORIZED,
-            message=ErrorMessages.USER_TOKEN_NOT_VALID,
+            message=message,
             error_code=ErrorCodes.USER_TOKEN_NOT_VALID,
         )
 
@@ -530,25 +530,27 @@ class DeviceRegistrationError(AppError):
 
     def __init__(self, detail: str = "Device registration failed") -> None:
         super().__init__(
-            http_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            http_code=status.HTTP_400_BAD_REQUEST,
             message=detail,
             error_code=ErrorCodes.DEVICE_REGISTRATION_ERROR_CODE,
         )
 
 
-class FusionAuthException(AppError):
+class FusionAuthError(AppError):
     """Base exception for FusionAuth related errors."""
 
     def __init__(
         self,
         detail: str = "FusionAuth operation failed",
-        http_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
+        http_code: int = status.HTTP_400_BAD_REQUEST,
     ) -> None:
         super().__init__(
             http_code=http_code,
             message=detail,
             error_code=ErrorCodes.FUSION_AUTH_ERROR_CODE,
         )
+
+
 class OtpNotVerifiedError(AppError):
     """Exception for unverified OTP during profile update."""
 
@@ -563,3 +565,19 @@ class VerificationRequiredError(AppError):
     http_code = status.HTTP_402_PAYMENT_REQUIRED  # User requested US402
     message = "Verification required"
     error_code = ErrorCodes.US402
+
+
+class BootstrapKeyIdNotConfiguredError(AppError):
+    """Exception when bootstrap key ID is not configured."""
+
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = ErrorMessages.BOOTSTRAP_KEY_ID_NOT_CONFIGURED
+    error_code = ErrorCodes.BOOTSTRAP_KEY_ID_NOT_CONFIGURED_CODE
+
+
+class FailedToGenerateRefreshTokenError(AppError):
+    """Exception when failed to generate refresh token via FusionAuth."""
+
+    http_code = status.HTTP_400_BAD_REQUEST
+    message = "Failed to generate refresh token via FusionAuth"
+    error_code = ErrorCodes.FAILED_TO_GENERATE_REFRESH_TOKEN_CODE

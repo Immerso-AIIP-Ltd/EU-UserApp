@@ -1,20 +1,24 @@
+import asyncio
+import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 import bcrypt
 import jwt
-import pytz
+import pytz  # type: ignore
 from loguru import logger
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
+from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.core.constants import (
     AuthConfig,
     AuthLogMessages,
     CacheKeyTemplates,
     CacheValues,
+    ErrorMessages,
     HeaderKeys,
     LoginParams,
     RequestParams,
@@ -97,10 +101,14 @@ class AuthService:
     def decode_token(token: str, client_secret: str) -> Optional[Dict[str, Any]]:
         """Decode a JWT token."""
         try:
+            # Try decoding with client secret (HS256) (legacy/local)
             return jwt.decode(token, client_secret, algorithms=[AuthConfig.ALGORITHM])
-        except Exception as e:
-            logger.error(AuthLogMessages.JWT_DECODE_FAILED.format(e))
-            return None
+        except Exception:
+            try:
+                return FusionAuthService.verify_token(token)
+            except Exception as e:
+                logger.error(AuthLogMessages.JWT_DECODE_FAILED.format(e))
+                return None
 
     @staticmethod
     async def verify_user_token(
@@ -121,7 +129,9 @@ class AuthService:
 
             raise UnauthorizedError
 
-        # Get client secret
+        # Get client secret (Only needed for HS256 fallback or legacy logic)
+        # We can optimize: Try decoding as RS256 first without DB hit for client secret?
+        # But existing flow fetches client secret. Let's keep it but handle RS256.
         result = await execute_query(
             UserQueries.GET_CLIENT_SECRET,
             {RequestParams.CLIENT_ID: api_client},
@@ -134,13 +144,24 @@ class AuthService:
 
         client_secret = result[0][RequestParams.CLIENT_SECRET]
 
-        payload = AuthService.decode_token(api_token, client_secret)
+        # Use updated decode_token which handles both
+        # Run in thread if it does blocking I/O
+
+        payload = await asyncio.to_thread(
+            AuthService.decode_token,
+            api_token,
+            client_secret,
+        )
+
         if not payload:
             from app.core.exceptions import UnauthorizedError
 
             raise UnauthorizedError
 
         uuid = payload.get(RequestParams.UUID)
+        if not uuid and "sub" in payload:
+            uuid = payload["sub"]
+
         if not isinstance(uuid, str):
             raise InvalidServiceTokenError
         return uuid
@@ -184,3 +205,142 @@ class AuthService:
             # For now, we assume device_id is provided or we accept
             # that redis key expires naturally.
             pass
+
+    @staticmethod
+    async def create_refresh_session(
+        db_session: AsyncSession,
+        user_id: str,
+        device_id: str,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+    ) -> str:
+        """
+        Create a new refresh token/session.
+
+        Invalidates old ones for this device.
+        """
+
+        # 1. Generate new Refresh Token (JWT via FusionAuth RS256)
+        # Old sessions will be updated or deactivated implicitly if we reuse the row.
+
+        # 2. Generate new Refresh Token (JWT via FusionAuth RS256)
+        expiry_seconds = settings.user_token_days_to_expire * 24 * 60 * 60
+        expiry = datetime.utcnow() + timedelta(seconds=expiry_seconds)
+
+        # Unique identifier
+        jti = str(uuid.uuid4())
+
+        claims = {"device_id": device_id, "type": "refresh", "jti": jti}
+
+        # Issue token using FusionAuth
+        refresh_token = await asyncio.to_thread(
+            FusionAuthService.issue_token,
+            fusion_user_id=user_id,
+            user_details=claims,
+            ttl_seconds=expiry_seconds,
+        )
+
+        if not refresh_token:
+            from app.core.exceptions.exceptions import FailedToGenerateRefreshTokenError
+
+            raise FailedToGenerateRefreshTokenError
+
+        # 3. Store in DB (Delete existing then Insert)
+        # Delete old/duplicate sessions first to prevent unique constraint violations
+        await execute_query(
+            UserQueries.DELETE_AUTH_SESSIONS_FOR_DEVICE,
+            {"user_id": user_id, "device_id": device_id},
+            db_session,
+        )
+
+        # Insert new session
+        await execute_query(
+            UserQueries.INSERT_AUTH_SESSION,
+            {
+                "user_id": user_id,
+                "device_id": device_id,
+                "auth_token": refresh_token,
+                "auth_token_expiry": expiry,
+                "user_agent": user_agent,
+                "ip_address": ip_address,
+            },
+            db_session,
+        )
+
+        return refresh_token
+
+    @staticmethod
+    async def refresh_access_token(
+        db_session: AsyncSession,
+        refresh_token: str,
+        device_id: str,
+    ) -> tuple[str, str, int]:
+        """Validates refresh token and issues new access token."""
+        # 0. Decode and Verify Signature (RS256 via FusionAuth Public Key)
+        import asyncio
+
+        from app.api.v1.service.fusionauth_service import FusionAuthService
+
+        try:
+            # Verify signature using FusionAuth Public Keys (cached)
+            payload = await asyncio.to_thread(
+                FusionAuthService.verify_token,
+                refresh_token,
+            )
+
+            # Basic validation
+            if payload.get("type") != "refresh":
+                from app.core.exceptions.exceptions import InvalidServiceTokenError
+
+                raise InvalidServiceTokenError(message=ErrorMessages.INVALID_TOKEN_TYPE)
+            if str(payload.get("device_id")) != str(device_id):
+                logger.warning(
+                    f"Refresh Token Device Mismatch: token={payload.get('device_id')} "
+                    f"req={device_id}",
+                )
+
+        except Exception as e:
+            logger.error(f"Refresh Token Signature Verification Failed: {e}")
+            from app.core.exceptions.exceptions import UnauthorizedError
+
+            raise UnauthorizedError("Invalid or expired refresh token") from e
+
+        # 1. Validate DB (ensure not revoked/rotated)
+        rows = await execute_query(
+            UserQueries.GET_AUTH_SESSION_BY_TOKEN,
+            {"refresh_token": refresh_token, "device_id": device_id},
+            db_session,
+        )
+        if not rows:
+            from app.core.exceptions.exceptions import UnauthorizedError
+
+            raise UnauthorizedError(message=ErrorMessages.REFRESH_TOKEN_INVALID)
+
+        session = rows[0]
+        user_id = str(session["user_id"])
+
+        # 2. Call FusionAuth (for new Access Token)
+        import time
+
+        fa_token = await asyncio.to_thread(
+            FusionAuthService.issue_token,
+            user_id,
+            user_details={"device_id": device_id},
+        )
+        if not fa_token:
+            from app.core.exceptions.exceptions import UnauthorizedError
+
+            raise UnauthorizedError(message=ErrorMessages.ACCESS_TOKEN_ISSUE_FAILED)
+
+        expires_at = int(time.time()) + 600
+
+        # 3. Rotate Refresh Token
+        new_refresh_token = await AuthService.create_refresh_session(
+            db_session=db_session,
+            user_id=user_id,
+            device_id=device_id,
+            user_agent=session.get("user_agent"),  # get from DictRow
+            ip_address=session.get("ip_address"),
+        )
+
+        return fa_token, new_refresh_token, expires_at

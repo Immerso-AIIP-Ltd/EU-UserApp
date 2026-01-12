@@ -1,3 +1,4 @@
+from contextlib import suppress
 from typing import Any, Dict
 
 import jwt
@@ -12,6 +13,16 @@ from app.core.exceptions.exceptions import (
 from app.settings import settings
 
 security = HTTPBearer(auto_error=False)
+
+
+def _validate_device_id(
+    payload: Dict[str, Any], requested_device_id: str | None,
+) -> None:
+    """Validate that the token device_id matches the requested device_id."""
+    token_device_id = payload.get("device_id")
+    if requested_device_id and token_device_id and \
+       requested_device_id != token_device_id:
+        raise UnauthorizedError(detail="Token does not match device")
 
 
 async def get_current_user(
@@ -29,25 +40,26 @@ async def get_current_user(
     elif request.headers.get("x-api-token"):
         # Fallback to x-api-token
         token_str = request.headers.get("x-api-token")
-    
+
     if not token_str:
-        # raise UnauthorizedError(detail="Missing authentication token")
         return {}
 
-    try:
-        # Try verifying with FusionAuth first
-        try:
-            from app.api.v1.service.fusionauth_service import FusionAuthService
-            import asyncio
-            # Run sync verification in thread
-            payload = await asyncio.to_thread(FusionAuthService.verify_token, token_str)
-            if "sub" in payload and "user_id" not in payload:
-                payload["user_id"] = payload["sub"]
-            return payload
-        except Exception:
-            # If FusionAuth fails or isn't configured, fall back to local validation
-            pass
+    # Try verifying with FusionAuth first
+    with suppress(Exception):
+        import asyncio
 
+        from app.api.v1.service.fusionauth_service import FusionAuthService
+
+        # Run sync verification in thread
+        payload = await asyncio.to_thread(FusionAuthService.verify_token, token_str)
+        if "sub" in payload and "user_id" not in payload:
+            payload["user_id"] = payload["sub"]
+
+        _validate_device_id(payload, request.headers.get("x-device-id"))
+
+        return payload
+
+    try:
         payload = jwt.decode(
             token_str,
             settings.jwt_secret_key,
@@ -55,6 +67,9 @@ async def get_current_user(
         )
         if "sub" in payload and "user_id" not in payload:
             payload["user_id"] = payload["sub"]
+
+        _validate_device_id(payload, request.headers.get("x-device-id"))
+
         return payload
     except jwt.ExpiredSignatureError as e:
         raise UnauthorizedError(detail="Token has expired") from e
@@ -67,6 +82,7 @@ async def get_current_user(
 async def get_user_from_x_token(
     request: Request,
     x_api_token: str = Header(..., alias="x-api-token"),
+    x_device_id: str | None = Header(None, alias="x-device-id"),
 ) -> Dict[str, Any]:
     """
     Dependency to get the currently authenticated user from x-api-token.
@@ -81,12 +97,21 @@ async def get_user_from_x_token(
 
     try:
         # Decode without verification
-        return jwt.decode(
+        payload = jwt.decode(
             x_api_token,
             settings.jwt_secret_key,
-            algorithms=[settings.jwt_algorithm],
+            algorithms=[settings.jwt_algorithm, "RS256"],
             options={"verify_signature": False},
         )
+        if "sub" in payload:
+            if "user_id" not in payload:
+                payload["user_id"] = payload["sub"]
+            if "uuid" not in payload:
+                payload["uuid"] = payload["sub"]
+
+        _validate_device_id(payload, x_device_id)
+
+        return payload
     except jwt.DecodeError as e:
         raise InvalidServiceTokenError from e
     except Exception as e:
