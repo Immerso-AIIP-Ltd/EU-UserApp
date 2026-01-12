@@ -1,14 +1,14 @@
 import random
 import string
-import logging
-from locust import HttpUser, task, between
+
+from locust import HttpUser, between, task
 
 
 class RegisterUser(HttpUser):
     host = "http://localhost:8880"
     wait_time = between(1, 5)
 
-    def on_start(self):
+    def on_start(self) -> None:
         self.headers = {
             "Content-Type": "application/json",
             "x-device-id": "loadtest-device-"
@@ -22,7 +22,7 @@ class RegisterUser(HttpUser):
         self.email = None
 
     @task(1)
-    def register_with_profile(self):
+    def register_with_profile(self) -> None:
         email = f"loadtest_{''.join(random.choices(string.ascii_lowercase, k=10))}@example.com"
         password = "Password123!"
 
@@ -49,10 +49,8 @@ class RegisterUser(HttpUser):
                 response.failure(f"Registration failed: {response.text}")
 
     @task(1)
-    def resend_otp(self):
-        """
-        Load test OTP resend (rate limiting, Redis, validation)
-        """
+    def resend_otp(self) -> None:
+        """Load test OTP resend (rate limiting, Redis, validation)."""
         if not self.email:
             return
 
@@ -71,5 +69,5 @@ class RegisterUser(HttpUser):
                 response.success()
             else:
                 response.failure(
-                    f"Resend OTP failed: {response.status_code} - {response.text}"
+                    f"Resend OTP failed: {response.status_code} - {response.text}",
                 )

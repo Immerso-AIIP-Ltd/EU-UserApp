@@ -3,6 +3,7 @@ from typing import Any, Dict
 import jwt
 from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from loguru import logger
 
 from app.core.exceptions.exceptions import (
     InvalidServiceTokenError,
@@ -31,7 +32,6 @@ async def get_current_user(
         token_str = request.headers.get("x-api-token")
 
     if not token_str:
-        # raise UnauthorizedError(detail="Missing authentication token")
         return {}
 
     try:
@@ -48,7 +48,9 @@ async def get_current_user(
             return payload
         except Exception:
             # If FusionAuth fails or isn't configured, fall back to local validation
-            pass
+            logger.debug(
+                "FusionAuth verification failed, falling back to local validation",
+            )
 
         payload = jwt.decode(
             token_str,

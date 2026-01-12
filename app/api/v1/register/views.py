@@ -508,7 +508,7 @@ async def _finalize_registration_and_auth(
     from app.api.v1.service.fusionauth_service import FusionAuthService
 
     device_id = headers.get(RequestParams.DEVICE_ID)
-    device_info = await get_device_info(request)
+    await get_device_info(request)
 
     # 1. Device Registration (if needed)
     # Logic moved to separate endpoint or handled elsewhere if required.

@@ -19,8 +19,6 @@ from app.api.v1.service.change_password_service import ChangePasswordService
 from app.api.v1.service.forgot_password_service import ForgotPasswordService
 from app.api.v1.service.login_service import LoginService
 from app.cache.dependencies import get_redis_connection
-
-logger = logging.getLogger(__name__)
 from app.core.constants import (
     HeaderKeys,
     Messages,
@@ -36,6 +34,8 @@ from app.utils.validate_headers import (
     validate_common_headers,
     validate_headers_without_auth,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

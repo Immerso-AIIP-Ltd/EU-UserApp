@@ -93,8 +93,7 @@ class LoginService:
 
         except Exception as e:
             # Raise an error if FusionAuth token cannot be issued
-            # print(f"Failed to issue FusionAuth token: {e}")
-            raise UnauthorizedError(f"Failed to issue FusionAuth token: {e}")
+            raise UnauthorizedError(f"Failed to issue FusionAuth token: {e}") from e
 
         # Link device to user
         from app.api.v1.service.device_service import DeviceService

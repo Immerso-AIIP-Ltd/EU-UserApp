@@ -1,9 +1,11 @@
+from typing import Any, Optional
+
 import jwt
 from fusionauth.fusionauth_client import FusionAuthClient
 from jwt import PyJWKClient
 
-from app.core.constants import CacheTTL, ErrorMessages
-from app.core.exceptions.exceptions import FusionAuthException
+from app.core.constants import CacheTTL, ErrorMessages, HTTPStatus
+from app.core.exceptions.exceptions import FusionAuthError
 from app.settings import settings
 
 # Global cache for JWKS
@@ -11,49 +13,55 @@ _jwks_client = None
 
 
 class FusionAuthService:
+    """Service for interacting with FusionAuth API."""
+
     @staticmethod
-    def get_jwks_url():
+    def get_jwks_url() -> str:
+        """Get the FusionAuth JWKS URL."""
         return f"{settings.fusionauth_url}/.well-known/jwks.json"
 
     @staticmethod
-    def get_client():
+    def get_client() -> FusionAuthClient:
+        """Get a FusionAuthClient instance."""
         return FusionAuthClient(settings.fusionauth_api_key, settings.fusionauth_url)
 
     @classmethod
-    def get_jwks_client(cls):
-        global _jwks_client
+    def get_jwks_client(cls) -> PyJWKClient:
+        """Get or create a cached PyJWKClient."""
+        global _jwks_client  # noqa: PLW0603
         if _jwks_client is None:
             _jwks_client = PyJWKClient(cls.get_jwks_url())
         return _jwks_client
 
     @classmethod
-    def verify_token(cls, token: str):
+    def verify_token(cls, token: str) -> dict[str, Any]:
+        """Verify a JWT token from FusionAuth."""
         try:
             jwks_client = cls.get_jwks_client()
             signing_key = jwks_client.get_signing_key_from_jwt(token)
 
-            payload = jwt.decode(
+            return jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
                 audience=settings.fusionauth_client_id,
             )
-            return payload
         except Exception as e:
-            raise FusionAuthException(
+            raise FusionAuthError(
                 http_code=HTTPStatus.UNAUTHORIZED,
                 detail=ErrorMessages.FUSION_AUTH_VALIDATION_ERROR,
             ) from e
 
     @classmethod
-    def create_fusion_user(cls, user_uuid: str, email: str = None):
+    def create_fusion_user(cls, user_uuid: str, email: Optional[str] = None) -> str:
         """
-        Creates a user in FusionAuth with the local user_uuid as the FusionAuth User ID.
+        Creates a user in FusionAuth with the local user_uuid as the ID.
+
         If email is provided, it is set. If not, the user_uuid is used as the username.
         """
         client = cls.get_client()
 
-        user_body = {"password": None}  # No password in FA
+        user_body: dict[str, Any] = {"password": None}  # No password in FA
         if email:
             user_body["email"] = email
         else:
@@ -86,9 +94,7 @@ class FusionAuthService:
                     },
                 )
                 if not reg_response.was_successful():
-                    # print(f"Failed to register existing user: {reg_response.error_response}")
-
-                    raise FusionAuthException(
+                    raise FusionAuthError(
                         http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                         detail=ErrorMessages.FUSION_AUTH_REGISTRATION_ERROR,
                     )
@@ -101,23 +107,20 @@ class FusionAuthService:
 
         if response.was_successful():
             return response.success_response["user"]["id"]
-        else:
-            # print(f"Failed to create FA user: {response.error_response}")
-            raise FusionAuthException(
-                http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail=ErrorMessages.FUSION_AUTH_SYNC_ERROR,
-            )
+
+        raise FusionAuthError(
+            http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=ErrorMessages.FUSION_AUTH_SYNC_ERROR,
+        )
 
     @classmethod
     def issue_token(
         cls,
         fusion_user_id: str,
-        roles: list = None,
-        user_details: dict = None,
-    ):
-        """
-        Issues a JWT for the specified user from FusionAuth using the Vend API.
-        """
+        roles: Optional[list[Any]] = None,
+        user_details: Optional[dict[str, Any]] = None,
+    ) -> str:
+        """Issues a JWT for the specified user from FusionAuth using the Vend API."""
         client = cls.get_client()
 
         claims = {
@@ -136,9 +139,8 @@ class FusionAuthService:
 
         if response.was_successful():
             return response.success_response["token"]
-        else:
-            # print(f"Failed to issue token: {response.error_response}")
-            raise FusionAuthException(
-                http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail=ErrorMessages.FUSION_AUTH_TOKEN_ERROR,
-            )
+
+        raise FusionAuthError(
+            http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=ErrorMessages.FUSION_AUTH_TOKEN_ERROR,
+        )

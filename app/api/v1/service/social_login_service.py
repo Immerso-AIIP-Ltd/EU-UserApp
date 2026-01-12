@@ -127,7 +127,6 @@ class SocialLoginService:
             if fa_token:
                 token = fa_token
         except Exception as e:
-            # print(f"Failed to issue FusionAuth token in google_login: {e}")
             raise Exception("Failed to issue FusionAuth token") from e
 
         # Get user details for response
@@ -253,7 +252,6 @@ class SocialLoginService:
             if fa_token:
                 token = fa_token
         except Exception as e:
-            # print(f"Failed to issue FusionAuth token in apple_login: {e}")
             raise Exception("Failed to issue FusionAuth token") from e
 
         # Get user details for response
@@ -377,7 +375,6 @@ class SocialLoginService:
             if fa_token:
                 token = fa_token
         except Exception as e:
-            # print(f"Failed to issue FusionAuth token in facebook_login: {e}")
             raise Exception("Failed to issue FusionAuth token") from e
 
         # Get user details for response

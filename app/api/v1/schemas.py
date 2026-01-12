@@ -607,4 +607,8 @@ class DeviceRegisterRequest(BaseModel):
 
 
 class DeviceRegisterResponse(GenericResponse[DeviceInviteData]):
-    """Response schema for Device Registration. Reusing DeviceInviteData as it has device_id."""
+    """
+    Response schema for Device Registration.
+
+    Reusing DeviceInviteData as it has device_id.
+    """

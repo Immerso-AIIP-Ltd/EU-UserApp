@@ -184,7 +184,7 @@ class RequestParams:
     PARTNER_ID = "partner_id"
     CLIENT_ID = "client_id"
     CLIENT_SECRET = "client_secret"  # noqa: S105
-    PUSH_TOKEN = "push_token"
+    PUSH_TOKEN = "push_token"  # noqa: S105
     DEVICE_IP = "device_ip"
     IS_VPN = "is_vpn"
     IS_ANONYMOUS_PROXY = "is_anonymous_proxy"
@@ -196,7 +196,7 @@ class RequestParams:
     HARDWARE_ENCRYPTION = "hardware_encryption"
     TRANSACTION_TYPE = "transaction_type"
     IS_IP_LEGAL = "is_ip_legal"
-    NATIVE_TOKEN = "native_token"
+    NATIVE_TOKEN = "native_token"  # noqa: S105
     DATE_DEACTIVATED = "date_deactivated"
 
 
@@ -541,7 +541,6 @@ class ErrorCodes:
     COUNTRY_NOT_FOUND_CODE = "US16"
     COUNTRY_LOCALES_FETCHED_CODE = "US17"
     LANGUAGE_NOT_FOUND_CODE = "US18"
-    BAD_REQUEST_CODE = "US19"
     UNAUTHORIZED_CODE = "US20"
     FORBIDDEN_CODE = "US21"
     CONFIGURATIONS_NOT_FOUND_CODE = "US22"
@@ -571,14 +570,13 @@ class ErrorCodes:
     # Login Specific
     USER_NOT_FOUND_LOGIN_CODE = "US002"
     INCORRECT_PASSWORD_CODE = "US021"  # noqa: S105
-    ACCOUNT_LOCKED_CODE = "US003"
     UNAUTHORIZED_LOGIN_CODE = "US401"
     INVALID_INPUT_CODE = "US029"
     CLIENT_ID_VALIDATION_FAILED_CODE = "US030"
-    US400 = "US400"
-    US404 = "US404"
-    US409 = "US409"
-    US403 = "US403"
+    BAD_REQUEST_CODE = "US400"
+    OTP_NOT_VERIFIED_CODE = "US404"
+    ACCOUNT_LOCKED_CODE = "US409"
+    PROFILE_NOT_FOUND_CODE = "US403"
     USER_TOKEN_NOT_FOUND_CODE = "US033"  # noqa: S105
     FACEBOOK_AUTH_ERROR_CODE = "US034"
     GOOGLE_WRONG_ISSUER_CODE = "US035"
@@ -587,6 +585,11 @@ class ErrorCodes:
     APPLE_KEY_FETCH_ERROR_CODE = "US038"
     DEVICE_REGISTRATION_ERROR_CODE = "US039"
     FUSION_AUTH_ERROR_CODE = "US040"
+    VERIFICATION_REQUIRED_CODE = "US402"
+    US400 = "US400"
+    US403 = "US403"
+    US404 = "US404"
+    US409 = "US409"
 
 
 class ErrorMessages:
@@ -665,7 +668,9 @@ class ErrorMessages:
     FUSION_AUTH_VALIDATION_ERROR = "Could not validate credentials"
     FUSION_AUTH_REGISTRATION_ERROR = "Failed to register user to application"
     FUSION_AUTH_SYNC_ERROR = "Failed to sync user with Authentication Provider"
-    FUSION_AUTH_TOKEN_ERROR = "Authentication Provider could not issue token"
+    FUSION_AUTH_TOKEN_ERROR = (
+        "Authentication Provider could not issue token"  # noqa: S105
+    )
     GOOGLE_WRONG_ISSUER = "Invalid Google issuer."
     INVALID_SOCIAL_UID = "Social UID mismatch."
     INVALID_SOCIAL_TOKEN = "Invalid social token."  # noqa: S105
@@ -674,6 +679,10 @@ class ErrorMessages:
     EMAIL_DOES_NOT_EXIST = "Email doesn't exist"
     EMAIL_DOMAIN_CONNECTION_ERROR = "Email domain connection error"
     DEVICE_REGISTRATION_FAILED = "Device registration failed"
+    VERIFICATION_REQUIRED = "Verification required"
+    OTP_NOT_VERIFIED_FOR_UPDATED_EMAIL_OR_MOBILE = (
+        "OTP not verified for updated email or mobile"
+    )
 
 
 class Headers:
@@ -776,7 +785,7 @@ class Description(str):
     INVITED_LIST = "List of emails or contact objects"
     SOCIAL_USER_ID = "Social User ID"
     OAUTH_TOKEN = "OAuth Token"  # noqa: S105
-    PUSH_TOKEN = "Push notification token"
+    PUSH_TOKEN = "Push notification token"  # noqa: S105
     DEVICE_IP = "IP address of the device"
     IS_VPN = "Whether the device is using a VPN"
     IS_ANONYMOUS_PROXY = "Whether the device is strictly an anonymous proxy"
@@ -788,7 +797,7 @@ class Description(str):
     HARDWARE_ENCRYPTION = "Whether hardware encryption is enabled"
     TRANSACTION_TYPE = "Type of transaction"
     IS_IP_LEGAL = "Whether IP is legal"
-    NATIVE_TOKEN = "Native token"
+    NATIVE_TOKEN = "Native token"  # noqa: S105
     DATE_DEACTIVATED = "Date when the device was deactivated"
 
 
