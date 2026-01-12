@@ -603,6 +603,77 @@ class UserQueries:
             logged_out_at = NOW(),
             logout_reason = 'user_initiated'
         WHERE user_id = :user_id AND device_id = :device_id AND is_active = TRUE
+        RETURNING id;
+        """,
+    )
+
+    INSERT_AUTH_SESSION = text(
+        """
+        INSERT INTO user_app.authentication_session (
+            user_id,
+            device_id,
+            auth_token,
+            is_active,
+            auth_token_expiry,
+            created_at,
+            last_used_at,
+            user_agent,
+            ip_address
+        )
+        VALUES (
+            :user_id,
+            :device_id,
+            :auth_token,
+            TRUE,
+            :auth_token_expiry,
+            NOW(),
+            NOW(),
+            :user_agent,
+            :ip_address
+        )
+        RETURNING id;
+        """,
+    )
+
+    GET_AUTH_SESSION_BY_TOKEN = text(
+        """
+        SELECT *
+        FROM user_app.authentication_session
+        WHERE auth_token = :refresh_token
+          AND device_id = :device_id
+          AND is_active = TRUE
+          AND auth_token_expiry > NOW()
+        LIMIT 1;
+        """,
+    )
+
+    UPDATE_EXISTING_AUTH_SESSION = text(
+        """
+        UPDATE user_app.authentication_session
+        SET
+            auth_token = :auth_token,
+            auth_token_expiry = :auth_token_expiry,
+            is_active = TRUE,
+            last_used_at = NOW(),
+            user_agent = :user_agent,
+            ip_address = :ip_address
+        WHERE user_id = :user_id AND device_id = :device_id
+        RETURNING id;
+        """,
+    )
+
+    DELETE_AUTH_SESSIONS_FOR_DEVICE = text(
+        """
+        DELETE FROM user_app.authentication_session
+        WHERE user_id = :user_id AND device_id = :device_id;
+        """,
+    )
+
+    DEACTIVATE_OLD_SESSIONS = text(
+        """
+        UPDATE user_app.authentication_session
+        SET is_active = FALSE
+        WHERE device_id = :device_id AND user_id = :user_id AND is_active = TRUE;
         """,
     )
 

@@ -49,6 +49,7 @@ class UserLogoutService:
             {"user_id": user_uuid, "device_id": device_id},
             db_session,
         )
+        await db_session.commit()  # Ensure changes are persisted
         logger.info(f"Executed logout for user {user_uuid} on device {device_id}")
 
     @staticmethod

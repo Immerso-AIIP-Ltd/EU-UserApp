@@ -17,12 +17,12 @@ from app.api.v1.schemas import (
 )
 from app.api.v1.service.register_otp import GenerateOtpService
 from app.api.v1.service.register_service import UserVerifyService
-from app.api.v1.service.register_task import get_device_info
 from app.cache.base import build_cache_key, get_cache, set_cache
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import (
     CacheKeyTemplates,
     CacheTTL,
+    DeviceNames,
     ErrorMessages,
     Intents,
     LoginParams,
@@ -313,7 +313,7 @@ async def verify_otp_register(
     await cache.delete(cache_key)
 
     # 7. Device Registration and Auth Token
-    auth_token, token_expiry = await _finalize_registration_and_auth(
+    auth_token, refresh_token, token_expiry = await _finalize_registration_and_auth(
         request,
         db_session,
         user_id,
@@ -325,6 +325,7 @@ async def verify_otp_register(
     # 8. Prepare response
     data_dict: dict[str, Any] = dict(user_rows[0])
     data_dict[RequestParams.TOKEN] = auth_token
+    data_dict[RequestParams.REFRESH_TOKEN] = refresh_token
     data_dict[RequestParams.TOKEN_EXPIRY] = token_expiry
     data_dict[ProcessParams.ID] = str(user_id)
 
@@ -500,7 +501,7 @@ async def _finalize_registration_and_auth(
     headers: dict[str, Any],
     cache: Redis,
     cached_data: dict[str, Any],
-) -> tuple[str | None, int | None]:
+) -> tuple[str | None, str | None, int | None]:
     """Register device, sync to FusionAuth, and generate auth token."""
     import asyncio
     import time
@@ -508,7 +509,6 @@ async def _finalize_registration_and_auth(
     from app.api.v1.service.fusionauth_service import FusionAuthService
 
     device_id = headers.get(RequestParams.DEVICE_ID)
-    await get_device_info(request)
 
     # 1. Device Registration (if needed)
     # Logic moved to separate endpoint or handled elsewhere if required.
@@ -516,6 +516,7 @@ async def _finalize_registration_and_auth(
     # 2. Sync to FusionAuth and Issue Token
     auth_token = None
     token_expiry = None
+    refresh_token = None
 
     user_uuid_str = str(user_id)
     user_email = cached_data.get(RequestParams.EMAIL)
@@ -544,7 +545,15 @@ async def _finalize_registration_and_auth(
     except Exception as e:
         logger.error(f"FusionAuth Error: {e}")
 
-    # 3. Link Device to User (Update local DB with FA token)
+    # 3. Create Refresh Token
+    if auth_token:
+        refresh_token = await AuthService.create_refresh_session(
+            db_session=db_session,
+            user_id=str(user_id),
+            device_id=device_id or DeviceNames.UNKNOWN_DEVICE,
+        )
+
+    # 4. Link Device to User (Update local DB with FA token)
     if device_id and auth_token:
         await execute_query(
             query=UserQueries.LINK_DEVICE_TO_USER,
@@ -557,7 +566,7 @@ async def _finalize_registration_and_auth(
         )
 
     await db_session.commit()
-    return auth_token, token_expiry
+    return auth_token, refresh_token, token_expiry
 
 
 @router.post("/resend_otp")

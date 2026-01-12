@@ -1,6 +1,6 @@
 from typing import Any, Optional
 
-import requests
+import requests  # type: ignore
 from loguru import logger
 
 from app.core.exceptions import FacebookAuthError, InvalidSocialUIDError

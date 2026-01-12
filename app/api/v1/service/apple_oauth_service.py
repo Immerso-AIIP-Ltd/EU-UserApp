@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import jwt
-import requests
+import requests  # type: ignore
 from jwt import PyJWKClient
 from loguru import logger
 

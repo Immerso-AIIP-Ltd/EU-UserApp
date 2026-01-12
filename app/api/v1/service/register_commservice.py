@@ -2,7 +2,7 @@ import json
 from asyncio.log import logger
 from typing import Any, Dict
 
-import requests
+import requests  # type: ignore
 
 from app.core.constants import (
     CommServiceConfig,
