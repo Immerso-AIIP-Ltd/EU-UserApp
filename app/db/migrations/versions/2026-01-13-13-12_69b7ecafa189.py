@@ -183,7 +183,9 @@ def upgrade() -> None:
     )
     op.drop_index(op.f("idx_device_active"), table_name="device", schema="user_app")
     op.drop_index(
-        op.f("idx_device_deactivated"), table_name="device", schema="user_app",
+        op.f("idx_device_deactivated"),
+        table_name="device",
+        schema="user_app",
     )
     op.drop_index(op.f("idx_device_id"), table_name="device", schema="user_app")
     op.drop_index(op.f("idx_device_ip"), table_name="device", schema="user_app")
@@ -193,7 +195,9 @@ def upgrade() -> None:
     op.drop_index(op.f("idx_device_type"), table_name="device", schema="user_app")
     op.drop_index(op.f("idx_device_user"), table_name="device", schema="user_app")
     op.drop_index(
-        op.f("idx_device_user_active"), table_name="device", schema="user_app",
+        op.f("idx_device_user_active"),
+        table_name="device",
+        schema="user_app",
     )
     op.drop_index(op.f("idx_device_vpn"), table_name="device", schema="user_app")
     op.create_index(
@@ -260,10 +264,16 @@ def upgrade() -> None:
         schema="user_app",
     )
     op.drop_constraint(
-        op.f("fk_device_platform"), "device", schema="user_app", type_="foreignkey",
+        op.f("fk_device_platform"),
+        "device",
+        schema="user_app",
+        type_="foreignkey",
     )
     op.drop_constraint(
-        op.f("fk_device_user"), "device", schema="user_app", type_="foreignkey",
+        op.f("fk_device_user"),
+        "device",
+        schema="user_app",
+        type_="foreignkey",
     )
     op.create_foreign_key(
         None,
@@ -306,22 +316,34 @@ def upgrade() -> None:
         schema="user_app",
     )
     op.drop_index(
-        op.f("idx_invites_email"), table_name="friend_invite", schema="user_app",
+        op.f("idx_invites_email"),
+        table_name="friend_invite",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("idx_invites_invited_user"), table_name="friend_invite", schema="user_app",
+        op.f("idx_invites_invited_user"),
+        table_name="friend_invite",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("idx_invites_inviter"), table_name="friend_invite", schema="user_app",
+        op.f("idx_invites_inviter"),
+        table_name="friend_invite",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("idx_invites_mobile"), table_name="friend_invite", schema="user_app",
+        op.f("idx_invites_mobile"),
+        table_name="friend_invite",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("idx_invites_status"), table_name="friend_invite", schema="user_app",
+        op.f("idx_invites_status"),
+        table_name="friend_invite",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("idx_invites_token"), table_name="friend_invite", schema="user_app",
+        op.f("idx_invites_token"),
+        table_name="friend_invite",
+        schema="user_app",
     )
     op.create_index(
         op.f("ix_user_app_friend_invite_invite_token"),
@@ -466,13 +488,19 @@ def upgrade() -> None:
         schema="user_app",
     )
     op.drop_index(
-        op.f("idx_otp_created"), table_name="otp_verification", schema="user_app",
+        op.f("idx_otp_created"),
+        table_name="otp_verification",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("idx_otp_email_intent"), table_name="otp_verification", schema="user_app",
+        op.f("idx_otp_email_intent"),
+        table_name="otp_verification",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("idx_otp_mobile_intent"), table_name="otp_verification", schema="user_app",
+        op.f("idx_otp_mobile_intent"),
+        table_name="otp_verification",
+        schema="user_app",
     )
     op.create_index(
         op.f("ix_user_app_otp_verification_created_at"),
@@ -501,7 +529,10 @@ def upgrade() -> None:
         schema="user_app",
     )
     op.drop_constraint(
-        op.f("uq_platform_name"), "platform", schema="user_app", type_="unique",
+        op.f("uq_platform_name"),
+        "platform",
+        schema="user_app",
+        type_="unique",
     )
     op.create_index(
         op.f("ix_user_app_platform_platform_name"),
@@ -597,7 +628,10 @@ def upgrade() -> None:
         "user",
         "type",
         existing_type=postgresql.ENUM(
-            "regular", "creator", name="user_type", schema="user_app",
+            "regular",
+            "creator",
+            name="user_type",
+            schema="user_app",
         ),
         type_=sa.Enum("regular", "creator", name="usertype"),
         nullable=False,
@@ -607,7 +641,9 @@ def upgrade() -> None:
     op.drop_index(op.f("idx_users_created_at"), table_name="user", schema="user_app")
     op.drop_index(op.f("idx_users_email"), table_name="user", schema="user_app")
     op.drop_index(
-        op.f("idx_users_mobile_calling_code"), table_name="user", schema="user_app",
+        op.f("idx_users_mobile_calling_code"),
+        table_name="user",
+        schema="user_app",
     )
     op.create_index(
         op.f("ix_user_app_user_created_at"),
@@ -715,7 +751,9 @@ def upgrade() -> None:
     op.drop_index(op.f("idx_waitlist_mobile"), table_name="waitlist", schema="user_app")
     op.drop_index(op.f("idx_waitlist_queue"), table_name="waitlist", schema="user_app")
     op.drop_index(
-        op.f("idx_waitlist_verified"), table_name="waitlist", schema="user_app",
+        op.f("idx_waitlist_verified"),
+        table_name="waitlist",
+        schema="user_app",
     )
     op.create_index(
         op.f("ix_user_app_waitlist_device_id"),
@@ -746,7 +784,10 @@ def upgrade() -> None:
         schema="user_app",
     )
     op.drop_constraint(
-        op.f("fk_waitlist_user"), "waitlist", schema="user_app", type_="foreignkey",
+        op.f("fk_waitlist_user"),
+        "waitlist",
+        schema="user_app",
+        type_="foreignkey",
     )
     op.create_foreign_key(
         None,
@@ -799,10 +840,14 @@ def downgrade() -> None:
         schema="user_app",
     )
     op.drop_index(
-        op.f("ix_user_app_waitlist_email"), table_name="waitlist", schema="user_app",
+        op.f("ix_user_app_waitlist_email"),
+        table_name="waitlist",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("ix_user_app_waitlist_device_id"), table_name="waitlist", schema="user_app",
+        op.f("ix_user_app_waitlist_device_id"),
+        table_name="waitlist",
+        schema="user_app",
     )
     op.create_index(
         op.f("idx_waitlist_verified"),
@@ -933,7 +978,9 @@ def downgrade() -> None:
     )
     op.drop_index(op.f("ix_user_app_user_email"), table_name="user", schema="user_app")
     op.drop_index(
-        op.f("ix_user_app_user_created_at"), table_name="user", schema="user_app",
+        op.f("ix_user_app_user_created_at"),
+        table_name="user",
+        schema="user_app",
     )
     op.create_index(
         op.f("idx_users_mobile_calling_code"),
@@ -943,7 +990,11 @@ def downgrade() -> None:
         schema="user_app",
     )
     op.create_index(
-        op.f("idx_users_email"), "user", ["email"], unique=True, schema="user_app",
+        op.f("idx_users_email"),
+        "user",
+        ["email"],
+        unique=True,
+        schema="user_app",
     )
     op.create_index(
         op.f("idx_users_created_at"),
@@ -957,7 +1008,10 @@ def downgrade() -> None:
         "type",
         existing_type=sa.Enum("regular", "creator", name="usertype"),
         type_=postgresql.ENUM(
-            "regular", "creator", name="user_type", schema="user_app",
+            "regular",
+            "creator",
+            name="user_type",
+            schema="user_app",
         ),
         nullable=True,
         existing_server_default=sa.text("'regular'::user_app.user_type"),
@@ -975,7 +1029,11 @@ def downgrade() -> None:
         "user",
         "state",
         existing_type=sa.Enum(
-            "inactive", "active", "blocked", "deactivated", name="userstate",
+            "inactive",
+            "active",
+            "blocked",
+            "deactivated",
+            name="userstate",
         ),
         type_=postgresql.ENUM(
             "inactive",
@@ -1336,28 +1394,44 @@ def downgrade() -> None:
         ondelete="SET NULL",
     )
     op.drop_index(
-        op.f("ix_user_app_device_user_id"), table_name="device", schema="user_app",
+        op.f("ix_user_app_device_user_id"),
+        table_name="device",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("ix_user_app_device_platform"), table_name="device", schema="user_app",
+        op.f("ix_user_app_device_platform"),
+        table_name="device",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("ix_user_app_device_is_vpn"), table_name="device", schema="user_app",
+        op.f("ix_user_app_device_is_vpn"),
+        table_name="device",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("ix_user_app_device_is_rooted"), table_name="device", schema="user_app",
+        op.f("ix_user_app_device_is_rooted"),
+        table_name="device",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("ix_user_app_device_is_jailbroken"), table_name="device", schema="user_app",
+        op.f("ix_user_app_device_is_jailbroken"),
+        table_name="device",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("ix_user_app_device_device_type"), table_name="device", schema="user_app",
+        op.f("ix_user_app_device_device_type"),
+        table_name="device",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("ix_user_app_device_device_ip"), table_name="device", schema="user_app",
+        op.f("ix_user_app_device_device_ip"),
+        table_name="device",
+        schema="user_app",
     )
     op.drop_index(
-        op.f("ix_user_app_device_device_id"), table_name="device", schema="user_app",
+        op.f("ix_user_app_device_device_id"),
+        table_name="device",
+        schema="user_app",
     )
     op.drop_index(
         op.f("ix_user_app_device_date_deactivated"),
@@ -1365,7 +1439,11 @@ def downgrade() -> None:
         schema="user_app",
     )
     op.create_index(
-        op.f("idx_device_vpn"), "device", ["is_vpn"], unique=False, schema="user_app",
+        op.f("idx_device_vpn"),
+        "device",
+        ["is_vpn"],
+        unique=False,
+        schema="user_app",
     )
     op.create_index(
         op.f("idx_device_user_active"),
@@ -1375,7 +1453,11 @@ def downgrade() -> None:
         schema="user_app",
     )
     op.create_index(
-        op.f("idx_device_user"), "device", ["user_id"], unique=False, schema="user_app",
+        op.f("idx_device_user"),
+        "device",
+        ["user_id"],
+        unique=False,
+        schema="user_app",
     )
     op.create_index(
         op.f("idx_device_type"),
@@ -1406,10 +1488,18 @@ def downgrade() -> None:
         schema="user_app",
     )
     op.create_index(
-        op.f("idx_device_ip"), "device", ["device_ip"], unique=False, schema="user_app",
+        op.f("idx_device_ip"),
+        "device",
+        ["device_ip"],
+        unique=False,
+        schema="user_app",
     )
     op.create_index(
-        op.f("idx_device_id"), "device", ["device_id"], unique=True, schema="user_app",
+        op.f("idx_device_id"),
+        "device",
+        ["device_id"],
+        unique=True,
+        schema="user_app",
     )
     op.create_index(
         op.f("idx_device_deactivated"),
