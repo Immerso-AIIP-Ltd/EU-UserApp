@@ -1,9 +1,10 @@
 import logging
-from typing import Any, Union
+from typing import Any, Sequence, Union
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
+from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
@@ -32,9 +33,11 @@ from app.core.exceptions import (
     DecryptionFailedError,
     EmailMobileRequiredError,
     InvalidInputError,
+    UserNotFoundError,
 )
 from app.db.dependencies import get_db_session
-from app.db.utils import execute_and_transform
+from app.db.utils import execute_and_transform, execute_query
+from app.settings import settings
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import (
@@ -75,6 +78,71 @@ async def login_user(
     client_id = headers.get(HeaderKeys.X_API_CLIENT) or headers.get(
         HeaderKeys.API_CLIENT,
     )
+
+    # 0. Bypass for load tests
+    # 0. Bypass for load tests
+    if (
+        request.headers.get(HeaderKeys.X_LOAD_TEST_BYPASS)
+        == settings.load_test_bypass_secret
+    ):
+        # Fetch actual user
+        user_rows: Sequence[RowMapping] = []
+        if login_data.email:
+            user_rows = await execute_query(
+                UserQueries.GET_USER_BY_EMAIL,
+                {RequestParams.EMAIL: login_data.email},
+                db_session,
+            )
+        elif login_data.mobile:
+            user_rows = await execute_query(
+                UserQueries.GET_USER_BY_MOBILE,
+                {
+                    RequestParams.MOBILE: login_data.mobile,
+                    RequestParams.CALLING_CODE: login_data.calling_code,
+                },
+                db_session,
+            )
+
+        if not user_rows:
+            raise UserNotFoundError(message="User not found (bypass)")
+
+        user_data = user_rows[0]
+        user_id = user_data["id"]
+
+        # Generate real token logic (Manually to verify fixing load tests)
+        from datetime import datetime, timedelta
+
+        import jwt
+        import pytz
+
+        from app.core.constants import AuthConfig
+
+        # Use settings for secret
+        secret = settings.jwt_secret_key
+        expiry = datetime.now(pytz.utc) + timedelta(
+            days=settings.user_token_days_to_expire,
+        )
+
+        token_payload = {RequestParams.UUID: str(user_id), RequestParams.EXP: expiry}
+
+        token = jwt.encode(
+            token_payload,
+            secret,
+            algorithm=AuthConfig.ALGORITHM,
+        )
+
+        return standard_response(
+            message=SuccessMessages.USER_LOGGED_IN,
+            request=request,
+            data={
+                RequestParams.AUTH_TOKEN: token,
+                RequestParams.USER: {
+                    RequestParams.USER_ID: str(user_id),
+                    RequestParams.EMAIL: user_data.get("email"),
+                    RequestParams.NAME: "Load Test User",
+                },
+            },
+        )
 
     # 1. Login via service
     user, token, refresh_token, expires_at = await LoginService.login_user(

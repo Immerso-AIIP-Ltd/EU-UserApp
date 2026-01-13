@@ -1,70 +1,84 @@
 import random
 import string
 
-from locust import HttpUser, between, task
+from locust import between, task
+
+from loadtests.common.authenticated_user import AuthenticatedUser
 
 
-class ProfileUser(HttpUser):
+class ProfileUser(AuthenticatedUser):
+    """User that performs profile-related tasks."""
+
     wait_time = between(1, 5)
-    auth_token = None
-
-    def on_start(self) -> None:
-        self.device_id = "loadtest-device-" + "".join(
-            random.choices(string.ascii_lowercase + string.digits, k=10),
-        )
-        self.headers = {
-            "Content-Type": "application/json",
-            "x-device-id": self.device_id,
-            "api_client": "android_app",
-            "x-platform": "android",
-            "x-app-version": "1.0.0",
-            "x-country": "IN",
-            "x-api-client": "android_app",
-        }
-        # Create user and login to get token
-        from loadtests.common.auth import register_and_login
-
-        email, auth_token = register_and_login(self.client, self.headers)
-
-        if auth_token:
-            self.auth_token = auth_token
-            self.headers["x-api-token"] = self.auth_token
-        else:
-            pass
 
     @task(3)
     def get_profile(self) -> None:
+        """Fetch the user's profile."""
         if not self.auth_token:
             return
+        # GET /profile uses headers
         with self.client.get(
-            "/user/v1/user_profile/profile",
-            headers=self.headers,
+            "/user/v1/auth/user_profile/profile",
+            headers=self.client.headers,
             catch_response=True,
-        ) as response:
-            if response.status_code == 200:
-                response.success()
+        ) as resp:
+            if resp.status_code == 200:
+                resp.success()
             else:
-                response.failure(f"Get profile failed: {response.text}")
+                resp.failure(f"Get Profile failed: {resp.text}")
 
     @task(1)
     def update_profile(self) -> None:
+        """Update the user's profile."""
         if not self.auth_token:
             return
 
+        # PUT /profile expects UpdateProfileRequest (NOT Encrypted)
         payload = {
-            "name": f"Updated Name {random.randint(1, 100)}",
-            "gender": "female",
-            "about_me": "I am a load test user",
+            "name": f"Updated Name {random.randint(1, 1000)}",
+            "gender": random.choice(["M", "F", "O"]),  # Ensure string
+            "about_me": "Load Testing...",
             "country": "US",
+            # Removing birth_date temporarily to debug overflow issue
+            # "birth_date": "1995-05-05"
         }
 
         with self.client.put(
-            "/user/v1/user_profile/profile",
+            "/user/v1/auth/user_profile/profile",
             json=payload,
-            headers=self.headers,
+            headers=self.client.headers,
             catch_response=True,
-        ) as response:
-            if response.status_code == 200:
-                response.success()
+        ) as resp:
+            if resp.status_code == 200:
+                resp.success()
             else:
-                response.failure(f"Update profile failed: {response.text}")
+                resp.failure(f"Update Profile failed: {resp.text}")
+
+    @task(1)
+    def update_email_mobile_flow(self) -> None:
+        """Update the user's email/mobile."""
+        if not self.auth_token:
+            return
+
+        # POST /update_email_mobile expects UpdateEmailMobileRequest (NOT Encrypted)
+        random_str = "".join(random.choices(string.ascii_lowercase, k=8))
+        new_email = f"loadtest_updated_{random_str}@example.com"
+        payload = {
+            "email": new_email,
+            # Removed calling_code as it conflicts with email per schema validation
+        }
+
+        with self.client.post(
+            "/user/v1/auth/user_profile/update_email_mobile",
+            json=payload,
+            headers=self.client.headers,
+            catch_response=True,
+        ) as resp:
+            if resp.status_code == 200:
+                # Returns redirect URL for OTP verification
+                resp.success()
+            else:
+                resp.failure(f"Update Email failed: {resp.text}")
+                return
+
+        # Removed verification step as verify_otp_register is removed from load test

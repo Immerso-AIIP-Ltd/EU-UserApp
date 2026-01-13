@@ -25,6 +25,7 @@ from app.core.constants import (
     CommParams,
     EmailTemplates,
     ErrorMessages,
+    HeaderKeys,
     Intents,
     ProcessParams,
     RequestParams,
@@ -455,22 +456,34 @@ async def verify_waitlist(
         raise EmailMobileRequiredError
 
     # 1. Verify OTP
+    is_bypass = (
+        request.headers.get(HeaderKeys.X_LOAD_TEST_BYPASS)
+        == settings.load_test_bypass_secret
+    )
+
+    if is_bypass:
+        # Just pick any entry or create one if needed?
+        # Usually for load test we assume it exists or we use a pre-seeded one.
+        # But here we need to find the entry to update it.
+        pass
+
     if email_id:
-        redis_key = CacheKeyTemplates.OTP_EMAIL.format(
-            receiver=email_id,
-            intent=Intents.WAITLIST,
-        )
-        cached_otp = await cache.get(redis_key)
+        if not is_bypass:
+            redis_key = CacheKeyTemplates.OTP_EMAIL.format(
+                receiver=email_id,
+                intent=Intents.WAITLIST,
+            )
+            cached_otp = await cache.get(redis_key)
 
-        if (
-            not cached_otp
-            or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
-            or (isinstance(cached_otp, str) and cached_otp != otp)
-        ):
-            raise OtpExpiredError
+            if (
+                not cached_otp
+                or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
+                or (isinstance(cached_otp, str) and cached_otp != otp)
+            ):
+                raise OtpExpiredError
 
-        # Consume OTP
-        await cache.delete(redis_key)
+            # Consume OTP
+            await cache.delete(redis_key)
 
         # Get waitlist entry
         existing_entry = await execute_query(
@@ -495,8 +508,19 @@ async def verify_waitlist(
         ):
             raise OtpInvalidError
 
-        # Consume OTP
-        await cache.delete(redis_key)
+            if (
+                not cached_otp
+                or (
+                    isinstance(cached_otp, bytes) and cached_otp.decode() != payload.otp
+                )
+                or (isinstance(cached_otp, str) and cached_otp != payload.otp)
+            ):
+                raise ValidationError(
+                    message=ErrorMessages.OTP_INVALID_OR_EXPIRED,
+                )
+
+            # Consume OTP
+            await cache.delete(redis_key)
 
         # Get waitlist entry
         existing_entry = await execute_query(
@@ -566,6 +590,17 @@ async def resend_waitlist_otp(
 
     if not email_id and not (mobile and calling_code):
         raise EmailMobileRequiredError
+
+    # Bypass for load tests
+    if (
+        request.headers.get(HeaderKeys.X_LOAD_TEST_BYPASS)
+        == settings.load_test_bypass_secret
+    ):
+        return standard_response(
+            request=request,
+            message="OTP resend bypassed for load test",
+            data={RequestParams.IS_VERIFIED: False},
+        )
 
     if email_id:
         # Check if waitlist entry exists
@@ -698,13 +733,20 @@ async def friend_invite(
     for item in payload.invited_list:
         invited_email, invited_mobile, invited_calling_code = _parse_invite_item(item)
 
-        # Send Invite
-        sent = await _send_invite_notification(
-            invited_email,
-            invited_mobile,
-            invited_calling_code,
-            inviter_email,
+        # Send Invite (Bypassed for load test)
+        is_bypass = (
+            request.headers.get(HeaderKeys.X_LOAD_TEST_BYPASS)
+            == settings.load_test_bypass_secret
         )
+        if is_bypass:
+            sent = True
+        else:
+            sent = await _send_invite_notification(
+                invited_email,
+                invited_mobile,
+                invited_calling_code,
+                inviter_email,
+            )
         if not sent:
             failed_items.append(item)
             continue

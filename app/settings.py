@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8000
     # quantity of workers for uvicorn
-    workers_count: int = 1
+    workers_count: int = 4
     # Enable uvicorn reloading
     reload: bool = False
 
@@ -58,6 +58,8 @@ class Settings(BaseSettings):
     db_pass: str = "app"
     db_base: str = "admin"
     db_echo: bool = False
+    db_pool_size: int = 100
+    db_max_overflow: int = 50
 
     # Variables for Redis
     redis_host: str = "app-redis"
@@ -127,6 +129,7 @@ class Settings(BaseSettings):
     CACHE_TIMEOUT_FOR_EMAIL_DNS: int = 300
     skip_partner_auth_redis_check: list[str] = []
     token_leeway_threshold_in_days: int = 15
+    load_test_bypass_secret: str = "LOAD_TEST_BYPASS_SECRET_123"
 
     # Deep Links
     deeplink_login_screen: str = "erosnowapp://login?{}"

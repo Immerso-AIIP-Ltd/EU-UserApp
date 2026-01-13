@@ -93,6 +93,8 @@ async def get_celery_db_session() -> AsyncGenerator[AsyncSession, None]:
     db_factory = DatabaseFactory(
         db_url=str(settings.db_url),
         db_echo=settings.db_echo,
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_max_overflow,
     )
     db_session = db_factory.get_session()
 

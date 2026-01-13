@@ -1,106 +1,66 @@
 import random
 import string
 
-from locust import HttpUser, between, task
+from locust import between, task
+
+from loadtests.common.authenticated_user import AuthenticatedUser
 
 
-class WaitlistUser(HttpUser):
-    wait_time = between(1, 3)
+class WaitlistUser(AuthenticatedUser):
+    """User that performs waitlist tasks."""
+
+    wait_time = between(1, 5)
+    joined = False
 
     def on_start(self) -> None:
-        """Setup initial headers for each user session."""
-        self.device_id = "loadtest-device-" + "".join(
-            random.choices(string.ascii_lowercase + string.digits, k=10),
-        )
-        self.headers = {
-            "Content-Type": "application/json",
-            "x-device-id": self.device_id,
-            "x-api-client": "android_app",
-            "x-platform": "android",
-            "x-app-version": "1.0.0",
-            "x-country": "IN",
-        }
-        self.email = None
-        self.is_verified = False
-        self.joined = False
+        """Run on user start."""
+        super().on_start()
 
     @task(3)
-    def join_waitlist(self) -> None:
-        """Scenario: User joins the waitlist."""
+    def join_waitlist_only(self) -> None:
+        """Only hits join_waitlist to avoid OTP verify/resend APIs from tasks."""
         if self.joined:
             return
 
-        self.email = f"waitlist_{''.join(random.choices(string.ascii_lowercase, k=10))}@example.com"
         payload = {
             "device_id": self.device_id,
             "email_id": self.email,
             "name": "LoadTest User",
         }
 
-        with self.client.post(
-            "/user/v1/social/waitlist",
-            json=payload,
-            headers=self.headers,
+        with self.post_encrypted(
+            "/user/v1/auth/social/waitlist",
+            payload,
             catch_response=True,
-        ) as response:
-            if response.status_code == 200:
-                response.success()
+        ) as resp:
+            if resp.status_code in [200, 409]:
+                # We mark as joined even if not verified just to move on in load test tasks
                 self.joined = True
-            elif response.status_code == 409:
-                response.success()  # Already in waitlist
-                self.joined = True
+                resp.success()
             else:
-                response.failure(
-                    f"Join waitlist failed: {response.status_code} - {response.text}",
-                )
-
-    @task(1)
-    def resend_otp(self) -> None:
-        """Scenario: User requests to resend OTP for waitlist."""
-        if not self.email:
-            return
-
-        payload = {
-            "email_id": self.email,
-        }
-
-        with self.client.post(
-            "/user/v1/social/waitlist_resend_otp",
-            json=payload,
-            headers=self.headers,
-            catch_response=True,
-        ) as response:
-            if response.status_code == 200:
-                response.success()
-            else:
-                response.failure(
-                    f"Resend OTP failed: {response.status_code} - {response.text}",
-                )
+                resp.failure(f"Join Waitlist failed: {resp.text}")
 
     @task(2)
     def friend_invite(self) -> None:
-        """Scenario: User invites friends (Requires having joined waitlist)."""
-        if not self.email:
+        """Send a friend invite."""
+        if not self.joined:
             return
 
-        # Invite 2 friends
+        random_str = "".join(random.choices(string.ascii_lowercase, k=5))
         friends = [
-            f"friend_{''.join(random.choices(string.ascii_lowercase, k=5))}@example.com",
-            f"friend_{''.join(random.choices(string.ascii_lowercase, k=5))}@example.com",
+            {
+                "email": f"friend_{random_str}@example.com",
+            },
         ]
-
         payload = {"invited_list": friends}
 
-        # The API requires x-device-id in headers (already in self.headers)
         with self.client.post(
-            "/user/v1/social/friend_invite",
+            "/user/v1/auth/social/friend_invite",
             json=payload,
-            headers=self.headers,
             catch_response=True,
-        ) as response:
-            if response.status_code == 200:
-                response.success()
+        ) as resp:
+            if resp.status_code != 200:
+                error_msg = f"Friend Invite failed: {resp.status_code} - {resp.text}"
+                resp.failure(error_msg)
             else:
-                response.failure(
-                    f"Friend invite failed: {response.status_code} - {response.text}",
-                )
+                resp.success()

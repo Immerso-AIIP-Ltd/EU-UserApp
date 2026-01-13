@@ -1,36 +1,44 @@
 import random
 import string
 
-from locust import HttpUser, between, task
+from locust import between, task
+
+from loadtests.common.base_user import EncryptedUser
 
 
-class DeviceUser(HttpUser):
+class DeviceUser(EncryptedUser):
+    """User that performs device-related tasks."""
+
     wait_time = between(1, 5)
 
     def on_start(self) -> None:
-        self.device_id = "loadtest-device-" + "".join(
+        """Run on user start."""
+        super().on_start()
+        random_str = "".join(
             random.choices(string.ascii_lowercase + string.digits, k=10),
         )
-        self.headers = {
-            "Content-Type": "application/json",
-            "x-device-id": self.device_id,
-            "api_client": "android_app",
-            "x-platform": "android",
-            "x-app-version": "1.0.0",
-            "x-country": "IN",
-            "x-api-client": "android_app",
-        }
+        self.device_id = f"loadtest-device-{random_str}"
+        self.client.headers.update(
+            {
+                "x-device-id": self.device_id,
+                "api_client": "android_app",
+                "x-platform": "android",
+                "x-app-version": "1.0.0",
+                "x-country": "IN",
+                "x-api-client": "android_app",
+            },
+        )
 
     @task
     def check_device_invite(self) -> None:
-        # This checks the current device ID status
+        """Check if the device has an invite."""
+        # GET request, usually not encrypted body
         with self.client.get(
             f"/user/v1/device/{self.device_id}",
-            headers=self.headers,
             catch_response=True,
         ) as response:
-            # 200 if invited, 400/404 if not. Both are valid from load perspective.
-            if response.status_code in [200, 400, 404]:
+            if response.status_code in [200, 404]:
+                # 404 means not found/active, which is valid for random device
                 response.success()
             else:
                 response.failure(
@@ -39,22 +47,42 @@ class DeviceUser(HttpUser):
 
     @task
     def invite_device(self) -> None:
-        # We need a valid coupon_id to test this properly.
-        # With a fake coupon, we expect 400.
+        """Identify device with a fake coupon."""
+        # POST request with encryption
+        random_digits = "".join(random.choices(string.digits, k=5))
         payload = {
             "device_id": self.device_id,
-            "coupon_id": "fake_coupon_" + "".join(random.choices(string.digits, k=5)),
+            "coupon_id": f"fake_coupon_{random_digits}",
         }
-
-        with self.client.post(
+        # Expecting 404 or 400 for fake coupon
+        with self.post_encrypted(
             "/user/v1/device/invite",
-            json=payload,
-            headers=self.headers,
+            payload,
             catch_response=True,
         ) as response:
-            if response.status_code in [200, 400, 404, 422]:
+            if response.status_code in [200, 400, 404]:
+                response.success()
+            elif response.status_code != 200:
+                response.failure(f"Invite device failed: {response.text}")
+
+    @task
+    def register_device(self) -> None:
+        """Register the device via the API."""
+        # POST request with encryption
+        # This endpoint might just take device_id in body or header?
+        # User list says: POST /user/v1/device/register
+        # Let's assume it takes device_id, platform, etc.
+        payload = {
+            "device_id": self.device_id,
+            "platform": "android",
+            "device_token": "dummy_fcm_token",
+        }
+        with self.post_encrypted(
+            "/user/v1/device/register",
+            payload,
+            catch_response=True,
+        ) as response:
+            if response.status_code in [200, 409]:
                 response.success()
             else:
-                response.failure(
-                    f"Invite device failed: {response.status_code} - {response.text}",
-                )
+                response.failure(f"Register device failed: {response.text}")

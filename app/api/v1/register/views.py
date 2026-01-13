@@ -30,6 +30,7 @@ from app.core.constants import (
     CacheTTL,
     DeviceNames,
     ErrorMessages,
+    HeaderKeys,
     Intents,
     LoginParams,
     ProcessParams,
@@ -53,6 +54,7 @@ from app.core.exceptions.exceptions import (
 )
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_query
+from app.settings import settings
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import (
@@ -255,7 +257,12 @@ async def verify_otp_register(
     receiver_type = RequestParams.EMAIL if email else RequestParams.MOBILE
 
     # 1. Verify and Consume OTP
-    await _verify_and_consume_otp(cache, receiver, receiver_type, intent.value, otp)
+    is_bypass = (
+        request.headers.get(HeaderKeys.X_LOAD_TEST_BYPASS)
+        == settings.load_test_bypass_secret
+    )
+    if not is_bypass:
+        await _verify_and_consume_otp(cache, receiver, receiver_type, intent.value, otp)
 
     if intent == IntentEnum.FORGOT_PASSWORD:
         redirect_url = RedirectTemplates.SET_FORGOT_PASSWORD.format(

@@ -1,73 +1,37 @@
 import random
 import string
 
-from locust import HttpUser, between, task
+from locust import between, task
+
+from loadtests.common.base_user import EncryptedUser
 
 
-class RegisterUser(HttpUser):
-    host = "http://localhost:8880"
+class RegistrationUser(EncryptedUser):
+    """User that performs registration tasks."""
+
     wait_time = between(1, 5)
 
-    def on_start(self) -> None:
-        self.headers = {
-            "Content-Type": "application/json",
-            "x-device-id": "loadtest-device-"
-            + "".join(random.choices(string.ascii_lowercase + string.digits, k=10)),
-            "api_client": "android_app",
-            "x-platform": "android",
-            "x-app-version": "1.0.0",
-            "x-country": "IN",
-            "x-api-client": "android_app",
-        }
-        self.email = None
+    def generate_random_email(self) -> str:
+        """Generate a random email for load testing."""
+        random_str = "".join(
+            random.choices(string.ascii_lowercase + string.digits, k=10),
+        )
+        return f"loadtest_{random_str}@example.com"
 
-    @task(1)
-    def register_with_profile(self) -> None:
-        email = f"loadtest_{''.join(random.choices(string.ascii_lowercase, k=10))}@example.com"
-        password = "Password123!"
+    @task
+    def register_step1_only(self) -> None:
+        """Only hits register_with_profile as requested."""
+        email = self.generate_random_email()
+        password = "Password123!"  # noqa: S105
 
-        payload = {
-            "email": email,
-            "password": password,
-            "name": "Load Test User",
-            "birth_date": "1990-01-01",
-            "gender": "male",
-        }
+        payload = {"email": email, "password": password, "calling_code": "+1"}
 
-        with self.client.post(
+        with self.post_encrypted(
             "/user/v1/register/register_with_profile",
-            json=payload,
-            headers=self.headers,
+            payload,
             catch_response=True,
         ) as response:
-            if response.status_code == 200:
-                response.success()
-                # Store email/password for verify step if we implement it,
-                # or for other tasks if this was a sequential task set
-                self.email = email
+            if response.status_code != 200:
+                response.failure(f"Register Step 1 failed: {response.text}")
             else:
-                response.failure(f"Registration failed: {response.text}")
-
-    @task(1)
-    def resend_otp(self) -> None:
-        """Load test OTP resend (rate limiting, Redis, validation)."""
-        if not self.email:
-            return
-
-        payload = {
-            "email": self.email,
-            "intent": "registration",
-        }
-
-        with self.client.post(
-            "/user/v1/register/resend_otp",
-            json=payload,
-            headers=self.headers,
-            catch_response=True,
-        ) as response:
-            if response.status_code in [200, 400]:
                 response.success()
-            else:
-                response.failure(
-                    f"Resend OTP failed: {response.status_code} - {response.text}",
-                )

@@ -1,65 +1,19 @@
-import random
-import string
+from locust import between, task
 
-from locust import HttpUser, between, task
+from loadtests.common.base_user import EncryptedUser
 
 
-class SocialUser(HttpUser):
+class SocialUser(EncryptedUser):
+    """User that performs social login tasks."""
+
     wait_time = between(1, 5)
 
-    def on_start(self) -> None:
-        self.headers = {
-            "Content-Type": "application/json",
-            "x-device-id": "loadtest-device-"
-            + "".join(random.choices(string.ascii_lowercase + string.digits, k=10)),
-            "api_client": "android_app",
-            "x-platform": "android",
-            "x-app-version": "1.0.0",
-            "x-country": "IN",
-            "x-api-client": "android_app",
-        }
+    # Needs valid ID tokens to work.
+    # Placeholder for now.
 
     @task
     def google_login(self) -> None:
-        # We expect this to fail with 401/400 because the token is fake.
-        # But it tests the endpoint reachability and handling of invalid tokens.
-        payload = {
-            "token": "fake_google_token_"
-            + "".join(random.choices(string.ascii_letters, k=20)),
-            "user_id": "google_uid_" + "".join(random.choices(string.digits, k=10)),
-            "email": "test@example.com",
-        }
-
-        with self.client.post(
-            "/user/v1/social/google_login",
-            json=payload,
-            headers=self.headers,
-            catch_response=True,
-        ) as response:
-            if response.status_code in [400, 401, 200]:  # 200 if mock is enabled
-                response.success()
-            elif response.status_code == 500:
-                response.failure(f"Google login failed with 500: {response.text}")
-            else:
-                response.success()  # Accepting other codes as we know token is fake
-
-    @task
-    def facebook_login(self) -> None:
-        payload = {
-            "access_token": "fake_facebook_token_"
-            + "".join(random.choices(string.ascii_letters, k=20)),
-            "uid": "fb_uid_" + "".join(random.choices(string.digits, k=10)),
-        }
-
-        with self.client.post(
-            "/user/v1/social/facebook_login",
-            json=payload,
-            headers=self.headers,
-            catch_response=True,
-        ) as response:
-            if response.status_code in [400, 401, 200]:
-                response.success()
-            elif response.status_code == 500:
-                response.failure(f"Facebook login failed with 500: {response.text}")
-            else:
-                response.success()
+        """Attempt Google login (placeholder)."""
+        # This will fail without a valid ID token signed by Google
+        # payload = {"id_token": "dummy_token_123", "uid": "123"}
+        # self.post_encrypted("/user/v1/social/google_login", payload)

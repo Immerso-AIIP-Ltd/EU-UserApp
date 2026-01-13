@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+from typing import Any
 
 from loguru import logger
 from sqlalchemy import text
@@ -125,7 +126,10 @@ async def fetch_data(query_str: str, db_base: str) -> list[dict[str, Any]]:
 
 
 def setup_index(
-    client: Any, index_name: str, config: dict[str, Any], data: list[dict[str, Any]]
+    client: Any,
+    index_name: str,
+    config: dict[str, Any],
+    data: list[dict[str, Any]],
 ) -> None:
     """Setup a MeiliSearch index with config and data."""
     logger.debug(f"Setting up index: {index_name}")
@@ -144,7 +148,8 @@ def setup_index(
             logger.debug(f"Index '{index_name}' already exists.")
         else:
             logger.error(
-                f"Note: create_index failed with: {e}. Attempting to proceed with existing index.",
+                f"Note: create_index failed with: {e}. "
+                "Attempting to proceed with existing index.",
             )
 
     index = client.index(index_name)
@@ -246,7 +251,9 @@ def get_tasks() -> list[tuple[str, str, str, str]]:
 
 
 async def process_tasks(
-    tasks: list[tuple[str, str, str, str]], config: dict[str, Any], client: Any
+    tasks: list[tuple[str, str, str, str]],
+    config: dict[str, Any],
+    client: Any,
 ) -> None:
     """Process indexing tasks sequentially."""
 

@@ -40,6 +40,7 @@ async def get_current_user(
 
     Decodes and verifies the JWT token from the Authorization header.
     """
+
     token_str = None
     if token:
         token_str = token.credentials
@@ -93,6 +94,7 @@ async def get_user_from_x_token(
     Decodes the JWT token from the x-api-token header WITHOUT signature verification.
     This relies on the gateway having already validated the token.
     """
+
     if not x_api_token:
         # This case is largely handled by validate_common_headers or the
         # Header(...) required field

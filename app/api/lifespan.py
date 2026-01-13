@@ -29,6 +29,8 @@ async def lifespan_setup(
     app.state.db_factory = DatabaseFactory(
         db_url=str(settings.db_url),
         db_echo=settings.db_echo,
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_max_overflow,
     )
 
     app.middleware_stack = app.build_middleware_stack()
