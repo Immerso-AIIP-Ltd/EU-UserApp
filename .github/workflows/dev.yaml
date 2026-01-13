@@ -83,7 +83,7 @@ jobs:
         run: |
           git clone https://$GIT_USER:$GIT_TOKEN@github.com/Immerso-AIIP-Ltd/eros-universe-Helm-charts.git
           cd eros-universe-Helm-charts
-          git checkout eros-universe-test
+          git checkout eros-universe-dev
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
