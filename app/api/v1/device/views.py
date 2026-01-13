@@ -1,22 +1,20 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, Path, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.schemas import (
-    DeviceInviteData,
     DeviceInviteRequest,
     DeviceRegisterRequest,
     EncryptedRequest,
 )
-from app.cache.base import build_cache_key, get_cache, set_cache
+from app.cache.base import build_cache_key
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import (
     CacheKeyTemplates,
-    CacheTTL,
     ErrorMessages,
     ProcessParams,
     RequestParams,
@@ -25,13 +23,12 @@ from app.core.constants import (
 from app.core.exceptions import (
     CouponExpiredError,
     DeviceAlreadyInvitedError,
-    DeviceNotInvitedError,
     DeviceRegistrationError,
     InvalidCouponError,
     ValidationError,
 )
 from app.db.dependencies import get_db_session
-from app.db.utils import execute_and_transform, execute_query
+from app.db.utils import execute_query
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import (
@@ -40,50 +37,6 @@ from app.utils.validate_headers import (
 )
 
 router = APIRouter()
-
-
-@router.get("/{device_id}")
-async def check_device_invite_status(
-    request: Request,
-    device_id: str = Path(...),
-    db_session: AsyncSession = Depends(get_db_session),
-    headers: dict[str, Any] = Depends(validate_headers_without_auth),
-    cache: Redis = Depends(get_redis_connection),
-) -> JSONResponse:
-    """Check if a device has been invited."""
-    cache_key = build_cache_key(
-        CacheKeyTemplates.CACHE_KEY_DEVICE_INVITE_STATUS,
-        device_id=device_id,
-        platform=headers.get(RequestParams.PLATFORM),
-        version=headers.get(RequestParams.APP_VERSION),
-        country=headers.get(RequestParams.COUNTRY),
-    )
-
-    cached_data = await get_cache(cache, cache_key)
-    if cached_data:
-        return standard_response(
-            message=SuccessMessages.DEVICE_ALREADY_INVITED,
-            request=request,
-            data=cached_data,
-        )
-
-    data = await execute_and_transform(
-        query=UserQueries.CHECK_DEVICE_INVITE_STATUS,
-        params={RequestParams.DEVICE_ID: device_id},
-        model_class=DeviceInviteData,
-        db_session=db_session,
-    )
-
-    if not data or data[0].get(RequestParams.COUPON_ID) is None:
-        raise DeviceNotInvitedError(detail=ErrorMessages.DEVICE_NOT_INVITED)
-
-    await set_cache(cache, cache_key, data, CacheTTL.TTL_INVITE_DEVICE)
-
-    return standard_response(
-        message=SuccessMessages.DEVICE_ALREADY_INVITED,
-        request=request,
-        data=data,
-    )
 
 
 @router.post("/invite")
@@ -159,7 +112,7 @@ async def invite_device(
     )
 
 
-@router.post("/register")
+@router.post("/device_registration")
 async def register_device(
     request: Request,
     payload: EncryptedRequest,

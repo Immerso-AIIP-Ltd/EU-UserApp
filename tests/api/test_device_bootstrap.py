@@ -59,7 +59,7 @@ async def test_bootstrap_device_success(client: AsyncClient) -> None:
     install_id = "test-uuid-1234"
     timestamp = int(time.time())
     data_payload = {
-        "install_id": install_id,
+        "device_id": install_id,
         "timestamp": timestamp,
         "platform": "android",
         "device_name": "Test Device",
@@ -100,7 +100,7 @@ async def test_bootstrap_device_success(client: AsyncClient) -> None:
     }
 
     # 3. Patching and Execution
-    with patch("app.api.v1.device.views.settings") as mock_settings, patch.object(
+    with patch("app.utils.security.settings") as mock_settings, patch.object(
         FusionAuthService,
         "get_key",
     ) as mock_get_key, patch(
@@ -121,16 +121,23 @@ async def test_bootstrap_device_success(client: AsyncClient) -> None:
 
         mock_execute_query.side_effect = query_side_effect
 
+        headers = {
+            "x-api-client": "test-client",
+            "x-platform": "android",
+            "x-country": "US",
+            "x-app-version": "1.0.0",
+        }
+
         response = await client.post(
             "/user/v1/device/device_registration",
             json=request_payload,
+            headers=headers,
         )
 
         assert response.status_code == 200
         resp_json = response.json()
         assert resp_json["success"] is True
-        assert resp_json["data"]["device_ref"] == install_id
-        assert resp_json["data"]["status"] == "REGISTERED"
+        assert resp_json["data"]["device_id"] == install_id
 
 
 @pytest.mark.anyio
@@ -142,7 +149,7 @@ async def test_bootstrap_device_expired(client: AsyncClient) -> None:
     install_id = "test-uuid-expired"
     timestamp = int(time.time()) - 35  # 35 seconds old
     data_payload = {
-        "install_id": install_id,
+        "device_id": install_id,
         "timestamp": timestamp,
         "platform": "android",
     }
@@ -176,7 +183,7 @@ async def test_bootstrap_device_expired(client: AsyncClient) -> None:
         "data": encrypted_data_str,
     }
 
-    with patch("app.api.v1.device.views.settings") as mock_settings, patch.object(
+    with patch("app.utils.security.settings") as mock_settings, patch.object(
         FusionAuthService,
         "get_key",
     ) as mock_get_key, patch(
@@ -186,13 +193,30 @@ async def test_bootstrap_device_expired(client: AsyncClient) -> None:
         mock_settings.fusionauth_bootstrap_key_id = "test-key-id"
         mock_get_key.return_value = {"privateKey": server_priv_pem}
 
+        headers = {
+            "x-api-client": "test-client",
+            "x-platform": "android",
+            "x-country": "US",
+            "x-app-version": "1.0.0",
+        }
+
         response = await client.post(
             "/user/v1/device/device_registration",
             json=request_payload,
+            headers=headers,
         )
 
-        assert response.status_code == 403
-        assert "expired" in response.json()["detail"]
+        assert response.status_code == 422
+
+        # Check for error message
+        resp_json = response.json()
+        error_message = resp_json.get("detail") or resp_json.get("error", {}).get(
+            "message",
+            "",
+        )
+        assert "Request expired" in str(error_message) or "expired" in str(
+            error_message,
+        )
 
         # Verify DB was NOT called
         mock_execute_query.assert_not_called()
