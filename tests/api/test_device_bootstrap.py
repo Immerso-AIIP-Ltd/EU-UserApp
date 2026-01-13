@@ -147,7 +147,7 @@ async def test_bootstrap_device_expired(client: AsyncClient) -> None:
 
     # 2. Prepare Payload (EXPIRED)
     install_id = "test-uuid-expired"
-    timestamp = int(time.time()) - 35  # 35 seconds old
+    timestamp = int(time.time()) - 310  # 310 seconds old (exceeds 300s leeway)
     data_payload = {
         "device_id": install_id,
         "timestamp": timestamp,
