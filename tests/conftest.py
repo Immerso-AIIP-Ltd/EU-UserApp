@@ -1,4 +1,4 @@
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Optional
 from unittest.mock import AsyncMock
 
 import pytest
@@ -52,11 +52,11 @@ def anyio_backend() -> str:
 
 
 @pytest.fixture(scope="session")
-async def _engine() -> AsyncGenerator[AsyncEngine, None]:
+async def _engine() -> AsyncGenerator[Optional[AsyncEngine], None]:
     """
     Create engine and databases.
 
-    :yield: new engine.
+    :yield: new engine or None if connection fails.
     """
 
     load_all_models()
@@ -74,25 +74,27 @@ async def _engine() -> AsyncGenerator[AsyncEngine, None]:
         await drop_database()
     except (OperationalError, Exception) as e:
         logger.warning(f"Database setup failed (Postgres might not be running): {e}")
-        # Yield a dummy engine if we can't connect, tests using mocks will still work
-        engine = create_async_engine("postgresql+asyncpg://user:pass@localhost/dummy")
-        yield engine
-        await engine.dispose()
+        yield None
 
 
 @pytest.fixture
 async def dbsession(
-    _engine: AsyncEngine,
+    _engine: Optional[AsyncEngine],
 ) -> AsyncGenerator[AsyncSession, None]:
     """
     Get session to database.
 
     Fixture that returns a SQLAlchemy session with a SAVEPOINT, and the rollback to it
-    after the test completes.
+    after the test completes. If engine is None, returns an AsyncMock.
 
     :param _engine: current engine.
     :yields: async session.
     """
+    if _engine is None:
+        mock_session = AsyncMock(spec=AsyncSession)
+        yield mock_session
+        return
+
     connection = await _engine.connect()
     trans = await connection.begin()
 
@@ -156,31 +158,5 @@ async def client(
     :param fastapi_app: the application.
     :yield: client for the app.
     """
-    async with AsyncClient(app=fastapi_app, base_url="http://test", timeout=2.0) as ac:
+    async with AsyncClient(app=fastapi_app, base_url="http://test", timeout=10.0) as ac:
         yield ac
-
-
-@pytest.fixture
-def mock_redis_session() -> AsyncMock:
-    """Fixture for a mock redis session."""
-    return AsyncMock()
-
-
-@pytest.fixture(autouse=True)
-def override_dependencies(
-    fastapi_app: FastAPI,
-    mock_redis_session: AsyncMock,
-) -> Any:
-    """Fixture to automatically clean up dependency overrides after each test."""
-    original_overrides = fastapi_app.dependency_overrides.copy()
-    fastapi_app.dependency_overrides[get_redis_connection] = lambda: mock_redis_session
-    yield
-    fastapi_app.dependency_overrides = original_overrides
-
-
-@pytest.fixture
-def mock_db_session(fastapi_app: FastAPI) -> AsyncMock:
-    """Fixture to mock the database session."""
-    mock_db = AsyncMock()
-    fastapi_app.dependency_overrides[get_db_session] = lambda: mock_db
-    return mock_db

@@ -1,18 +1,21 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import HeaderKeys, RequestParams, SuccessMessages
+from app.core.constants import RequestParams, SuccessMessages
+from tests.api.mock_data import mock_user
+from tests.api.test_helper import assert_endpoint_success, get_auth_headers
 
-
-@pytest.fixture
-def dbsession() -> AsyncMock:
-    return AsyncMock()
+LOGIN_ENDPOINT = "/user/v1/user/login"
 
 
 @pytest.mark.anyio
-async def test_login_success(client: AsyncClient, dbsession: AsyncMock) -> None:
+async def test_login_success(
+    client: AsyncClient,
+    dbsession: AsyncSession,
+) -> None:
     # Mocks
     mock_decrypted_payload = {
         "email": "test@example.com",
@@ -21,22 +24,20 @@ async def test_login_success(client: AsyncClient, dbsession: AsyncMock) -> None:
         "mobile": None,
     }
 
-    mock_user = {
-        "id": 1,
-        "email": "test@example.com",
-        "name": "Test User",
-    }
-
-    mock_profile = {
-        "user_id": "1",
-        "email": "test@example.com",
-        "name": "Test User",
-        "image": "http://example.com/avatar.jpg",
-    }
+    user = mock_user()
 
     mock_token = "mock_auth_token"  # noqa: S105
     mock_refresh_token = "mock_refresh_token"  # noqa: S105
     mock_expires_at = 3600
+
+    # DB mocks
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = user
+
+    mock_profile_result = MagicMock()
+    mock_profile_result.mappings.return_value.all.return_value = [
+        {"email": "test@example.com"},
+    ]
 
     # Patching dependencies
     with patch(
@@ -51,60 +52,41 @@ async def test_login_success(client: AsyncClient, dbsession: AsyncMock) -> None:
     ) as mock_execute_and_transform:
 
         mock_login_user.return_value = (
-            mock_user,
+            user,
             mock_token,
             mock_refresh_token,
             mock_expires_at,
         )
-        mock_execute_and_transform.return_value = [mock_profile]
+        mock_execute_and_transform.return_value = [{"email": "test@example.com"}]
 
-        # Request payload (EncryptedRequest content doesn't matter due to mock)
-        payload = {"key": "encrypted_key", "data": "encrypted_data"}
+        payload = {"key": "k", "data": "d"}
 
-        headers = {
-            HeaderKeys.X_DEVICE_ID: "device-123",
-            HeaderKeys.X_API_CLIENT: "client-123",
-            HeaderKeys.X_PLATFORM: "android",
-            HeaderKeys.X_COUNTRY: "US",
-            HeaderKeys.X_APP_VERSION: "1.0.0",
-        }
-
-        response = await client.post(
-            "/user/v1/user/login",
-            json=payload,
-            headers=headers,
+        data = await assert_endpoint_success(
+            client,
+            "POST",
+            LOGIN_ENDPOINT,
+            SuccessMessages.USER_LOGGED_IN,
+            payload=payload,
         )
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["message"] == SuccessMessages.USER_LOGGED_IN
         assert data["data"][RequestParams.AUTH_TOKEN] == mock_token
         assert data["data"][RequestParams.REFRESH_TOKEN] == mock_refresh_token
         assert (
-            data["data"][RequestParams.USER][RequestParams.EMAIL]
-            == mock_profile["email"]
+            data["data"][RequestParams.USER][RequestParams.EMAIL] == "test@example.com"
         )
 
 
 @pytest.mark.anyio
 async def test_login_bypass_load_test(
     client: AsyncClient,
-    dbsession: AsyncMock,
+    dbsession: AsyncSession,
 ) -> None:
-    # Test for load test bypass
     from app.settings import settings
 
     payload = {"email": "test@example.com", "password": "password123"}
 
-    headers = {
-        HeaderKeys.X_DEVICE_ID: "device-123",
-        HeaderKeys.X_API_CLIENT: "client-123",
-        HeaderKeys.X_LOAD_TEST_BYPASS: settings.load_test_bypass_secret,
-        HeaderKeys.X_PLATFORM: "android",
-        HeaderKeys.X_COUNTRY: "US",
-        HeaderKeys.X_APP_VERSION: "1.0.0",
-    }
+    headers = get_auth_headers()
+    headers["x-load-test-bypass"] = settings.load_test_bypass_secret
 
     mock_user_row = {"id": 1, "email": "test@example.com", "name": "Test User"}
 
@@ -112,35 +94,26 @@ async def test_login_bypass_load_test(
         "app.api.v1.login.views.execute_query",
         new_callable=AsyncMock,
     ) as mock_execute_query:
-        # Mocking database response for user fetch
         mock_execute_query.return_value = [mock_user_row]
 
-        response = await client.post(
-            "/user/v1/user/login",
-            json=payload,
+        data = await assert_endpoint_success(
+            client,
+            "POST",
+            LOGIN_ENDPOINT,
+            SuccessMessages.USER_LOGGED_IN,
+            payload=payload,
             headers=headers,
         )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
         assert data["data"][RequestParams.USER][RequestParams.NAME] == "Load Test User"
 
 
 @pytest.mark.anyio
 async def test_forgot_password_success(
     client: AsyncClient,
-    dbsession: AsyncMock,
+    dbsession: AsyncSession,
 ) -> None:
     mock_decrypted = {"email": "test@example.com"}
     payload = {"key": "k", "data": "d"}
-    headers = {
-        HeaderKeys.X_DEVICE_ID: "dev",
-        HeaderKeys.X_API_CLIENT: "cli",
-        HeaderKeys.X_PLATFORM: "android",
-        HeaderKeys.X_COUNTRY: "US",
-        HeaderKeys.X_APP_VERSION: "1",
-    }
 
     with patch(
         "app.api.v1.login.views.SecurityService.decrypt_payload",
@@ -155,30 +128,22 @@ async def test_forgot_password_success(
     ):
 
         mock_service.return_value = "Reset link sent"
-        response = await client.post(
+        await assert_endpoint_success(
+            client,
+            "POST",
             "/user/v1/user/forgot_password",
-            json=payload,
-            headers=headers,
+            "Reset link sent",
+            payload=payload,
         )
-
-        assert response.status_code == 200
-        assert response.json()["message"] == "Reset link sent"
 
 
 @pytest.mark.anyio
 async def test_set_forgot_password_success(
     client: AsyncClient,
-    dbsession: AsyncMock,
+    dbsession: AsyncSession,
 ) -> None:
     mock_decrypted = {"email": "test@example.com", "password": "newpassword123"}
     payload = {"key": "k", "data": "d"}
-    headers = {
-        HeaderKeys.X_DEVICE_ID: "dev",
-        HeaderKeys.X_API_CLIENT: "cli",
-        HeaderKeys.X_PLATFORM: "android",
-        HeaderKeys.X_COUNTRY: "US",
-        HeaderKeys.X_APP_VERSION: "1",
-    }
 
     with patch(
         "app.api.v1.login.views.SecurityService.decrypt_payload",
@@ -189,30 +154,25 @@ async def test_set_forgot_password_success(
     ) as mock_service:
 
         mock_service.return_value = ("mock_token", "mock_refresh_token", 3600)
-        response = await client.post(
+        data = await assert_endpoint_success(
+            client,
+            "POST",
             "/user/v1/user/set_forgot_password",
-            json=payload,
-            headers=headers,
+            SuccessMessages.PASSWORD_RESET_SUCCESS,
+            payload=payload,
         )
-
-        assert response.status_code == 200
-        assert response.json()["data"]["auth_token"] == "mock_token"  # noqa: S105
+        assert data["data"]["auth_token"] == "mock_token"  # noqa: S105
 
 
 @pytest.mark.anyio
 async def test_change_password_success(
     client: AsyncClient,
-    dbsession: AsyncMock,
+    dbsession: AsyncSession,
 ) -> None:
+    import uuid
+
     payload = {"new_password": "p1", "new_password_confirm": "p1"}
-    headers = {
-        HeaderKeys.X_DEVICE_ID: "dev",
-        HeaderKeys.X_API_CLIENT: "cli",
-        HeaderKeys.X_PLATFORM: "android",
-        HeaderKeys.X_COUNTRY: "US",
-        HeaderKeys.X_APP_VERSION: "1",
-        HeaderKeys.X_API_TOKEN: "token",
-    }
+    headers = get_auth_headers(token="valid_token")  # noqa: S106
 
     with patch(
         "app.api.v1.login.views.AuthService.verify_user_token",
@@ -222,27 +182,23 @@ async def test_change_password_success(
         new_callable=AsyncMock,
     ) as _:
 
-        mock_verify.return_value = "user-uuid"
-        response = await client.put(
+        mock_verify.return_value = str(uuid.uuid4())
+        await assert_endpoint_success(
+            client,
+            "PUT",
             "/user/v1/user/change_password",
-            json=payload,
+            SuccessMessages.PASSWORD_CHANGED_SUCCESS,
+            payload=payload,
             headers=headers,
         )
 
-        assert response.status_code == 200
-        assert response.json()["message"] == SuccessMessages.PASSWORD_CHANGED_SUCCESS
-
 
 @pytest.mark.anyio
-async def test_refresh_token_success(client: AsyncClient, dbsession: AsyncMock) -> None:
+async def test_refresh_token_success(
+    client: AsyncClient,
+    dbsession: AsyncSession,
+) -> None:
     payload = {"refresh_token": "rt"}
-    headers = {
-        HeaderKeys.X_DEVICE_ID: "dev",
-        HeaderKeys.X_API_CLIENT: "cli",
-        HeaderKeys.X_PLATFORM: "android",
-        HeaderKeys.X_COUNTRY: "US",
-        HeaderKeys.X_APP_VERSION: "1",
-    }
 
     with patch(
         "app.api.v1.login.views.AuthService.refresh_access_token",
@@ -252,12 +208,13 @@ async def test_refresh_token_success(client: AsyncClient, dbsession: AsyncMock) 
         new_callable=AsyncMock,
         return_value=True,
     ):
-        mock_refresh.return_value = ("new_at", "new_rt", 3600)
-        response = await client.post(
-            "/user/v1/user/refresh_token",
-            json=payload,
-            headers=headers,
-        )
 
-        assert response.status_code == 200
-        assert response.json()["data"][RequestParams.AUTH_TOKEN] == "new_at"
+        mock_refresh.return_value = ("new_at", "new_rt", "expiry")
+        data = await assert_endpoint_success(
+            client,
+            "POST",
+            "/user/v1/user/refresh_token",
+            SuccessMessages.TOKEN_REFRESHED_SUCCESSFULLY,
+            payload=payload,
+        )
+        assert data["data"][RequestParams.AUTH_TOKEN] == "new_at"

@@ -2,28 +2,22 @@ from unittest.mock import ANY, AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import HeaderKeys, SuccessMessages
+from app.core.constants import SuccessMessages
+from tests.api.mock_data import USER_ID
+from tests.api.test_helper import assert_endpoint_success, get_auth_headers
 
-
-@pytest.fixture
-def dbsession() -> AsyncMock:
-    return AsyncMock()
+LOGOUT_ENDPOINT = "/user/v1/auth/user/logout"
+DEACTIVATE_ENDPOINT = "/user/v1/auth/user/deactivate"
 
 
 @pytest.mark.anyio
-async def test_logout_success(client: AsyncClient, dbsession: AsyncMock) -> None:
+async def test_logout_success(client: AsyncClient, dbsession: AsyncSession) -> None:
     # Mocks
-    mock_user_id = "test-user-uuid"
-
-    headers = {
-        HeaderKeys.X_API_CLIENT: "test-client",
-        HeaderKeys.X_DEVICE_ID: "test-device",
-        HeaderKeys.X_PLATFORM: "android",
-        HeaderKeys.X_COUNTRY: "US",
-        HeaderKeys.X_APP_VERSION: "1.0.0",
-        HeaderKeys.X_API_TOKEN: "test-token",
-    }
+    mock_user_uuid = str(USER_ID)
+    token = "test-token"  # noqa: S105
+    headers = get_auth_headers(token=token)
 
     with patch(
         "app.api.v1.logout.views.AuthService.verify_user_token",
@@ -33,37 +27,31 @@ async def test_logout_success(client: AsyncClient, dbsession: AsyncMock) -> None
         new_callable=AsyncMock,
     ) as mock_logout:
 
-        mock_verify.return_value = mock_user_id
+        mock_verify.return_value = mock_user_uuid
 
-        response = await client.post("/user/v1/auth/user/logout", headers=headers)
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["message"] == SuccessMessages.USER_LOGGED_OUT_SUCCESS
+        await assert_endpoint_success(
+            client,
+            "POST",
+            LOGOUT_ENDPOINT,
+            SuccessMessages.USER_LOGGED_OUT_SUCCESS,
+            headers=headers,
+        )
 
         mock_logout.assert_called_once_with(
-            user_uuid=mock_user_id,
-            token="test-token",  # noqa: S106
-            device_id="test-device",
+            user_uuid=mock_user_uuid,
+            token=token,
+            device_id=headers["x-device-id"],
             db_session=dbsession,
             cache=ANY,
         )
 
 
 @pytest.mark.anyio
-async def test_deactivate_success(client: AsyncClient, dbsession: AsyncMock) -> None:
+async def test_deactivate_success(client: AsyncClient, dbsession: AsyncSession) -> None:
     # Mocks
-    mock_user_id = "test-user-uuid"
-
-    headers = {
-        HeaderKeys.X_API_CLIENT: "test-client",
-        HeaderKeys.X_DEVICE_ID: "test-device",
-        HeaderKeys.X_PLATFORM: "android",
-        HeaderKeys.X_COUNTRY: "US",
-        HeaderKeys.X_APP_VERSION: "1.0.0",
-        HeaderKeys.X_API_TOKEN: "test-token",
-    }
+    mock_user_uuid = str(USER_ID)
+    token = "test-token"  # noqa: S105
+    headers = get_auth_headers(token=token)
 
     with patch(
         "app.api.v1.logout.views.AuthService.verify_user_token",
@@ -73,19 +61,20 @@ async def test_deactivate_success(client: AsyncClient, dbsession: AsyncMock) -> 
         new_callable=AsyncMock,
     ) as mock_deactivate:
 
-        mock_verify.return_value = mock_user_id
+        mock_verify.return_value = mock_user_uuid
 
-        response = await client.post("/user/v1/auth/user/deactivate", headers=headers)
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["message"] == SuccessMessages.USER_DEACTIVATED_SUCCESS
+        await assert_endpoint_success(
+            client,
+            "POST",
+            DEACTIVATE_ENDPOINT,
+            SuccessMessages.USER_DEACTIVATED_SUCCESS,
+            headers=headers,
+        )
 
         mock_deactivate.assert_called_once_with(
-            user_uuid=mock_user_id,
-            token="test-token",  # noqa: S106
-            device_id="test-device",
+            user_uuid=mock_user_uuid,
+            token=token,
+            device_id=headers["x-device-id"],
             db_session=dbsession,
             cache=ANY,
         )

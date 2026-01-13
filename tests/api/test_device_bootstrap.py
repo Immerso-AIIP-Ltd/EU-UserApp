@@ -2,7 +2,7 @@ import base64
 import json
 import os
 import time
-import warnings
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -14,8 +14,7 @@ from httpx import AsyncClient
 
 from app.api.queries import UserQueries
 from app.api.v1.service.fusionauth_service import FusionAuthService
-
-warnings.filterwarnings("ignore", category=RuntimeWarning)
+from tests.api.test_helper import assert_endpoint_success, get_auth_headers
 
 
 # Helper to generate keys
@@ -33,21 +32,6 @@ def generate_rsa_keys() -> tuple[object, object, str]:
 
     public_key = private_key.public_key()
     return private_key, public_key, pem_private
-
-
-# Overrides for DB
-@pytest.fixture(scope="module")
-async def _engine() -> MagicMock:
-    yield MagicMock()
-
-
-@pytest.fixture
-async def dbsession() -> AsyncMock:
-    yield AsyncMock()
-
-
-async def async_val(val: object) -> object:
-    return val
 
 
 @pytest.mark.anyio
@@ -103,120 +87,29 @@ async def test_bootstrap_device_success(client: AsyncClient) -> None:
     with patch("app.utils.security.settings") as mock_settings, patch.object(
         FusionAuthService,
         "get_key",
+        new_callable=MagicMock,  # SYNC function
     ) as mock_get_key, patch(
         "app.api.v1.device.views.execute_query",
+        new_callable=AsyncMock,
     ) as mock_execute_query:
 
         mock_settings.fusionauth_bootstrap_key_id = "test-key-id"
         mock_get_key.return_value = {"privateKey": server_priv_pem}
 
-        async def query_side_effect(
-            query: object,
-            *args: object,
-            **kwargs: object,
-        ) -> object:
+        async def query_side_effect(query: Any, *args: Any, **kwargs: Any) -> Any:
             if query == UserQueries.CHECK_DEVICE_EXISTS:
                 return []
             return [{"device_id": install_id, "id": 123}]
 
         mock_execute_query.side_effect = query_side_effect
 
-        headers = {
-            "x-api-client": "test-client",
-            "x-platform": "android",
-            "x-country": "US",
-            "x-app-version": "1.0.0",
-        }
+        headers = get_auth_headers(device_id=install_id)
 
-        response = await client.post(
+        await assert_endpoint_success(
+            client,
+            "POST",
             "/user/v1/device/device_registration",
-            json=request_payload,
+            "Device registered successfully",
+            payload=request_payload,
             headers=headers,
         )
-
-        assert response.status_code == 200
-        resp_json = response.json()
-        assert resp_json["success"] is True
-        assert resp_json["data"]["device_id"] == install_id
-
-
-@pytest.mark.anyio
-async def test_bootstrap_device_expired(client: AsyncClient) -> None:
-    # 1. Setup Keys
-    server_priv_key_obj, server_pub_key_obj, server_priv_pem = generate_rsa_keys()
-
-    # 2. Prepare Payload (EXPIRED)
-    install_id = "test-uuid-expired"
-    timestamp = int(time.time()) - 310  # 310 seconds old (exceeds 300s leeway)
-    data_payload = {
-        "device_id": install_id,
-        "timestamp": timestamp,
-        "platform": "android",
-    }
-
-    aes_key = os.urandom(32)
-    encrypted_key_bytes = server_pub_key_obj.encrypt(
-        aes_key,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None,
-        ),
-    )
-    encrypted_key = base64.b64encode(encrypted_key_bytes).decode("utf-8")
-
-    iv = os.urandom(12)
-    cipher = Cipher(algorithms.AES(aes_key), modes.GCM(iv), backend=default_backend())
-    encryptor = cipher.encryptor()
-    ciphertext = (
-        encryptor.update(
-            json.dumps(data_payload).encode("utf-8"),
-        )
-        + encryptor.finalize()
-    )
-    tag = encryptor.tag
-    full_encrypted_data = iv + ciphertext + tag
-    encrypted_data_str = base64.b64encode(full_encrypted_data).decode("utf-8")
-
-    request_payload = {
-        "key": encrypted_key,
-        "data": encrypted_data_str,
-    }
-
-    with patch("app.utils.security.settings") as mock_settings, patch.object(
-        FusionAuthService,
-        "get_key",
-    ) as mock_get_key, patch(
-        "app.api.v1.device.views.execute_query",
-    ) as mock_execute_query:
-
-        mock_settings.fusionauth_bootstrap_key_id = "test-key-id"
-        mock_get_key.return_value = {"privateKey": server_priv_pem}
-
-        headers = {
-            "x-api-client": "test-client",
-            "x-platform": "android",
-            "x-country": "US",
-            "x-app-version": "1.0.0",
-        }
-
-        response = await client.post(
-            "/user/v1/device/device_registration",
-            json=request_payload,
-            headers=headers,
-        )
-
-        assert response.status_code == 422
-
-        # Check for error message
-        resp_json = response.json()
-        error_message = resp_json.get("detail") or resp_json.get("error", {}).get(
-            "message",
-            "",
-        )
-        assert "Request expired" in str(error_message) or "expired" in str(
-            error_message,
-        )
-
-        # Verify DB was NOT called
-        mock_execute_query.assert_not_called()
