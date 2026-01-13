@@ -1,6 +1,9 @@
 import logging
+from datetime import datetime, timedelta
 from typing import Any, Sequence, Union
 
+import jwt
+import pytz  # type: ignore[import-untyped]
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
@@ -19,10 +22,12 @@ from app.api.v1.schemas import (
 )
 from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.change_password_service import ChangePasswordService
+from app.api.v1.service.device_service import DeviceService
 from app.api.v1.service.forgot_password_service import ForgotPasswordService
 from app.api.v1.service.login_service import LoginService
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import (
+    AuthConfig,
     ErrorMessages,
     HeaderKeys,
     ProcessParams,
@@ -31,6 +36,7 @@ from app.core.constants import (
 )
 from app.core.exceptions import (
     DecryptionFailedError,
+    DeviceNotRegisteredError,
     EmailMobileRequiredError,
     InvalidInputError,
     UserNotFoundError,
@@ -68,7 +74,6 @@ async def login_user(
             )
             login_data = LoginRequest(**decrypted_payload)
         except Exception as e:
-            logger.exception(f"Login decryption failed: {e}")
             raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
     else:
         # If it's already LoginRequest, use it directly (Postman convenience)
@@ -108,14 +113,6 @@ async def login_user(
 
         user_data = user_rows[0]
         user_id = user_data["id"]
-
-        # Generate real token logic (Manually to verify fixing load tests)
-        from datetime import datetime, timedelta
-
-        import jwt
-        import pytz
-
-        from app.core.constants import AuthConfig
 
         # Use settings for secret
         secret = settings.jwt_secret_key
@@ -202,6 +199,14 @@ async def forgot_password(
 ) -> JSONResponse:
     """Forgot password handler using Encrypted email or mobile."""
 
+    # 0. Check if device is registered
+    device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
+    if not device_id or not await DeviceService.is_device_registered(
+        device_id,
+        db,
+    ):
+        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
     try:
         decrypted_payload = SecurityService.decrypt_payload(
             encrypted_key=payload.key,
@@ -209,7 +214,6 @@ async def forgot_password(
         )
         forgot_payload = ForgotPasswordRequest(**decrypted_payload)
     except Exception as e:
-        logger.exception(f"Forgot password decryption failed: {e}")
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
 
     # Validate email or mobile
@@ -259,7 +263,6 @@ async def set_forgot_password(
         )
         set_forgot_payload = SetForgotPasswordRequest(**decrypted_payload)
     except Exception as e:
-        logger.exception(f"Set forgot password decryption failed: {e}")
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
 
     device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
@@ -267,7 +270,7 @@ async def set_forgot_password(
         HeaderKeys.API_CLIENT,
     )
 
-    token, expires_at = await ForgotPasswordService.set_forgot_password(
+    token, refresh_token, expires_at = await ForgotPasswordService.set_forgot_password(
         db=db,
         email=str(set_forgot_payload.email),
         password=set_forgot_payload.password,
@@ -277,10 +280,11 @@ async def set_forgot_password(
     )
 
     response_data = {
-        "auth_token": token,
+        RequestParams.AUTH_TOKEN: token,
+        RequestParams.REFRESH_TOKEN: refresh_token,
         "token": "",
         "token_secret": "",
-        "auth_token_expiry": expires_at,
+        RequestParams.AUTH_TOKEN_EXPIRY: expires_at,
     }
 
     return standard_response(
@@ -331,6 +335,13 @@ async def refresh_token(
 ) -> JSONResponse:
     """Refresh access token using refresh token."""
     device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
+
+    # 0. Check if device is registered
+    if not device_id or not await DeviceService.is_device_registered(
+        device_id,
+        db_session,
+    ):
+        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
 
     if not device_id:
         raise InvalidInputError(ErrorMessages.DEVICE_ID_MISSING)

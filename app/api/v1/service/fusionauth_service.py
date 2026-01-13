@@ -1,3 +1,4 @@
+import json
 from typing import Any, Dict, List, Optional
 
 import jwt
@@ -49,7 +50,7 @@ class FusionAuthService:
         except Exception as e:
             raise FusionAuthError(
                 http_code=HTTPStatus.UNAUTHORIZED,
-                detail=ErrorMessages.FUSION_AUTH_VALIDATION_ERROR,
+                detail=f"{ErrorMessages.FUSION_AUTH_VALIDATION_ERROR}: {e!s}",
             ) from e
 
     @classmethod
@@ -141,9 +142,13 @@ class FusionAuthService:
         if response.was_successful():
             return response.success_response["token"]
 
+        error_detail = ErrorMessages.FUSION_AUTH_TOKEN_ERROR
+        if response.error_response:
+            error_detail = f"{error_detail}: {json.dumps(response.error_response)}"
+
         raise FusionAuthError(
             http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=ErrorMessages.FUSION_AUTH_TOKEN_ERROR,
+            detail=error_detail,
         )
 
     @classmethod

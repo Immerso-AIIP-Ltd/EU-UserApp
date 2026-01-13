@@ -1,6 +1,6 @@
+import contextlib
 from typing import Any
 
-from loguru import logger
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,6 +47,8 @@ class DeviceService:
             "is_rooted": attrs.get("is_rooted", False),
             "is_jailbroken": attrs.get("is_jailbroken", False),
             "push_token": attrs.get("push_token", None),
+            "user_id": attrs.get("user_id", None),
+            "user_token": attrs.get("user_token", None),
         }
 
         await execute_query(UserQueries.INSERT_DEVICE, params, db_session)
@@ -116,14 +118,12 @@ class DeviceService:
         )
 
         # Get updated device to sync
-        try:
+        with contextlib.suppress(Exception):
             device = await DeviceService.get_device(device_id, final_session)
             # Auto-sync to Redis
             if device.get("push_token") and cache:
                 redis_service = DeviceTokenRedisService(cache)
                 await redis_service.store_device_token_in_redis(device, final_user_uuid)
-        except Exception as e:
-            logger.error(f"Failed to sync device token: {e}")
 
     @staticmethod
     async def deactivate_device(
@@ -136,7 +136,6 @@ class DeviceService:
         try:
             device = await DeviceService.get_device(device_id, db_session)
         except DeviceNotRegisteredError:
-            logger.warning(f"Device {device_id} not found during deactivation")
             return
 
         await execute_query(
@@ -146,11 +145,9 @@ class DeviceService:
         )
 
         if device.get("push_token"):
-            try:
+            with contextlib.suppress(Exception):
                 redis_service = DeviceTokenRedisService(cache)
                 await redis_service.remove_device_token_from_redis(device, user_uuid)
-            except Exception as e:
-                logger.error(f"Failed to remove device token: {e}")
 
     @staticmethod
     async def ensure_device(

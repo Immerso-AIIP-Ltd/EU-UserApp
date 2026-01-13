@@ -7,10 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.queries import UserQueries
 from app.api.v1.service.apple_oauth_service import AppleOAuthService
 from app.api.v1.service.auth_service import AuthService
+from app.api.v1.service.device_service import DeviceService
 from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
 from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.api.v1.service.google_oauth_service import GoogleOAuthService
 from app.core.constants import DeviceNames, ErrorMessages
+from app.core.exceptions.exceptions import DeviceNotRegisteredError
 from app.db.models.user_app import User
 from app.db.utils import execute_query
 
@@ -97,14 +99,21 @@ class SocialLoginService:
 
         # 5. Generate Auth Token
         # 5. Generate Auth Token
-        from app.db.models.user_app import User
+        # 5. Generate Auth Token
+
+        device_id = request_data.get("device_id")
+        if not device_id or not await DeviceService.is_device_registered(
+            device_id,
+            db_session,
+        ):
+            raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
 
         token, expires_at = await AuthService.generate_token(
             user=User(id=user_id),
             client_id=request_data["client_id"],
             db_session=db_session,
             cache=cache,
-            device_id=request_data["device_id"],
+            device_id=device_id,
         )
 
         # FusionAuth Integration
@@ -231,14 +240,21 @@ class SocialLoginService:
         )
 
         # 5. Generate Auth Token
-        from app.db.models.user_app import User
+        # 5. Generate Auth Token
+
+        device_id = request_data.get("device_id")
+        if not device_id or not await DeviceService.is_device_registered(
+            device_id,
+            db_session,
+        ):
+            raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
 
         token, expires_at = await AuthService.generate_token(
             user=User(id=user_id),
             client_id=request_data["client_id"],
             db_session=db_session,
             cache=cache,
-            device_id=request_data["device_id"],
+            device_id=device_id,
         )
 
         # FusionAuth Integration
@@ -365,12 +381,21 @@ class SocialLoginService:
         )
 
         # 5. Generate Auth Token
+        # 5. Generate Auth Token
+
+        device_id = request_data.get("device_id")
+        if not device_id or not await DeviceService.is_device_registered(
+            device_id,
+            db_session,
+        ):
+            raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
         token, expires_at = await AuthService.generate_token(
             user=User(id=user_id),
             client_id=request_data["client_id"],
             db_session=db_session,
             cache=cache,
-            device_id=request_data["device_id"],
+            device_id=device_id,
         )
 
         # FusionAuth Integration

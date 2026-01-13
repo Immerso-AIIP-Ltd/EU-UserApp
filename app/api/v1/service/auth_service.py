@@ -1,4 +1,5 @@
 import asyncio
+import time
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
@@ -6,7 +7,6 @@ from typing import Any, Dict, Optional
 import bcrypt
 import jwt
 import pytz  # type: ignore
-from loguru import logger
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +15,6 @@ from app.api.queries import UserQueries
 from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.core.constants import (
     AuthConfig,
-    AuthLogMessages,
     CacheKeyTemplates,
     CacheValues,
     ErrorMessages,
@@ -23,7 +22,12 @@ from app.core.constants import (
     LoginParams,
     RequestParams,
 )
-from app.core.exceptions.exceptions import InvalidServiceTokenError
+from app.core.exceptions.exceptions import (
+    DeviceNotRegisteredError,
+    FailedToGenerateRefreshTokenError,
+    InvalidServiceTokenError,
+    UnauthorizedError,
+)
 from app.db.models.user_app import AppConsumer, User, UserAuthToken
 from app.db.utils import execute_query
 from app.settings import settings
@@ -48,8 +52,7 @@ class AuthService:
                 plain.encode(LoginParams.UTF8),
                 hashed.encode(LoginParams.UTF8),
             )
-        except Exception as e:
-            logger.error(AuthLogMessages.BCRYPT_VERIFICATION_FAILED.format(e))
+        except Exception:
             return False
 
     @staticmethod
@@ -106,15 +109,14 @@ class AuthService:
         except Exception:
             try:
                 return FusionAuthService.verify_token(token)
-            except Exception as e:
-                logger.error(AuthLogMessages.JWT_DECODE_FAILED.format(e))
+            except Exception:
                 return None
 
     @staticmethod
     async def verify_user_token(
         headers: Dict[str, Any],
         db_session: AsyncSession,
-        device_id: Optional[str] = None,
+        device_id_arg: Optional[str] = None,
     ) -> str:
         """Verify user token from headers and return user_id."""
         api_client = headers.get(HeaderKeys.X_API_CLIENT) or headers.get(
@@ -123,23 +125,33 @@ class AuthService:
         api_token = headers.get(HeaderKeys.X_API_TOKEN) or headers.get(
             HeaderKeys.API_TOKEN,
         )
+        device_id = (
+            device_id_arg
+            or headers.get(HeaderKeys.X_DEVICE_ID)
+            or headers.get(
+                HeaderKeys.DEVICE_ID,
+            )
+        )
 
         if not api_client or not api_token:
-            from app.core.exceptions import UnauthorizedError
-
             raise UnauthorizedError
 
-        # Get client secret (Only needed for HS256 fallback or legacy logic)
-        # We can optimize: Try decoding as RS256 first without DB hit for client secret?
-        # But existing flow fetches client secret. Let's keep it but handle RS256.
+        # Check if device is registered
+        from app.api.v1.service.device_service import DeviceService
+
+        if not device_id or not await DeviceService.is_device_registered(
+            device_id,
+            db_session,
+        ):
+            raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
+        # Get client secret (HS256 fallback)
         result = await execute_query(
             UserQueries.GET_CLIENT_SECRET,
             {RequestParams.CLIENT_ID: api_client},
             db_session,
         )
         if not result:
-            from app.core.exceptions import UnauthorizedError
-
             raise UnauthorizedError
 
         client_secret = result[0][RequestParams.CLIENT_SECRET]
@@ -154,8 +166,6 @@ class AuthService:
         )
 
         if not payload:
-            from app.core.exceptions import UnauthorizedError
-
             raise UnauthorizedError
 
         uuid = payload.get(RequestParams.UUID)
@@ -241,8 +251,6 @@ class AuthService:
         )
 
         if not refresh_token:
-            from app.core.exceptions.exceptions import FailedToGenerateRefreshTokenError
-
             raise FailedToGenerateRefreshTokenError
 
         # 3. Store in DB (Delete existing then Insert)
@@ -277,9 +285,6 @@ class AuthService:
     ) -> tuple[str, str, int]:
         """Validates refresh token and issues new access token."""
         # 0. Decode and Verify Signature (RS256 via FusionAuth Public Key)
-        import asyncio
-
-        from app.api.v1.service.fusionauth_service import FusionAuthService
 
         try:
             # Verify signature using FusionAuth Public Keys (cached)
@@ -290,19 +295,12 @@ class AuthService:
 
             # Basic validation
             if payload.get("type") != "refresh":
-                from app.core.exceptions.exceptions import InvalidServiceTokenError
-
                 raise InvalidServiceTokenError(message=ErrorMessages.INVALID_TOKEN_TYPE)
             if str(payload.get("device_id")) != str(device_id):
-                logger.warning(
-                    f"Refresh Token Device Mismatch: token={payload.get('device_id')} "
-                    f"req={device_id}",
-                )
+                # Device mismatch
+                pass
 
         except Exception as e:
-            logger.error(f"Refresh Token Signature Verification Failed: {e}")
-            from app.core.exceptions.exceptions import UnauthorizedError
-
             raise UnauthorizedError("Invalid or expired refresh token") from e
 
         # 1. Validate DB (ensure not revoked/rotated)
@@ -312,15 +310,12 @@ class AuthService:
             db_session,
         )
         if not rows:
-            from app.core.exceptions.exceptions import UnauthorizedError
-
             raise UnauthorizedError(message=ErrorMessages.REFRESH_TOKEN_INVALID)
 
         session = rows[0]
         user_id = str(session["user_id"])
 
         # 2. Call FusionAuth (for new Access Token)
-        import time
 
         fa_token = await asyncio.to_thread(
             FusionAuthService.issue_token,
@@ -328,8 +323,6 @@ class AuthService:
             user_details={"device_id": device_id},
         )
         if not fa_token:
-            from app.core.exceptions.exceptions import UnauthorizedError
-
             raise UnauthorizedError(message=ErrorMessages.ACCESS_TOKEN_ISSUE_FAILED)
 
         expires_at = int(time.time()) + 600

@@ -20,6 +20,7 @@ from app.api.v1.schemas import (
     VerifyOTPRegisterRequest,
 )
 from app.api.v1.service.auth_service import AuthService
+from app.api.v1.service.device_service import DeviceService
 from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.api.v1.service.register_otp import GenerateOtpService
 from app.api.v1.service.register_service import UserVerifyService
@@ -39,12 +40,10 @@ from app.core.constants import (
     SuccessMessages,
 )
 from app.core.exceptions.exceptions import (
-    CallingCodeRequiredError,
     DecryptionFailedError,
-    EmailMobileRequiredError,
+    DeviceNotRegisteredError,
     OtpExpiredError,
     OtpInvalidError,
-    PasswordRequiredError,
     RegistrationSessionClosedError,
     StateNotFoundError,
     UserCreationFailedError,
@@ -107,11 +106,14 @@ async def register_with_profile(
     request: Request,
     payload: EncryptedRequest,
     db_session: AsyncSession = Depends(get_db_session),
-    x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
+    x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
 ) -> JSONResponse:
     """Sign Up - Step 1 (Check Existence and Register) with Encryption."""
+
+    # 0. Check if device is registered
+    await _validate_device_registered(headers, db_session)
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
@@ -120,12 +122,7 @@ async def register_with_profile(
         )
         reg_payload = RegisterWithProfileRequest(**decrypted_payload)
     except Exception as e:
-        logger.exception(f"Registration decryption failed: {e}")
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
-
-    email = reg_payload.email
-    mobile = reg_payload.mobile
-    calling_code = reg_payload.calling_code
 
     # Use the injected header or request header
     x_forwarded = x_forwarded_for or request.headers.get(RequestParams.X_FORWARDED_FOR)
@@ -135,64 +132,12 @@ async def register_with_profile(
         else (request.client.host if request.client else "127.0.0.1")
     )
 
-    if email:
-        user_exists = await execute_query(
-            query=UserQueries.CHECK_USER_EXISTS,
-            params={
-                RequestParams.EMAIL: email,
-                RequestParams.MOBILE: None,
-                RequestParams.CALLING_CODE: None,
-            },
-            db_session=db_session,
-        )
-        if user_exists:
-            raise UserExistsError
-        state = await UserVerifyService.get_user_state_by_email(
-            cache,
-            email,
-            db_session,
-        )
-
-    elif mobile and calling_code:
-        user_exists = await execute_query(
-            query=UserQueries.CHECK_USER_EXISTS,
-            params={
-                RequestParams.EMAIL: None,
-                RequestParams.MOBILE: mobile,
-                RequestParams.CALLING_CODE: calling_code,
-            },
-            db_session=db_session,
-        )
-        if user_exists:
-            raise UserExistsError(
-                message=ErrorMessages.USER_ALREADY_REGISTERED,
-            )
-        state = await UserVerifyService.get_user_state_by_mobile(
-            cache,
-            mobile,
-            calling_code,
-            client_ip,
-            db_session,
-        )
-
-    else:
-        raise ValidationError(
-            message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED,
-        )
-    if not reg_payload.email and not reg_payload.mobile:
-        raise EmailMobileRequiredError(
-            message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED,
-        )
-
-    if reg_payload.mobile and not reg_payload.calling_code:
-        raise CallingCodeRequiredError(
-            message=ErrorMessages.CALLING_CODE_REQUIRED,
-        )
-
-    if not reg_payload.password:
-        raise PasswordRequiredError(
-            message=ErrorMessages.PASSWORD_REQUIRED,
-        )
+    state = await _check_user_existence_and_get_state(
+        reg_payload,
+        db_session,
+        cache,
+        client_ip,
+    )
 
     if not state:
         raise StateNotFoundError
@@ -237,6 +182,14 @@ async def verify_otp_register(
 ) -> JSONResponse:
     """Sign Up - Step 2 (Verify OTP & Create) with Encryption."""
 
+    # 0. Check if device is registered
+    device_id = headers.get(RequestParams.DEVICE_ID)
+    if not device_id or not await DeviceService.is_device_registered(
+        device_id,
+        db_session,
+    ):
+        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
     try:
         decrypted_payload = SecurityService.decrypt_payload(
             encrypted_key=payload.key,
@@ -244,7 +197,6 @@ async def verify_otp_register(
         )
         verify_payload = VerifyOTPRegisterRequest(**decrypted_payload)
     except Exception as e:
-        logger.exception(f"Verify OTP decryption failed: {e}")
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
 
     email = verify_payload.email
@@ -264,6 +216,43 @@ async def verify_otp_register(
     if not is_bypass:
         await _verify_and_consume_otp(cache, receiver, receiver_type, intent.value, otp)
 
+    if intent in [IntentEnum.FORGOT_PASSWORD, IntentEnum.UPDATE_PROFILE]:
+        return await _handle_otp_redirect_or_callback(
+            request,
+            db_session,
+            cache,
+            headers,
+            receiver,
+            receiver_type,
+            intent,
+            mobile,
+            calling_code,
+        )
+
+    # Register and Finalize
+    cached_data = await _get_cached_registration_data(cache, receiver)
+    return await _finalize_user_registration(
+        request,
+        db_session,
+        cache,
+        headers,
+        receiver_type,
+        cached_data,
+    )
+
+
+async def _handle_otp_redirect_or_callback(
+    request: Request,
+    db_session: AsyncSession,
+    cache: Redis,
+    headers: dict[str, Any],
+    receiver: str,
+    receiver_type: str,
+    intent: IntentEnum,
+    mobile: str | None = None,
+    calling_code: str | None = None,
+) -> JSONResponse:
+    """Handle redirects or callbacks after OTP verification."""
     if intent == IntentEnum.FORGOT_PASSWORD:
         redirect_url = RedirectTemplates.SET_FORGOT_PASSWORD.format(
             type=receiver_type,
@@ -277,62 +266,88 @@ async def verify_otp_register(
         )
 
     if intent == IntentEnum.UPDATE_PROFILE:
-        # Fetch user to get ID
-        if receiver_type == RequestParams.EMAIL:
-            user_rows = await execute_query(
-                query=UserQueries.GET_USER_BY_EMAIL,
-                params={RequestParams.EMAIL: receiver},
-                db_session=db_session,
-            )
-        else:
-            user_rows = await execute_query(
-                query=UserQueries.GET_USER_BY_MOBILE,
-                params={
-                    RequestParams.MOBILE: mobile,
-                    RequestParams.CALLING_CODE: calling_code,
-                },
-                db_session=db_session,
-            )
-
+        # Fetch user and update verified status
+        user_rows = await _get_user_by_receiver(
+            db_session,
+            receiver,
+            receiver_type,
+            mobile,
+            calling_code,
+        )
         if not user_rows:
             raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
 
         user_id = user_rows[0].id
-
-        # Update verification status
         await execute_query(
             query=UserQueries.UPDATE_USER_VERIFIED,
             params={RequestParams.USER_ID: user_id, "type": receiver_type},
             db_session=db_session,
         )
-
         await db_session.commit()
 
         # Invalidate Profile Cache
-        # We need to reconstruct the cache key.
-        # However, we don't have full headers here (platform, version, country)
-        # easily accessible
-        # unless passed or we iterate.
-        # But wait, standard headers should be present.
-
-        cache_key = build_cache_key(
-            CacheKeyTemplates.CACHE_KEY_USER_PROFILE,
-            **{
-                RequestParams.USER_ID: user_id,
-                RequestParams.PLATFORM: headers.get(RequestParams.PLATFORM),
-                RequestParams.VERSION: headers.get(RequestParams.APP_VERSION),
-                RequestParams.COUNTRY: headers.get(RequestParams.COUNTRY),
-            },
-        )
-        await cache.delete(cache_key)
+        await _invalidate_profile_cache(cache, user_id, headers)
 
         return standard_response(
             message=SuccessMessages.OTP_VERIFIED,
             request=request,
-            data={LoginParams.REDIRECT_URL: None},  # UI likely redirects to profile
+            data={LoginParams.REDIRECT_URL: None},
         )
-    cached_data = await _get_cached_registration_data(cache, receiver)
 
+    raise ValidationError(message="Invalid intent for redirect")
+
+
+async def _get_user_by_receiver(
+    db_session: AsyncSession,
+    receiver: str,
+    receiver_type: str,
+    mobile: str | None = None,
+    calling_code: str | None = None,
+) -> Any:
+    """Helper to fetch user based on receiver type."""
+    if receiver_type == RequestParams.EMAIL:
+        return await execute_query(
+            query=UserQueries.GET_USER_BY_EMAIL,
+            params={RequestParams.EMAIL: receiver},
+            db_session=db_session,
+        )
+    return await execute_query(
+        query=UserQueries.GET_USER_BY_MOBILE,
+        params={
+            RequestParams.MOBILE: mobile,
+            RequestParams.CALLING_CODE: calling_code,
+        },
+        db_session=db_session,
+    )
+
+
+async def _invalidate_profile_cache(
+    cache: Redis,
+    user_id: Any,
+    headers: dict[str, Any],
+) -> None:
+    """Helper to invalidate user profile cache."""
+    cache_key = build_cache_key(
+        CacheKeyTemplates.CACHE_KEY_USER_PROFILE,
+        **{
+            RequestParams.USER_ID: user_id,
+            RequestParams.PLATFORM: headers.get(RequestParams.PLATFORM),
+            RequestParams.VERSION: headers.get(RequestParams.APP_VERSION),
+            RequestParams.COUNTRY: headers.get(RequestParams.COUNTRY),
+        },
+    )
+    await cache.delete(cache_key)
+
+
+async def _finalize_user_registration(
+    request: Request,
+    db_session: AsyncSession,
+    cache: Redis,
+    headers: dict[str, Any],
+    receiver_type: str,
+    cached_data: dict[str, Any],
+) -> JSONResponse:
+    """Finalize user registration process."""
     # 3. Register User in DB
     user_rows = await _insert_user_record(db_session, cached_data, receiver_type)
     user_id = user_rows[0][ProcessParams.ID]
@@ -345,14 +360,7 @@ async def verify_otp_register(
 
     await db_session.commit()
 
-    # 6. Clear cache
-    cache_key = build_cache_key(
-        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA,
-        identifier=receiver,
-    )
-    await cache.delete(cache_key)
-
-    # 7. Device Registration and Auth Token
+    # 6. Finalize registration and auth (FusionAuth sync and token generation)
     auth_token, refresh_token, token_expiry = await _finalize_registration_and_auth(
         request,
         db_session,
@@ -361,6 +369,17 @@ async def verify_otp_register(
         cache,
         cached_data,
     )
+
+    # 7. Clear cache
+    email_val = cached_data.get(RequestParams.EMAIL)
+    mobile_val = cached_data.get(RequestParams.MOBILE)
+    cc_val = cached_data.get(RequestParams.CALLING_CODE)
+    receiver = email_val or f"{cc_val}{mobile_val}".lstrip("+")
+    cache_key = build_cache_key(
+        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA,
+        identifier=receiver,
+    )
+    await cache.delete(cache_key)
 
     # 8. Prepare response
     data_dict: dict[str, Any] = dict(user_rows[0])
@@ -374,6 +393,67 @@ async def verify_otp_register(
         message=SuccessMessages.USER_REGISTERED_VERIFIED,
         data=data_dict,
     )
+
+
+async def _validate_device_registered(
+    headers: dict[str, Any],
+    db_session: AsyncSession,
+) -> None:
+    """Validate that the device is registered."""
+    device_id = headers.get(RequestParams.DEVICE_ID)
+    if not device_id or not await DeviceService.is_device_registered(
+        device_id,
+        db_session,
+    ):
+        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
+
+async def _check_user_existence_and_get_state(
+    reg_payload: RegisterWithProfileRequest,
+    db_session: AsyncSession,
+    cache: Redis,
+    client_ip: str,
+) -> Any:
+    """Check if user exists and return the current state."""
+    email = reg_payload.email
+    mobile = reg_payload.mobile
+    calling_code = reg_payload.calling_code
+
+    if email:
+        user_exists = await execute_query(
+            query=UserQueries.CHECK_USER_EXISTS,
+            params={
+                RequestParams.EMAIL: email,
+                RequestParams.MOBILE: None,
+                RequestParams.CALLING_CODE: None,
+            },
+            db_session=db_session,
+        )
+        if user_exists:
+            raise UserExistsError
+        return await UserVerifyService.get_user_state_by_email(cache, email, db_session)
+
+    if mobile and calling_code:
+        user_exists = await execute_query(
+            query=UserQueries.CHECK_USER_EXISTS,
+            params={
+                RequestParams.EMAIL: None,
+                RequestParams.MOBILE: mobile,
+                RequestParams.CALLING_CODE: calling_code,
+            },
+            db_session=db_session,
+        )
+        if user_exists:
+            raise UserExistsError(message=ErrorMessages.USER_ALREADY_REGISTERED)
+        return await UserVerifyService.get_user_state_by_mobile(
+            cache,
+            mobile,
+            calling_code,
+            client_ip,
+            db_session,
+        )
+
+    raise ValidationError(message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED)
 
 
 async def _verify_and_consume_otp(
@@ -542,7 +622,8 @@ async def _finalize_registration_and_auth(
     device_id = headers.get(RequestParams.DEVICE_ID)
 
     # 1. Device Registration (if needed)
-    # Logic moved to separate endpoint or handled elsewhere if required.
+    # Re-verify device exists before finalization
+    await _validate_device_registered(headers, db_session)
 
     # 2. Sync to FusionAuth and Issue Token
     auth_token = None
@@ -611,6 +692,14 @@ async def resend_otp(
 ) -> JSONResponse:
     """Resend OTP (If Expired) with Encryption."""
 
+    # 0. Check if device is registered
+    device_id = headers.get(RequestParams.DEVICE_ID)
+    if not device_id or not await DeviceService.is_device_registered(
+        device_id,
+        db_session,
+    ):
+        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
     try:
         decrypted_payload = SecurityService.decrypt_payload(
             encrypted_key=payload.key,
@@ -618,7 +707,6 @@ async def resend_otp(
         )
         resend_payload = ResendOTPRequest(**decrypted_payload)
     except Exception as e:
-        logger.exception(f"Resend OTP decryption failed: {e}")
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
 
     email = resend_payload.email
