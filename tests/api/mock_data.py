@@ -7,15 +7,20 @@ from typing import Any, Dict, List
 USER_ID = uuid.UUID("131dd20e-d0ee-486d-80e1-a6aa928b0c8e")
 REQUEST_ID = uuid.UUID("6324cdb7-e59b-4edf-bda6-9ffd9ee5a7ed")
 
+
 class MockColumn:
     """Helper to mock a SQLAlchemy column."""
+
     def __init__(self, key: str) -> None:
         self.key = key
 
+
 class MockTable:
     """Helper to mock a SQLAlchemy table."""
+
     def __init__(self, columns: List[str]) -> None:
         self.columns = [MockColumn(c) for c in columns]
+
 
 class MockModel:
     """Base class for mock models."""
@@ -33,6 +38,7 @@ class MockModel:
 
     def to_dict(self) -> Dict[str, Any]:
         return {k: v for k, v in self.__dict__.items() if k != "__table__"}
+
 
 def mock_user(
     user_id: uuid.UUID = USER_ID,
@@ -56,6 +62,7 @@ def mock_user(
         modified_at=datetime.now(timezone.utc),
     )
 
+
 def mock_user_profile(user_id: uuid.UUID = USER_ID, **kwargs: Any) -> MockModel:
     """Return a mock ORM-like user profile object."""
     profile_data = {
@@ -76,6 +83,7 @@ def mock_user_profile(user_id: uuid.UUID = USER_ID, **kwargs: Any) -> MockModel:
     profile_data.update(kwargs)
     return MockModel(**profile_data)
 
+
 def mock_device(
     user_id: uuid.UUID = USER_ID,
     device_id: str = "device-123",
@@ -91,6 +99,7 @@ def mock_device(
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
     )
+
 
 def mock_auth_session(
     user_id: uuid.UUID = USER_ID,

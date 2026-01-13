@@ -14,6 +14,7 @@ async def test_health_success(client: AsyncClient) -> None:
         SuccessMessages.HEALTH_CHECKUP,
     )
 
+
 @pytest.mark.anyio
 async def test_redis_health_success(client: AsyncClient) -> None:
     # Redis is mocked in conftest, so ping should succeed

@@ -21,9 +21,12 @@ def auth_headers() -> dict[str, str]:
         "device_id": "device-123",
     }
     token = jwt.encode(
-        payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm,
+        payload,
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
     )
     return get_auth_headers(token=token)
+
 
 @pytest.mark.anyio
 async def test_get_user_profile_success(
@@ -45,7 +48,8 @@ async def test_get_user_profile_success(
         new_callable=AsyncMock,
         return_value=[profile_data],
     ), patch(
-        "app.api.v1.user_profile.views.set_cache", new_callable=AsyncMock,
+        "app.api.v1.user_profile.views.set_cache",
+        new_callable=AsyncMock,
     ):
 
         data = await assert_endpoint_success(
@@ -56,6 +60,7 @@ async def test_get_user_profile_success(
             headers=auth_headers,
         )
         assert data["data"]["uuid"] == str(USER_ID)
+
 
 @pytest.mark.anyio
 async def test_update_user_profile_success(
@@ -83,7 +88,8 @@ async def test_update_user_profile_success(
         new_callable=AsyncMock,
         return_value=[profile_data],
     ), patch(
-        "app.api.v1.user_profile.views.set_cache", new_callable=AsyncMock,
+        "app.api.v1.user_profile.views.set_cache",
+        new_callable=AsyncMock,
     ):
 
         data = await assert_endpoint_success(
@@ -95,6 +101,7 @@ async def test_update_user_profile_success(
             headers=auth_headers,
         )
         assert data["data"]["name"] == "Updated Name"
+
 
 @pytest.mark.anyio
 async def test_update_email_mobile_success(

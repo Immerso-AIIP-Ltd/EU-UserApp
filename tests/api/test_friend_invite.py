@@ -35,9 +35,9 @@ async def test_join_waitlist_success(
 
         # Mock for 3 calls: check device, check email, insert
         mock_exec.side_effect = [
-            [], # Call 1: check_device_and_email
-            [], # Call 2: check_email
-            [MockModel(queue_number=123, is_verified=False)], # Call 3: insert
+            [],  # Call 1: check_device_and_email
+            [],  # Call 2: check_email
+            [MockModel(queue_number=123, is_verified=False)],  # Call 3: insert
         ]
 
         await assert_endpoint_success(
@@ -48,6 +48,7 @@ async def test_join_waitlist_success(
             payload=payload,
             headers=headers,
         )
+
 
 @pytest.mark.anyio
 async def test_friend_invite_success(

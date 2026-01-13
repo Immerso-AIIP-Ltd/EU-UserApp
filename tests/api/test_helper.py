@@ -10,6 +10,7 @@ def generate_request_id() -> str:
     """Generate a unique request ID."""
     return str(uuid.uuid4())
 
+
 def get_auth_headers(
     token: Optional[str] = None,
     device_id: str = "device-123",
@@ -30,6 +31,7 @@ def get_auth_headers(
         headers[HeaderKeys.X_API_TOKEN] = token
     return headers
 
+
 async def assert_endpoint_success(
     client: AsyncClient,
     method: str,
@@ -42,7 +44,6 @@ async def assert_endpoint_success(
     """Assert that an endpoint returns a successful response."""
     if headers is None:
         headers = get_auth_headers()
-
 
     if method.upper() == "POST":
         response = await client.post(url, json=payload, headers=headers)
@@ -66,6 +67,7 @@ async def assert_endpoint_success(
     assert data["success"] is True
     assert data["message"] == expected_message
     return data
+
 
 async def assert_endpoint_error(
     client: AsyncClient,
@@ -93,6 +95,7 @@ async def assert_endpoint_error(
     if expected_message:
         assert data["message"] == expected_message
     return data
+
 
 async def assert_missing_headers(
     client: AsyncClient,

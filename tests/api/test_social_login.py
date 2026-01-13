@@ -41,6 +41,7 @@ async def test_google_login_success(
             payload=payload,
         )
 
+
 @pytest.mark.anyio
 async def test_apple_login_success(
     client: AsyncClient,
@@ -73,6 +74,7 @@ async def test_apple_login_success(
             SuccessMessages.USER_LOGGED_IN,
             payload=payload,
         )
+
 
 @pytest.mark.anyio
 async def test_facebook_login_success(

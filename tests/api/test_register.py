@@ -35,7 +35,8 @@ async def test_register_with_profile_success(
         new_callable=AsyncMock,
         return_value="NEW_USER",
     ), patch(
-        "app.api.v1.register.views.set_cache", new_callable=AsyncMock,
+        "app.api.v1.register.views.set_cache",
+        new_callable=AsyncMock,
     ):
 
         data = await assert_endpoint_success(
@@ -46,6 +47,7 @@ async def test_register_with_profile_success(
             payload=payload,
         )
         assert "verify_otp" in data["data"]["redirect_url"]
+
 
 @pytest.mark.anyio
 async def test_verify_otp_register_success(
@@ -107,6 +109,7 @@ async def test_verify_otp_register_success(
         )
         assert data["data"]["id"] == str(user_id)
         assert data["data"]["accessToken"] == "mock_token"
+
 
 @pytest.mark.anyio
 async def test_resend_otp_success(
