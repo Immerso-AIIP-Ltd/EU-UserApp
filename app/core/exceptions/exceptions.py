@@ -324,7 +324,7 @@ class UserNotFoundError(AppError):
         super().__init__(
             http_code=status.HTTP_404_NOT_FOUND,
             message=message,
-            error_code=ErrorCodes.US404,
+            error_code=ErrorCodes.USER_NOT_FOUND,
         )
 
 
@@ -335,7 +335,7 @@ class ProfileFetchError(AppError):
         super().__init__(
             http_code=status.HTTP_403_FORBIDDEN,
             message=detail,
-            error_code=ErrorCodes.US403,
+            error_code=ErrorCodes.PROFILE_NOT_FOUND,
         )
 
 
@@ -354,7 +354,7 @@ class InvalidInputError(AppError):
         super().__init__(
             http_code=status.HTTP_400_BAD_REQUEST,
             message=detail,
-            error_code=ErrorCodes.US400,
+            error_code=ErrorCodes.INVALID_INPUT,
         )
 
 
@@ -368,7 +368,7 @@ class AccountBlockedError(AppError):
         super().__init__(
             http_code=status.HTTP_409_CONFLICT,
             message=ErrorMessages.ACCOUNT_LOCKED,
-            error_code=ErrorCodes.US409,
+            error_code=ErrorCodes.ACCOUNT_LOCKED,
         )
 
 
@@ -379,7 +379,7 @@ class PasswordsDoNotMatchError(AppError):
         super().__init__(
             http_code=status.HTTP_400_BAD_REQUEST,
             message=ErrorMessages.PASSWORDS_DO_NOT_MATCH,
-            error_code=ErrorCodes.US400,
+            error_code=ErrorCodes.PASSWORDS_DO_NOT_MATCH,
         )
 
 
@@ -390,7 +390,7 @@ class InvalidOldPasswordError(AppError):
         super().__init__(
             http_code=status.HTTP_400_BAD_REQUEST,
             message=ErrorMessages.INVALID_OLD_PASSWORD,
-            error_code=ErrorCodes.US400,
+            error_code=ErrorCodes.INVALID_OLD_PASSWORD,
         )
 
 
@@ -582,3 +582,46 @@ class FailedToGenerateRefreshTokenError(AppError):
     message = "Failed to generate refresh token via FusionAuth"
     error_code = ErrorCodes.FAILED_TO_GENERATE_REFRESH_TOKEN_CODE
 
+
+class DecryptionFailedError(AppError):
+    """Raised when payload decryption fails."""
+
+    def __init__(self, detail: str = ErrorMessages.DECRYPTION_FAILED) -> None:
+        super().__init__(
+            http_code=status.HTTP_400_BAD_REQUEST,
+            message=detail,
+            error_code=ErrorCodes.DATA_VALIDATION_ERROR_CODE,
+        )
+
+
+class DeviceAlreadyInvitedError(AppError):
+    """Raised when device is already invited."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            http_code=status.HTTP_400_BAD_REQUEST,
+            message=ErrorMessages.DEVICE_ALREADY_INVITED,
+            error_code=ErrorCodes.DATA_VALIDATION_ERROR_CODE,
+        )
+
+
+class StateNotFoundError(AppError):
+    """Raised when state is not found."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            http_code=status.HTTP_400_BAD_REQUEST,
+            message=ErrorMessages.STATE_NOT_FOUND,
+            error_code=ErrorCodes.DATA_VALIDATION_ERROR_CODE,
+        )
+
+
+class UserCreationFailedError(AppError):
+    """Raised when user creation fails."""
+
+    def __init__(self, detail: str = "Failed to create user.") -> None:
+        super().__init__(
+            http_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=detail,
+            error_code=ErrorCodes.INTERNAL_SERVER_ERROR_CODE,
+        )

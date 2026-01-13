@@ -578,11 +578,13 @@ class ErrorCodes:
     UNAUTHORIZED_LOGIN_CODE = "US401"
     INVALID_INPUT_CODE = "US029"
     CLIENT_ID_VALIDATION_FAILED_CODE = "US030"
-    US400 = "US400"
-    US402 = "US402"
-    US404 = "US404"
-    US409 = "US409"
-    US403 = "US403"
+    BAD_REQUEST_CODE = "US400"
+    OTP_NOT_VERIFIED_CODE = "US404"
+    ACCOUNT_LOCKED_CODE = "US409"
+    PROFILE_NOT_FOUND_CODE = "US403"
+    VERIFICATION_REQUIRED_CODE = "US402"
+    INVALID_INPUT = "US400"
+    PROFILE_NOT_FOUND = "US403"
     USER_TOKEN_NOT_FOUND_CODE = "US033"  # noqa: S105
     FACEBOOK_AUTH_ERROR_CODE = "US034"
     GOOGLE_WRONG_ISSUER_CODE = "US035"
@@ -593,6 +595,9 @@ class ErrorCodes:
     FUSION_AUTH_ERROR_CODE = "US040"
     BOOTSTRAP_KEY_ID_NOT_CONFIGURED_CODE = "US044"
     FAILED_TO_GENERATE_REFRESH_TOKEN_CODE = "US045"  # noqa: S105
+    ACCOUNT_LOCKED = "US409"
+    PASSWORDS_DO_NOT_MATCH = "US400"
+    INVALID_OLD_PASSWORD = "US400"  # noqa: S105
 
 
 class ErrorMessages:
@@ -611,7 +616,9 @@ class ErrorMessages:
     DATA_VALIDATION_ERROR = "Pydantic data validation failed"
     INVALID_TOKEN_TYPE = "Invalid token type"  # noqa: S105
     BOOTSTRAP_KEY_ID_NOT_CONFIGURED = "Bootstrap key ID not configured"
-    FAILED_TO_GENERATE_REFRESH_TOKEN = "Failed to generate refresh token via FusionAuth"  # noqa: S105
+    FAILED_TO_GENERATE_REFRESH_TOKEN = (
+        "Failed to generate refresh token via FusionAuth"  # noqa: S105
+    )
     REFRESH_TOKEN_INVALID = "Invalid or expired refresh token"  # noqa: S105
     ACCESS_TOKEN_ISSUE_FAILED = "Failed to issue new access token"  # noqa: S105
     CACHE_ERROR = "Cache operation failed"
@@ -676,7 +683,9 @@ class ErrorMessages:
     FUSION_AUTH_VALIDATION_ERROR = "Could not validate credentials"
     FUSION_AUTH_REGISTRATION_ERROR = "Failed to register user to application"
     FUSION_AUTH_SYNC_ERROR = "Failed to sync user with Authentication Provider"
-    FUSION_AUTH_TOKEN_ERROR = "Authentication Provider could not issue token"  # noqa: S105
+    FUSION_AUTH_TOKEN_ERROR = (
+        "Authentication Provider could not issue token"  # noqa: S105
+    )
     GOOGLE_WRONG_ISSUER = "Invalid Google issuer."
     INVALID_SOCIAL_UID = "Social UID mismatch."
     INVALID_SOCIAL_TOKEN = "Invalid social token."  # noqa: S105

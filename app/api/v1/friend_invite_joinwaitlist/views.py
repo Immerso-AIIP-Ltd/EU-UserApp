@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.schemas import (
+    EncryptedRequest,
     FriendInviteObject,
     FriendInviteRequest,
     ResendWaitlistOtpRequest,
@@ -30,11 +31,18 @@ from app.core.constants import (
     ResponseParams,
     SuccessMessages,
 )
-from app.core.exceptions import exceptions
-from app.core.exceptions.exceptions import OtpExpiredError
+from app.core.exceptions import (
+    DecryptionFailedError,
+    EmailMobileRequiredError,
+    OtpExpiredError,
+    OtpInvalidError,
+    UserNotFoundError,
+    ValidationError,
+)
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_query
 from app.settings import settings
+from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import validate_headers_without_auth
 
@@ -46,18 +54,28 @@ router = APIRouter()
 @router.post("/waitlist")
 async def join_waitlist(
     request: Request,
-    payload: WaitlistRequest,
+    payload: EncryptedRequest,
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
 ) -> JSONResponse:
-    """Join the waitlist using email or mobile and trigger OTP flow."""
-    device_id = payload.device_id
-    email_id = payload.email_id
-    mobile = payload.mobile
-    calling_code = payload.calling_code
-    name = payload.name
+    """Join the waitlist using Encrypted email or mobile."""
+
+    try:
+        decrypted_payload = SecurityService.decrypt_payload(
+            encrypted_key=payload.key,
+            encrypted_data=payload.data,
+        )
+        waitlist_payload = WaitlistRequest(**decrypted_payload)
+    except Exception as e:
+        raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
+
+    device_id = waitlist_payload.device_id
+    email_id = waitlist_payload.email_id
+    mobile = waitlist_payload.mobile
+    calling_code = waitlist_payload.calling_code
+    name = waitlist_payload.name
 
     x_forwarded = x_forwarded_for or request.headers.get(RequestParams.X_FORWARDED_FOR)
     client_ip = (
@@ -67,10 +85,10 @@ async def join_waitlist(
     )
 
     if not device_id:
-        raise exceptions.ValidationError(message=ErrorMessages.DEVICE_ID_REQUIRED)
+        raise ValidationError(message=ErrorMessages.DEVICE_ID_REQUIRED)
 
     if not email_id and not (mobile and calling_code):
-        raise exceptions.ValidationError(message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED)
+        raise EmailMobileRequiredError
 
     if email_id and not mobile:
         return await _process_email_flow(
@@ -95,7 +113,7 @@ async def join_waitlist(
             client_ip,
         )
 
-    raise exceptions.ValidationError(message=ErrorMessages.PROVIDE_EMAIL_OR_MOBILE)
+    raise EmailMobileRequiredError
 
 
 async def _process_email_flow(
@@ -412,19 +430,29 @@ async def _ensure_device_exists(
 @router.post("/waitlist_verify_otp")
 async def verify_waitlist(
     request: Request,
-    payload: VerifyWaitlistRequest,
+    payload: EncryptedRequest,
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """Verify OTP for waitlist entry."""
-    email_id = payload.email_id
-    mobile = payload.mobile
-    calling_code = payload.calling_code
-    otp = payload.otp
+    """Verify OTP for waitlist entry (Encrypted)."""
+
+    try:
+        decrypted_payload = SecurityService.decrypt_payload(
+            encrypted_key=payload.key,
+            encrypted_data=payload.data,
+        )
+        verify_payload = VerifyWaitlistRequest(**decrypted_payload)
+    except Exception as e:
+        raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
+
+    email_id = verify_payload.email_id
+    mobile = verify_payload.mobile
+    calling_code = verify_payload.calling_code
+    otp = verify_payload.otp
 
     if not email_id and not (mobile and calling_code):
-        raise exceptions.ValidationError(message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED)
+        raise EmailMobileRequiredError
 
     # 1. Verify OTP
     if email_id:
@@ -462,12 +490,10 @@ async def verify_waitlist(
 
         if (
             not cached_otp
-            or (isinstance(cached_otp, bytes) and cached_otp.decode() != payload.otp)
-            or (isinstance(cached_otp, str) and cached_otp != payload.otp)
+            or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
+            or (isinstance(cached_otp, str) and cached_otp != otp)
         ):
-            raise exceptions.ValidationError(
-                message=ErrorMessages.OTP_INVALID_OR_EXPIRED,
-            )
+            raise OtpInvalidError
 
         # Consume OTP
         await cache.delete(redis_key)
@@ -483,7 +509,7 @@ async def verify_waitlist(
         )
 
     if not existing_entry:
-        raise exceptions.UserNotFoundError(
+        raise UserNotFoundError(
             message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(ProcessParams.USER),
         )
 
@@ -517,19 +543,29 @@ async def verify_waitlist(
 @router.post("/waitlist_resend_otp")
 async def resend_waitlist_otp(
     request: Request,
-    payload: ResendWaitlistOtpRequest,
+    payload: EncryptedRequest,
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
 ) -> JSONResponse:
-    """Resend OTP for waitlist verification."""
-    email_id = payload.email_id
-    mobile = payload.mobile
-    calling_code = payload.calling_code
+    """Resend OTP for waitlist verification (Encrypted)."""
+
+    try:
+        decrypted_payload = SecurityService.decrypt_payload(
+            encrypted_key=payload.key,
+            encrypted_data=payload.data,
+        )
+        resend_payload = ResendWaitlistOtpRequest(**decrypted_payload)
+    except Exception as e:
+        raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
+
+    email_id = resend_payload.email_id
+    mobile = resend_payload.mobile
+    calling_code = resend_payload.calling_code
 
     if not email_id and not (mobile and calling_code):
-        raise exceptions.ValidationError(message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED)
+        raise EmailMobileRequiredError
 
     if email_id:
         # Check if waitlist entry exists
@@ -539,7 +575,7 @@ async def resend_waitlist_otp(
             db_session=db_session,
         )
         if not existing_entry:
-            raise exceptions.UserNotFoundError(
+            raise UserNotFoundError(
                 message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(
                     RequestParams.EMAIL,
                 ),
@@ -572,7 +608,7 @@ async def resend_waitlist_otp(
             db_session=db_session,
         )
         if not existing_entry:
-            raise exceptions.UserNotFoundError(
+            raise UserNotFoundError(
                 message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(
                     RequestParams.MOBILE_NUMBER,
                 ),

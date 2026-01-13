@@ -85,7 +85,8 @@ async def test_bootstrap_device_success(client: AsyncClient) -> None:
     ciphertext = (
         encryptor.update(
             json.dumps(data_payload).encode("utf-8"),
-        ) + encryptor.finalize()
+        )
+        + encryptor.finalize()
     )
     tag = encryptor.tag
 
@@ -100,7 +101,8 @@ async def test_bootstrap_device_success(client: AsyncClient) -> None:
 
     # 3. Patching and Execution
     with patch("app.api.v1.device.views.settings") as mock_settings, patch.object(
-        FusionAuthService, "get_key",
+        FusionAuthService,
+        "get_key",
     ) as mock_get_key, patch(
         "app.api.v1.device.views.execute_query",
     ) as mock_execute_query:
@@ -109,7 +111,9 @@ async def test_bootstrap_device_success(client: AsyncClient) -> None:
         mock_get_key.return_value = {"privateKey": server_priv_pem}
 
         async def query_side_effect(
-            query: object, *args: object, **kwargs: object,
+            query: object,
+            *args: object,
+            **kwargs: object,
         ) -> object:
             if query == UserQueries.CHECK_DEVICE_EXISTS:
                 return []
@@ -118,7 +122,8 @@ async def test_bootstrap_device_success(client: AsyncClient) -> None:
         mock_execute_query.side_effect = query_side_effect
 
         response = await client.post(
-            "/user/v1/device/device_registration", json=request_payload,
+            "/user/v1/device/device_registration",
+            json=request_payload,
         )
 
         assert response.status_code == 200
@@ -159,7 +164,8 @@ async def test_bootstrap_device_expired(client: AsyncClient) -> None:
     ciphertext = (
         encryptor.update(
             json.dumps(data_payload).encode("utf-8"),
-        ) + encryptor.finalize()
+        )
+        + encryptor.finalize()
     )
     tag = encryptor.tag
     full_encrypted_data = iv + ciphertext + tag
@@ -171,7 +177,8 @@ async def test_bootstrap_device_expired(client: AsyncClient) -> None:
     }
 
     with patch("app.api.v1.device.views.settings") as mock_settings, patch.object(
-        FusionAuthService, "get_key",
+        FusionAuthService,
+        "get_key",
     ) as mock_get_key, patch(
         "app.api.v1.device.views.execute_query",
     ) as mock_execute_query:
@@ -180,7 +187,8 @@ async def test_bootstrap_device_expired(client: AsyncClient) -> None:
         mock_get_key.return_value = {"privateKey": server_priv_pem}
 
         response = await client.post(
-            "/user/v1/device/device_registration", json=request_payload,
+            "/user/v1/device/device_registration",
+            json=request_payload,
         )
 
         assert response.status_code == 403

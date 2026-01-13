@@ -109,9 +109,9 @@ class FusionAuthService:
             return response.success_response["user"]["id"]
 
         raise FusionAuthError(
-                http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail=ErrorMessages.FUSION_AUTH_SYNC_ERROR,
-            )
+            http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=ErrorMessages.FUSION_AUTH_SYNC_ERROR,
+        )
 
     @classmethod
     def issue_token(
@@ -142,9 +142,9 @@ class FusionAuthService:
             return response.success_response["token"]
 
         raise FusionAuthError(
-                http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail=ErrorMessages.FUSION_AUTH_TOKEN_ERROR,
-            )
+            http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=ErrorMessages.FUSION_AUTH_TOKEN_ERROR,
+        )
 
     @classmethod
     def get_key(cls, key_id: str) -> Dict[str, Any]:
@@ -156,6 +156,20 @@ class FusionAuthService:
             return response.success_response["key"]
 
         raise FusionAuthError(
-                http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail=ErrorMessages.KEY_RETRIEVAL_FAILED,
-            )
+            http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=ErrorMessages.KEY_RETRIEVAL_FAILED,
+        )
+
+    @classmethod
+    def get_keys(cls) -> List[Dict[str, Any]]:
+        """Retrieve all keys from FusionAuth."""
+        client = cls.get_client()
+        response = client.retrieve_keys()
+
+        if response.was_successful():
+            return response.success_response.get("keys", [])
+
+        raise FusionAuthError(
+            http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve keys from FusionAuth",
+        )

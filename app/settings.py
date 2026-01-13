@@ -121,6 +121,7 @@ class Settings(BaseSettings):
     fusionauth_api_key: str = Field(...)
     fusionauth_client_id: str = Field(...)
     fusionauth_bootstrap_key_id: Optional[str] = Field(default=None)
+    decryption_private_key_b64: Optional[str] = Field(default=None)
 
     # Other settings
     CACHE_TIMEOUT_FOR_EMAIL_DNS: int = 300

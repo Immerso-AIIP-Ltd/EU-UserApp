@@ -396,8 +396,8 @@ class FriendInviteRequest(BaseModel):
 class SocialLoginRequest(BaseModel):
     """Request schema for social login (Google/Apple/Facebook)."""
 
-    user_id: str = Field(..., description=Description.SOCIAL_USER_ID)
-    token: str = Field(..., description=Description.OAUTH_TOKEN)
+    uid: str = Field(..., description=Description.SOCIAL_USER_ID)
+    id_token: str = Field(..., description=Description.OAUTH_TOKEN)
 
 
 class FacebookLoginRequest(BaseModel):
@@ -562,6 +562,13 @@ class SetForgotPasswordResponse(BaseModel):
 
 class DeviceBootstrapRequest(BaseModel):
     """Request schema for device bootstrap (encrypted)."""
+
+    key: str = Field(..., description="RSA Encrypted AES Key")
+    data: str = Field(..., description="AES Encrypted Payload")
+
+
+class EncryptedRequest(BaseModel):
+    """Generic encrypted request schema."""
 
     key: str = Field(..., description="RSA Encrypted AES Key")
     data: str = Field(..., description="AES Encrypted Payload")
