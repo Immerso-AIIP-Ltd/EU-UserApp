@@ -158,8 +158,6 @@ class SocialLoginService:
         return {
             "auth_token": token,
             "refresh_token": refresh_token,
-            "accessToken": token,
-            "refreshToken": refresh_token,
             "user": {
                 "user_id": str(user_id),
                 "email": user_profile.get("email"),
@@ -301,8 +299,6 @@ class SocialLoginService:
         return {
             "auth_token": token,
             "refresh_token": refresh_token,
-            "accessToken": token,
-            "refreshToken": refresh_token,
             "user": {
                 "user_id": str(user_id),
                 "email": user_profile.get("email"),
@@ -444,8 +440,6 @@ class SocialLoginService:
         return {
             "auth_token": token,
             "refresh_token": refresh_token,
-            "accessToken": token,
-            "refreshToken": refresh_token,
             "user": {
                 "user_id": str(user_id),
                 "email": user_profile.get("email"),
