@@ -63,7 +63,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set IMAGE_TAG
-        run: echo "IMAGE_TAG=eu-user-test-${GITHUB_SHA}" >> $GITHUB_ENV
+        run: echo "IMAGE_TAG=eu-user-dev-${GITHUB_SHA}" >> $GITHUB_ENV
 
       - uses: docker/build-push-action@v6
         with:
@@ -93,4 +93,4 @@ jobs:
 
           git add "$service"
           git commit -m "chore: update eu-userapp image tag to ${IMAGE_TAG}" || echo "No changes to commit"
-          git push origin eros-universe-test
+          git push origin eros-universe-dev
