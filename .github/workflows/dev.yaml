@@ -27,30 +27,30 @@ jobs:
       - name: Run lint check
         run: poetry run pre-commit run --all-files
 
-  # pytest:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - name: Create .env
-  #       run: |
-  #         echo "APP_ENVIRONMENT=test" >> .env
-  #         echo "APP_DB_BASE=app_test" >> .env
+      - name: Create .env
+        run: |
+          echo "APP_ENVIRONMENT=test" >> .env
+          echo "APP_DB_BASE=app_test" >> .env
 
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v5
-  #       with:
-  #         python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-  #     - name: Install docker-compose
-  #       uses: KengoTODA/actions-setup-docker-compose@v1
-  #       with:
-  #         version: "2.28.0"
+      - name: Install docker-compose
+        uses: KengoTODA/actions-setup-docker-compose@v1
+        with:
+          version: "2.28.0"
 
-  #     - name: Run tests
-  #       run: |
-  #         APP_ENVIRONMENT=test APP_DB_BASE=app_test \
-  #         docker-compose run --rm api pytest -vv
+      - name: Run tests
+        run: |
+          APP_ENVIRONMENT=test APP_DB_BASE=app_test \
+          docker-compose run --rm api pytest -vv
 
   build-and-push:
     needs: [lint]

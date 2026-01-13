@@ -148,7 +148,11 @@ async def test_forgot_password_success(
     ), patch(
         "app.api.v1.login.views.ForgotPasswordService.forgot_password_email",
         new_callable=AsyncMock,
-    ) as mock_service:
+    ) as mock_service, patch(
+        "app.api.v1.login.views.DeviceService.is_device_registered",
+        new_callable=AsyncMock,
+        return_value=True,
+    ):
 
         mock_service.return_value = "Reset link sent"
         response = await client.post(
@@ -184,7 +188,7 @@ async def test_set_forgot_password_success(
         new_callable=AsyncMock,
     ) as mock_service:
 
-        mock_service.return_value = ("mock_token", "2026-01-01")
+        mock_service.return_value = ("mock_token", "mock_refresh_token", 3600)
         response = await client.post(
             "/user/v1/user/set_forgot_password",
             json=payload,
@@ -243,8 +247,12 @@ async def test_refresh_token_success(client: AsyncClient, dbsession: AsyncMock) 
     with patch(
         "app.api.v1.login.views.AuthService.refresh_access_token",
         new_callable=AsyncMock,
-    ) as mock_refresh:
-        mock_refresh.return_value = ("new_at", "new_rt", "expiry")
+    ) as mock_refresh, patch(
+        "app.api.v1.login.views.DeviceService.is_device_registered",
+        new_callable=AsyncMock,
+        return_value=True,
+    ):
+        mock_refresh.return_value = ("new_at", "new_rt", 3600)
         response = await client.post(
             "/user/v1/user/refresh_token",
             json=payload,
