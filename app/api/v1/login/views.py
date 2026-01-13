@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, Union
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.queries import UserQueries
 from app.api.v1.schemas import (
     ChangePasswordRequest,
+    EncryptedRequest,
     ForgotPasswordRequest,
     LoginRequest,
     RefreshTokenRequest,
@@ -27,9 +28,14 @@ from app.core.constants import (
     RequestParams,
     SuccessMessages,
 )
-from app.core.exceptions import InvalidInputError
+from app.core.exceptions import (
+    DecryptionFailedError,
+    EmailMobileRequiredError,
+    InvalidInputError,
+)
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform
+from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import (
     validate_common_headers,
@@ -44,12 +50,27 @@ router = APIRouter()
 @router.post("/login")
 async def login_user(
     request: Request,
-    login_data: LoginRequest,
+    payload: Union[EncryptedRequest, LoginRequest],
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """Authenticate user using Email or Mobile and Password."""
+    """Authenticate user using Encrypted or Plain JSON (for Testing)."""
+
+    if isinstance(payload, EncryptedRequest):
+        try:
+            decrypted_payload = SecurityService.decrypt_payload(
+                encrypted_key=payload.key,
+                encrypted_data=payload.data,
+            )
+            login_data = LoginRequest(**decrypted_payload)
+        except Exception as e:
+            logger.exception(f"Login decryption failed: {e}")
+            raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
+    else:
+        # If it's already LoginRequest, use it directly (Postman convenience)
+        login_data = payload
+
     device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
     client_id = headers.get(HeaderKeys.X_API_CLIENT) or headers.get(
         HeaderKeys.API_CLIENT,
@@ -106,35 +127,41 @@ async def login_user(
 @router.post("/forgot_password")
 async def forgot_password(
     request: Request,
-    payload: ForgotPasswordRequest,
+    payload: EncryptedRequest,
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     db: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """
-    Forgot password handler using email or mobile.
+    """Forgot password handler using Encrypted email or mobile."""
 
-    Common headers are validated through validate_common_headers().
-    """
+    try:
+        decrypted_payload = SecurityService.decrypt_payload(
+            encrypted_key=payload.key,
+            encrypted_data=payload.data,
+        )
+        forgot_payload = ForgotPasswordRequest(**decrypted_payload)
+    except Exception as e:
+        logger.exception(f"Forgot password decryption failed: {e}")
+        raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
 
     # Validate email or mobile
-    if not payload.validate_email_or_mobile():
-        raise InvalidInputError(ErrorMessages.EMAIL_OR_MOBILE_REQUIRED)
+    if not forgot_payload.validate_email_or_mobile():
+        raise EmailMobileRequiredError
 
     ip = request.client.host if request.client else "unknown"
 
     # Selecting email or mobile flow
-    if payload.email:
+    if forgot_payload.email:
         message = await ForgotPasswordService.forgot_password_email(
             db,
-            payload.email,
+            forgot_payload.email,
             cache,
         )
     else:
         message = await ForgotPasswordService.forgot_password_mobile(
             db,
-            payload.mobile or "",
-            payload.calling_code or "",
+            forgot_payload.mobile or "",
+            forgot_payload.calling_code or "",
             ip,
             cache,
         )
@@ -150,12 +177,23 @@ async def forgot_password(
 @router.post("/set_forgot_password")
 async def set_forgot_password(
     request: Request,
-    payload: SetForgotPasswordRequest,
+    payload: EncryptedRequest,
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     db: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """Set new password after OTP verification."""
+    """Set new password after OTP verification (Encrypted)."""
+
+    try:
+        decrypted_payload = SecurityService.decrypt_payload(
+            encrypted_key=payload.key,
+            encrypted_data=payload.data,
+        )
+        set_forgot_payload = SetForgotPasswordRequest(**decrypted_payload)
+    except Exception as e:
+        logger.exception(f"Set forgot password decryption failed: {e}")
+        raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
+
     device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
     client_id = headers.get(HeaderKeys.X_API_CLIENT) or headers.get(
         HeaderKeys.API_CLIENT,
@@ -163,8 +201,8 @@ async def set_forgot_password(
 
     token, expires_at = await ForgotPasswordService.set_forgot_password(
         db=db,
-        email=str(payload.email),
-        password=payload.password,
+        email=str(set_forgot_payload.email),
+        password=set_forgot_payload.password,
         client_id=str(client_id),
         device_id=str(device_id),
         cache=cache,

@@ -1,4 +1,7 @@
+import asyncio
 import logging
+import time
+from datetime import date
 from typing import Any
 
 import bcrypt
@@ -10,11 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.schemas import (
+    EncryptedRequest,
     IntentEnum,
     RegisterWithProfileRequest,
     ResendOTPRequest,
     VerifyOTPRegisterRequest,
 )
+from app.api.v1.service.auth_service import AuthService
+from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.api.v1.service.register_otp import GenerateOtpService
 from app.api.v1.service.register_service import UserVerifyService
 from app.cache.base import build_cache_key, get_cache, set_cache
@@ -33,16 +39,21 @@ from app.core.constants import (
 )
 from app.core.exceptions.exceptions import (
     CallingCodeRequiredError,
+    DecryptionFailedError,
     EmailMobileRequiredError,
     OtpExpiredError,
+    OtpInvalidError,
     PasswordRequiredError,
     RegistrationSessionClosedError,
+    StateNotFoundError,
+    UserCreationFailedError,
     UserExistsError,
     UserNotFoundError,
     ValidationError,
 )
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_query
+from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import (
     validate_headers_without_auth,
@@ -92,16 +103,27 @@ router = APIRouter()
 @router.post("/register_with_profile")
 async def register_with_profile(
     request: Request,
-    payload: RegisterWithProfileRequest,
+    payload: EncryptedRequest,
     db_session: AsyncSession = Depends(get_db_session),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """Sign Up - Step 1 (Check Existence and Register)."""
-    email = payload.email
-    mobile = payload.mobile
-    calling_code = payload.calling_code
+    """Sign Up - Step 1 (Check Existence and Register) with Encryption."""
+
+    try:
+        decrypted_payload = SecurityService.decrypt_payload(
+            encrypted_key=payload.key,
+            encrypted_data=payload.data,
+        )
+        reg_payload = RegisterWithProfileRequest(**decrypted_payload)
+    except Exception as e:
+        logger.exception(f"Registration decryption failed: {e}")
+        raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
+
+    email = reg_payload.email
+    mobile = reg_payload.mobile
+    calling_code = reg_payload.calling_code
 
     # Use the injected header or request header
     x_forwarded = x_forwarded_for or request.headers.get(RequestParams.X_FORWARDED_FOR)
@@ -155,34 +177,34 @@ async def register_with_profile(
         raise ValidationError(
             message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED,
         )
-    if not payload.email and not payload.mobile:
+    if not reg_payload.email and not reg_payload.mobile:
         raise EmailMobileRequiredError(
             message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED,
         )
 
-    if payload.mobile and not payload.calling_code:
+    if reg_payload.mobile and not reg_payload.calling_code:
         raise CallingCodeRequiredError(
             message=ErrorMessages.CALLING_CODE_REQUIRED,
         )
 
-    if not payload.password:
+    if not reg_payload.password:
         raise PasswordRequiredError(
             message=ErrorMessages.PASSWORD_REQUIRED,
         )
+
     if not state:
-        raise ValidationError(
-            message=ErrorMessages.STATE_NOT_FOUND,
-        )
+        raise StateNotFoundError
 
     # Cache Registration Data for Verification step
     identifier = (
-        payload.email
-        if payload.email
-        else f"{payload.calling_code}{payload.mobile}".lstrip("+")
+        reg_payload.email
+        if reg_payload.email
+        else f"{reg_payload.calling_code}{reg_payload.mobile}".lstrip("+")
     )
-    hashed_password = hash_password(payload.password)
-    registration_data = payload.model_dump(mode=RequestParams.JSON)
+    hashed_password = hash_password(reg_payload.password)
+    registration_data = reg_payload.model_dump(mode=RequestParams.JSON)
     registration_data[LoginParams.PASSWORD] = hashed_password
+
     cache_key = build_cache_key(
         CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA,
         identifier=identifier,
@@ -190,8 +212,8 @@ async def register_with_profile(
     await set_cache(cache, cache_key, registration_data, ttl=CacheTTL.TTL_FAST)
 
     redirect_url = RedirectTemplates.VERIFY_OTP.format(
-        type=RequestParams.EMAIL if payload.email else RequestParams.MOBILE,
-        receiver=payload.email if payload.email else payload.mobile,
+        type=RequestParams.EMAIL if reg_payload.email else RequestParams.MOBILE,
+        receiver=reg_payload.email if reg_payload.email else reg_payload.mobile,
         intent=Intents.REGISTRATION,
     )
 
@@ -206,17 +228,28 @@ async def register_with_profile(
 @router.post("/verify_otp_register")
 async def verify_otp_register(
     request: Request,
-    payload: VerifyOTPRegisterRequest,
+    payload: EncryptedRequest,
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """Sign Up - Step 2 (Verify OTP & Create)."""
-    email = payload.email
-    mobile = payload.mobile
-    calling_code = payload.calling_code
-    intent = payload.intent
-    otp = payload.otp
+    """Sign Up - Step 2 (Verify OTP & Create) with Encryption."""
+
+    try:
+        decrypted_payload = SecurityService.decrypt_payload(
+            encrypted_key=payload.key,
+            encrypted_data=payload.data,
+        )
+        verify_payload = VerifyOTPRegisterRequest(**decrypted_payload)
+    except Exception as e:
+        logger.exception(f"Verify OTP decryption failed: {e}")
+        raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
+
+    email = verify_payload.email
+    mobile = verify_payload.mobile
+    calling_code = verify_payload.calling_code
+    intent = verify_payload.intent
+    otp = verify_payload.otp
 
     receiver = email if email else f"{calling_code}{mobile}".lstrip("+")
     receiver_type = RequestParams.EMAIL if email else RequestParams.MOBILE
@@ -370,8 +403,6 @@ async def _verify_and_consume_otp(
     if (isinstance(cached_otp, bytes) and cached_otp.decode() != otp) or (
         isinstance(cached_otp, str) and cached_otp != otp
     ):
-        from app.core.exceptions.exceptions import OtpInvalidError
-
         raise OtpInvalidError
 
     # 3. Consume OTP
@@ -414,7 +445,7 @@ async def _insert_user_record(
         params=params,
     )
     if not user_rows:
-        raise ValidationError(message="Failed to create user.")
+        raise UserCreationFailedError
     return user_rows
 
 
@@ -453,8 +484,6 @@ async def _create_user_profile(
     birth_date = cached_data.get(LoginParams.BIRTH_DATE)
     if birth_date and isinstance(birth_date, str):
         try:
-            from datetime import date
-
             birth_date = date.fromisoformat(birth_date)
         except (ValueError, TypeError):
             logger.warning(f"Failed to parse birth_date: {birth_date}")
@@ -503,11 +532,6 @@ async def _finalize_registration_and_auth(
     cached_data: dict[str, Any],
 ) -> tuple[str | None, str | None, int | None]:
     """Register device, sync to FusionAuth, and generate auth token."""
-    import asyncio
-    import time
-
-    from app.api.v1.service.fusionauth_service import FusionAuthService
-
     device_id = headers.get(RequestParams.DEVICE_ID)
 
     # 1. Device Registration (if needed)
@@ -572,17 +596,28 @@ async def _finalize_registration_and_auth(
 @router.post("/resend_otp")
 async def resend_otp(
     request: Request,
-    payload: ResendOTPRequest,
+    payload: EncryptedRequest,
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
 ) -> JSONResponse:
-    """Resend OTP (If Expired)."""
-    email = payload.email
-    mobile = payload.mobile
-    calling_code = payload.calling_code
-    intent = payload.intent
+    """Resend OTP (If Expired) with Encryption."""
+
+    try:
+        decrypted_payload = SecurityService.decrypt_payload(
+            encrypted_key=payload.key,
+            encrypted_data=payload.data,
+        )
+        resend_payload = ResendOTPRequest(**decrypted_payload)
+    except Exception as e:
+        logger.exception(f"Resend OTP decryption failed: {e}")
+        raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
+
+    email = resend_payload.email
+    mobile = resend_payload.mobile
+    calling_code = resend_payload.calling_code
+    intent = resend_payload.intent
 
     receiver = email if email else f"{calling_code}{mobile}".lstrip("+")
     receiver_type = RequestParams.EMAIL if email else RequestParams.MOBILE

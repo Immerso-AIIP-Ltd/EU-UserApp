@@ -1,31 +1,33 @@
+import asyncio
 from contextlib import suppress
 from typing import Any, Dict
 
-import asyncio
 import jwt
 from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from loguru import logger
 
+from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.core.exceptions.exceptions import (
     InvalidServiceTokenError,
     UnauthorizedError,
     UserTokenNotFoundError,
 )
-
-from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.settings import settings
 
 security = HTTPBearer(auto_error=False)
 
 
 def _validate_device_id(
-    payload: Dict[str, Any], requested_device_id: str | None,
+    payload: Dict[str, Any],
+    requested_device_id: str | None,
 ) -> None:
     """Validate that the token device_id matches the requested device_id."""
     token_device_id = payload.get("device_id")
-    if requested_device_id and token_device_id and \
-       requested_device_id != token_device_id:
+    if (
+        requested_device_id
+        and token_device_id
+        and requested_device_id != token_device_id
+    ):
         raise UnauthorizedError(detail="Token does not match device")
 
 
