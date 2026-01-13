@@ -49,11 +49,10 @@ jobs:
 
       - name: Run tests
         run: |
-          APP_ENVIRONMENT=test APP_DB_BASE=app_test \
           docker-compose run --rm api pytest -vv
 
   build-and-push:
-    needs: [lint]
+    needs: [lint, pytest]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

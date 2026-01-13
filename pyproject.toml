@@ -90,6 +90,7 @@ filterwarnings = [
     "error",
     "ignore::DeprecationWarning",
     "ignore:.*unclosed.*:ResourceWarning",
+    "ignore:Module already imported so cannot be rewritten; anyio:pytest.PytestAssertRewriteWarning",
 ]
 asyncio_mode = "auto"
 
