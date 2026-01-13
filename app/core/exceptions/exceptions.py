@@ -625,3 +625,14 @@ class UserCreationFailedError(AppError):
             message=detail,
             error_code=ErrorCodes.INTERNAL_SERVER_ERROR_CODE,
         )
+
+
+class RequestTimeoutError(AppError):
+    """Raised when the request times out (e.g. timestamp expired)."""
+
+    def __init__(self, detail: str = ErrorMessages.REQUEST_EXPIRED) -> None:
+        super().__init__(
+            http_code=status.HTTP_408_REQUEST_TIMEOUT,
+            message=detail,
+            error_code=ErrorCodes.DATA_VALIDATION_ERROR_CODE,
+        )

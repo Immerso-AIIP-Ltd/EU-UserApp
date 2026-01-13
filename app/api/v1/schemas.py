@@ -545,6 +545,7 @@ class SetForgotPasswordData(BaseModel):
     """Data schema for Set Forgot Password response."""
 
     auth_token: str
+    refresh_token: Optional[str] = None
     token: str = ""
     token_secret: str = ""
     auth_token_expiry: int

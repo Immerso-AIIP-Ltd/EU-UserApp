@@ -3,6 +3,8 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
+from app.api.v1.service.auth_service import AuthService
+from app.api.v1.service.device_service import DeviceService
 from app.db.utils import execute_query
 
 
@@ -22,8 +24,6 @@ class UserLogoutService:
 
         Also deactivates the device.
         """
-        from app.api.v1.service.auth_service import AuthService
-        from app.api.v1.service.device_service import DeviceService
 
         # 1. Deactivate device (covers redis token removal for device flow)
         if device_id:

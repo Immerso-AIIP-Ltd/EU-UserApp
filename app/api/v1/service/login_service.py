@@ -1,5 +1,7 @@
 # app/api/v1/service/login_service.py
 
+import asyncio
+import time
 from typing import Any
 
 from redis.asyncio import Redis
@@ -8,8 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.queries import UserQueries
 from app.api.v1.schemas import LoginRequest
 from app.api.v1.service.auth_service import AuthService
+from app.api.v1.service.device_service import DeviceService
+from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.core.constants import DeviceNames, ErrorMessages
-from app.core.exceptions.exceptions import UnauthorizedError, UserNotFoundError
+from app.core.exceptions.exceptions import (
+    DeviceNotRegisteredError,
+    UnauthorizedError,
+    UserNotFoundError,
+)
+from app.db.models.user_app import User
 from app.db.utils import execute_query
 
 
@@ -25,6 +34,13 @@ class LoginService:
         cache: Redis,
     ) -> tuple[dict[str, Any], str, str, int]:
         """Authenticates a user and generates a login token."""
+
+        # 0. Check if device is registered
+        if not device_id:
+            raise DeviceNotRegisteredError(ErrorMessages.DEVICE_ID_MISSING)
+
+        if not await DeviceService.is_device_registered(device_id, db_session):
+            raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
 
         rows = await execute_query(
             UserQueries.GET_USER_FOR_LOGIN,
@@ -50,8 +66,6 @@ class LoginService:
             raise UnauthorizedError(ErrorMessages.INCORRECT_PASSWORD)
 
         # Generate token
-        from app.db.models.user_app import User
-
         token, expires_at = await AuthService.generate_token(
             user=User(id=user_id),
             client_id=client_id or "",
@@ -62,11 +76,6 @@ class LoginService:
 
         # FusionAuth Integration
         try:
-            import asyncio
-            import time
-
-            from app.api.v1.service.fusionauth_service import FusionAuthService
-
             user_uuid_str = str(user_id)
             user_email = user.get("email")
 
@@ -100,8 +109,6 @@ class LoginService:
             ) from e
 
         # Link device to user
-        from app.api.v1.service.device_service import DeviceService
-
         await DeviceService.link_device_to_user(
             device_id=device_id or "",
             user_uuid=user_id,

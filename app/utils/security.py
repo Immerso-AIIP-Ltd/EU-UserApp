@@ -10,7 +10,12 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 from app.api.v1.service.fusionauth_service import FusionAuthService
-from app.core.exceptions.exceptions import ValidationError
+from app.core.constants import ErrorMessages
+from app.core.exceptions.exceptions import (
+    BootstrapKeyIdNotConfiguredError,
+    RequestTimeoutError,
+    ValidationError,
+)
 from app.settings import settings
 
 
@@ -33,8 +38,6 @@ class SecurityService:
         # 2. Fetch from FusionAuth if still not provided
         key_id = settings.fusionauth_bootstrap_key_id
         if not key_id:
-            from app.core.exceptions.exceptions import BootstrapKeyIdNotConfiguredError
-
             raise BootstrapKeyIdNotConfiguredError
 
         key_obj = FusionAuthService.get_key(key_id)
@@ -80,7 +83,8 @@ class SecurityService:
                 ),
             )
         except Exception as e:
-            raise ValidationError(f"AES key decryption failed: {e!s}") from e
+            # User request: return timeout-like error on decryption failure
+            raise RequestTimeoutError(ErrorMessages.REQUEST_EXPIRED) from e
 
         # 2. Decrypt Payload (AES-GCM)
         try:
@@ -102,19 +106,16 @@ class SecurityService:
 
             payload_json = json.loads(decrypted_bytes.decode("utf-8"))
         except Exception as e:
-            raise ValidationError(f"Payload decryption failed: {e!s}") from e
+            # User request: return timeout-like error on decryption failure
+            raise RequestTimeoutError(ErrorMessages.REQUEST_EXPIRED) from e
 
         # 3. Validate Timestamp
         timestamp = payload_json.get("timestamp")
         if not timestamp:
-            from app.core.constants import ErrorMessages
-
-            raise ValidationError(ErrorMessages.TIMESTAMP_MISSING)
+            raise RequestTimeoutError(ErrorMessages.TIMESTAMP_MISSING)
 
         now = int(time.time())
         if abs(now - int(timestamp)) > 30:  # 30 seconds leeway
-            from app.core.constants import ErrorMessages
-
-            raise ValidationError(ErrorMessages.REQUEST_EXPIRED)
+            raise RequestTimeoutError(ErrorMessages.REQUEST_EXPIRED)
 
         return payload_json

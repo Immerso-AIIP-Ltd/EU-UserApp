@@ -10,13 +10,20 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.lifespan import lifespan_setup
 from app.api.v1.router import api_router
-from app.core.exceptions.exceptions import AppError, AppExceptionError
+from app.core.constants import ErrorCodes, ErrorMessages
+from app.core.exceptions.exceptions import (
+    AppError,
+    AppExceptionError,
+    RequestTimeoutError,
+    ValidationError,
+)
 from app.core.logging.log import configure_logging
 from app.core.middleware.logging_middleware import logging_middleware
 
 APP_ROOT = Path(__file__).parent.parent
 
 
+# Reload trigger
 def get_app() -> FastAPI:
     """
     Get FastAPI application.
@@ -59,13 +66,26 @@ def get_app() -> FastAPI:
             },
         )
 
+    @app.exception_handler(ValidationError)
+    async def validation_error_handler(
+        request: Request,
+        exc: ValidationError,
+    ) -> JSONResponse:
+        return exc.to_response()
+
+    @app.exception_handler(RequestTimeoutError)
+    async def request_timeout_error_handler(
+        request: Request,
+        exc: RequestTimeoutError,
+    ) -> JSONResponse:
+        return exc.to_response()
+
     @app.exception_handler(Exception)
     async def global_exception_handler(
         request: Request,
         exc: Exception,
     ) -> JSONResponse:
         logger.exception(f"Unhandled exception: {exc}")
-        from app.core.constants import ErrorCodes, ErrorMessages
 
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
