@@ -385,6 +385,8 @@ async def _finalize_user_registration(
     data_dict: dict[str, Any] = dict(user_rows[0])
     data_dict[RequestParams.TOKEN] = auth_token
     data_dict[RequestParams.REFRESH_TOKEN] = refresh_token
+    data_dict["accessToken"] = auth_token
+    data_dict["refreshToken"] = refresh_token
     data_dict[RequestParams.TOKEN_EXPIRY] = token_expiry
     data_dict[ProcessParams.ID] = str(user_id)
 

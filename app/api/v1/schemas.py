@@ -455,6 +455,8 @@ class AuthTokenData(BaseModel):
 
     auth_token: str
     refresh_token: Optional[str] = None
+    access_token: Optional[str] = Field(None, alias="accessToken")
+    refresh_token_fa: Optional[str] = Field(None, alias="refreshToken")
     token: Optional[str] = None
     token_secret: Optional[str] = None
     auth_token_expiry: Optional[int] = None
@@ -546,6 +548,8 @@ class SetForgotPasswordData(BaseModel):
 
     auth_token: str
     refresh_token: Optional[str] = None
+    access_token: Optional[str] = Field(None, alias="accessToken")
+    refresh_token_fa: Optional[str] = Field(None, alias="refreshToken")
     token: str = ""
     token_secret: str = ""
     auth_token_expiry: int

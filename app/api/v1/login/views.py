@@ -282,8 +282,6 @@ async def set_forgot_password(
     response_data = {
         RequestParams.AUTH_TOKEN: token,
         RequestParams.REFRESH_TOKEN: refresh_token,
-        "token": "",
-        "token_secret": "",
         RequestParams.AUTH_TOKEN_EXPIRY: expires_at,
     }
 
