@@ -32,7 +32,7 @@ class LoginUser(EncryptedUser):
             "push_token": "fake_push_token",
         }
         with self.post_encrypted(
-            "/user/v1/device/register",
+            "/user/v1/device/device_registration",
             payload_device,
             catch_response=True,
         ) as resp:
@@ -70,8 +70,11 @@ class LoginUser(EncryptedUser):
         ) as resp:
             if resp.status_code == 200:
                 data = resp.json().get("data", {})
-                self.auth_token = data.get("token")
-                self.refresh_token = data.get("refresh_token")
+                # Prefer accessToken as per new API, fallback to token
+                self.auth_token = data.get("accessToken") or data.get("token")
+                self.refresh_token = data.get("refreshToken") or data.get(
+                    "refresh_token"
+                )
                 if self.auth_token:
                     self.client.headers.update({"x-api-token": self.auth_token})
             else:
@@ -88,7 +91,8 @@ class LoginUser(EncryptedUser):
         ) as resp:
             if resp.status_code == 200:
                 data = resp.json().get("data", {})
-                self.auth_token = data.get("auth_token")
+                # Prefer accessToken as per new API, fallback to auth_token
+                self.auth_token = data.get("accessToken") or data.get("auth_token")
                 if self.auth_token:
                     self.client.headers.update({"x-api-token": self.auth_token})
                 resp.success()

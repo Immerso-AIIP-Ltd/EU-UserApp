@@ -21,6 +21,24 @@ class RegistrationUser(EncryptedUser):
     @task
     def register_step1_only(self) -> None:
         """Only hits register_with_profile as requested."""
+        # 1. Register Device first (Required)
+        payload_device = {
+            "device_id": self.device_id,
+            "device_name": "LoadTest Device",
+            "device_type": "mobile",
+            "platform": "android",
+            "push_token": "fake_push_token",
+        }
+        with self.post_encrypted(
+            "/user/v1/device/device_registration",
+            payload_device,
+            catch_response=True,
+        ) as resp:
+            if resp.status_code not in [200, 409]:
+                resp.failure(f"Setup registration device failed: {resp.text}")
+                return
+
+        # 2. Register User
         email = self.generate_random_email()
         password = "Password123!"  # noqa: S105
 

@@ -32,7 +32,7 @@ class AuthenticatedUser(EncryptedUser):
             "push_token": "fake_push_token",
         }
         with self.post_encrypted(
-            "/user/v1/device/register",
+            "/user/v1/device/device_registration",
             payload_device,
             catch_response=True,
         ) as resp:
@@ -69,7 +69,8 @@ class AuthenticatedUser(EncryptedUser):
         ) as resp:
             if resp.status_code == 200:
                 data = resp.json().get("data", {})
-                self.auth_token = data.get("token")
+                # Prefer accessToken as per new API, fallback to token
+                self.auth_token = data.get("accessToken") or data.get("token")
                 if self.auth_token:
                     self.client.headers.update({"x-api-token": self.auth_token})
                 else:

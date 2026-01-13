@@ -75,10 +75,10 @@ class DeviceUser(EncryptedUser):
         payload = {
             "device_id": self.device_id,
             "platform": "android",
-            "device_token": "dummy_fcm_token",
+            "push_token": "dummy_fcm_token",
         }
         with self.post_encrypted(
-            "/user/v1/device/register",
+            "/user/v1/device/device_registration",
             payload,
             catch_response=True,
         ) as response:
