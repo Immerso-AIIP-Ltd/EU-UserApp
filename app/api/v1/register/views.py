@@ -380,8 +380,8 @@ async def _finalize_user_registration(
     data_dict: dict[str, Any] = dict(user_rows[0])
     data_dict[RequestParams.TOKEN] = auth_token
     data_dict[RequestParams.REFRESH_TOKEN] = refresh_token
-    data_dict["accessToken"] = auth_token
-    data_dict["refreshToken"] = refresh_token
+    data_dict[ProcessParams.REG_ACCESS_TOKEN] = auth_token
+    data_dict[ProcessParams.REG_REFRESH_TOKEN] = refresh_token
     data_dict[RequestParams.TOKEN_EXPIRY] = token_expiry
     data_dict[ProcessParams.ID] = str(user_id)
 
@@ -480,7 +480,6 @@ async def _verify_and_consume_otp(
         or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
         or (isinstance(cached_otp, str) and cached_otp != otp)
     ):
-        logger.warning(f"OTP Mismatch or Expired for {receiver}")
         raise OtpExpiredError
 
     # 2. Verify OTP
@@ -552,7 +551,6 @@ async def _create_user_profile(
                 params={},
             )
             # user_count_rows returns list of RowMapping
-            # Use string key if possible or handle indexing for Mypy
             count = user_count_rows[0][0] if user_count_rows else 0  # type: ignore
             raw_name = f"user{count}"
 
@@ -576,11 +574,11 @@ async def _create_user_profile(
     # Insert User Profile
     profile_params = {
         RequestParams.USER_ID: user_id,
-        "firstname": firstname,
-        "lastname": lastname,
+        RequestParams.FIRSTNAME: firstname,
+        RequestParams.LASTNAME: lastname,
         LoginParams.BIRTH_DATE: birth_date,
         LoginParams.AVATAR_ID: cached_data.get(LoginParams.AVATAR_ID),
-        "image_url": cached_data.get(LoginParams.PROFILE_IMAGE),
+        RequestParams.IMAGE_URL: cached_data.get(LoginParams.PROFILE_IMAGE),
     }
     await execute_query(
         query=UserQueries.INSERT_USER_PROFILE,
@@ -619,7 +617,6 @@ async def _finalize_registration_and_auth(
     device_id = headers.get(RequestParams.DEVICE_ID)
 
     # 1. Device Registration (if needed)
-    # Re-verify device exists before finalization
     await _validate_device_registered(headers, db_session)
 
     # 2. Sync to FusionAuth and Issue Token
@@ -648,7 +645,6 @@ async def _finalize_registration_and_auth(
 
         if fa_token:
             auth_token = fa_token
-            # Set expiry (configurable)
             token_expiry = int(time.time()) + CacheTTL.TOKEN_EXPIRY
 
     except Exception as e:

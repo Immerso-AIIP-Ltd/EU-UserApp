@@ -108,7 +108,7 @@ async def test_verify_otp_register_success(
             payload=payload,
         )
         assert data["data"]["id"] == str(user_id)
-        assert data["data"]["accessToken"] == "mock_token"
+        assert data["data"]["accesstoken"] == "mock_token"
 
 
 @pytest.mark.anyio

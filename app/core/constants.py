@@ -200,6 +200,9 @@ class RequestParams:
     NATIVE_TOKEN = "native_token"  # noqa: S105
     DATE_DEACTIVATED = "date_deactivated"
     UNKNOWN_DEVICE = "unknown_device"
+    FIRSTNAME = "firstname"
+    LASTNAME = "lastname"
+    IMAGE_URL = "image_url"
 
 
 class DnsRecordTypes:
@@ -286,6 +289,8 @@ class ProcessParams:
     MODEL_DUMP = "model_dump"
     EMAIL_ADDRESS = "email address"
     MOBILE_NUMBER = "mobile number"
+    REG_ACCESS_TOKEN = "accesstoken"  # noqa: S105
+    REG_REFRESH_TOKEN = "refreshtoken"  # noqa: S105
 
 
 class ResponseParams:
@@ -718,6 +723,7 @@ class ErrorMessages:
         "OTP not verified for updated email or mobile"
     )
     TOKEN_DEVICE_MISMATCH = "Access token not valid for this device"  # noqa: S105
+    USER_NOT_FOUND_BYPASS = "User not found (bypass)"
 
 
 class Headers:

@@ -232,11 +232,7 @@ async def update_email_mobile(
             else f"{contact_update.calling_code}{contact_update.mobile}".lstrip("+")
         )
 
-        # Generate OTP
-        # We pass x_forwarded_for as IP.
-        # Since this is an authenticated request, we can get client IP from request.
         client_ip = request.client.host if request.client else RequestParams.LOCALHOST
-        # Check for x-forwarded-for header
         x_ff = request.headers.get("x-forwarded-for")
         if x_ff:
             client_ip = x_ff.split(",")[0].strip()
@@ -253,7 +249,6 @@ async def update_email_mobile(
             calling_code=contact_update.calling_code,
         )
 
-        # Construct Redirect URL
         redirect_url = RedirectTemplates.VERIFY_OTP.format(
             type=rx_type,
             receiver=receiver,
