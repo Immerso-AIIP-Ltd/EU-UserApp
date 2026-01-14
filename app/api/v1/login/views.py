@@ -84,6 +84,12 @@ async def login_user(
         HeaderKeys.API_CLIENT,
     )
 
+    if not device_id or not await DeviceService.is_device_registered(
+        device_id,
+        db_session,
+    ):
+        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
     # 0. Bypass for load tests
     # 0. Bypass for load tests
     if (

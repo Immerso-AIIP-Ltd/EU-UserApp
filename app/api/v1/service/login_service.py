@@ -1,6 +1,7 @@
 # app/api/v1/service/login_service.py
 
 import asyncio
+import datetime
 import time
 from typing import Any
 
@@ -12,7 +13,7 @@ from app.api.v1.schemas import LoginRequest
 from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.device_service import DeviceService
 from app.api.v1.service.fusionauth_service import FusionAuthService
-from app.core.constants import DeviceNames, ErrorMessages
+from app.core.constants import AuthConfig, DeviceNames, ErrorMessages
 from app.core.exceptions.exceptions import (
     DeviceNotRegisteredError,
     UnauthorizedError,
@@ -58,12 +59,32 @@ class LoginService:
         user = dict(rows[0])
         user_id = user["id"]
 
+        if user.get("account_locked_until") and user[
+            "account_locked_until"
+        ] > datetime.datetime.now(datetime.timezone.utc):
+            raise UnauthorizedError(ErrorMessages.ACCOUNT_LOCKED)
+
         # Password verify
         if not login_data.password or not AuthService.verify_password(
             login_data.password,
             user["password"],
         ):
+            await execute_query(
+                UserQueries.RECORD_LOGIN_FAILURE,
+                {
+                    "user_id": user_id,
+                    "max_attempts": AuthConfig.MAX_LOGIN_ATTEMPTS,
+                },
+                db_session,
+            )
             raise UnauthorizedError(ErrorMessages.INCORRECT_PASSWORD)
+
+        # Record login success
+        await execute_query(
+            UserQueries.RECORD_LOGIN_SUCCESS,
+            {"user_id": user_id},
+            db_session,
+        )
 
         # Generate token
         token, expires_at = await AuthService.generate_token(

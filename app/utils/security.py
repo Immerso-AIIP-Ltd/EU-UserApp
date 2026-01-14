@@ -84,7 +84,7 @@ class SecurityService:
             )
         except Exception as e:
             # User request: return timeout-like error on decryption failure
-            raise RequestTimeoutError(ErrorMessages.REQUEST_EXPIRED) from e
+            raise RequestTimeoutError(ErrorMessages.DECRYPTION_FAILED) from e
 
         # 2. Decrypt Payload (AES-GCM)
         try:
@@ -107,7 +107,7 @@ class SecurityService:
             payload_json = json.loads(decrypted_bytes.decode("utf-8"))
         except Exception as e:
             # User request: return timeout-like error on decryption failure
-            raise RequestTimeoutError(ErrorMessages.REQUEST_EXPIRED) from e
+            raise RequestTimeoutError(ErrorMessages.DECRYPTION_FAILED) from e
 
         # 3. Validate Timestamp
         timestamp = payload_json.get("timestamp")

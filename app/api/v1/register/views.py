@@ -183,12 +183,7 @@ async def verify_otp_register(
     """Sign Up - Step 2 (Verify OTP & Create) with Encryption."""
 
     # 0. Check if device is registered
-    device_id = headers.get(RequestParams.DEVICE_ID)
-    if not device_id or not await DeviceService.is_device_registered(
-        device_id,
-        db_session,
-    ):
-        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+    await _validate_device_registered(headers, db_session)
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
@@ -695,12 +690,7 @@ async def resend_otp(
     """Resend OTP (If Expired) with Encryption."""
 
     # 0. Check if device is registered
-    device_id = headers.get(RequestParams.DEVICE_ID)
-    if not device_id or not await DeviceService.is_device_registered(
-        device_id,
-        db_session,
-    ):
-        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+    await _validate_device_registered(headers, db_session)
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
