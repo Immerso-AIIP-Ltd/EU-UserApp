@@ -83,7 +83,14 @@ async def test_login_bypass_load_test(
 ) -> None:
     from app.settings import settings
 
-    payload = {"email": "test@example.com", "password": "password123"}
+    mock_decrypted_payload = {
+        "email": "test@example.com",
+        "password": "password123",
+        "calling_code": None,
+        "mobile": None,
+    }
+
+    payload = {"key": "k", "data": "d"}
 
     headers = get_auth_headers()
     headers["x-load-test-bypass"] = settings.load_test_bypass_secret
@@ -91,6 +98,9 @@ async def test_login_bypass_load_test(
     mock_user_row = {"id": 1, "email": "test@example.com", "name": "Test User"}
 
     with patch(
+        "app.api.v1.login.views.SecurityService.decrypt_payload",
+        return_value=mock_decrypted_payload,
+    ), patch(
         "app.api.v1.login.views.execute_query",
         new_callable=AsyncMock,
     ) as mock_execute_query:
