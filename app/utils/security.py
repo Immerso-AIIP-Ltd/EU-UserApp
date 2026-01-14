@@ -115,7 +115,7 @@ class SecurityService:
             raise RequestTimeoutError(ErrorMessages.TIMESTAMP_MISSING)
 
         now = int(time.time())
-        if abs(now - int(timestamp)) > 300:  # 5 minutes leeway for load tests/lag
+        if abs(now - int(timestamp)) > 30:  # 30 sec leeway for load tests/lag
             raise RequestTimeoutError(ErrorMessages.REQUEST_EXPIRED)
 
         return payload_json
