@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Sequence, Union
+from typing import Any, Sequence
 
 import jwt
 import pytz  # type: ignore[import-untyped]
@@ -59,7 +59,7 @@ router = APIRouter()
 @router.post("/login")
 async def login_user(
     request: Request,
-    payload: Union[EncryptedRequest, LoginRequest],
+    payload: EncryptedRequest,
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
@@ -76,15 +76,12 @@ async def login_user(
         except Exception as e:
             raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
     else:
-        # If it's already LoginRequest, use it directly (Postman convenience)
         login_data = payload
 
     device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
     client_id = headers.get(HeaderKeys.X_API_CLIENT) or headers.get(
         HeaderKeys.API_CLIENT,
     )
-
-    # 0. Bypass for load tests
     # 0. Bypass for load tests
     if (
         request.headers.get(HeaderKeys.X_LOAD_TEST_BYPASS)
@@ -109,7 +106,7 @@ async def login_user(
             )
 
         if not user_rows:
-            raise UserNotFoundError(message="User not found (bypass)")
+            raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND_BYPASS)
 
         user_data = user_rows[0]
         user_id = user_data["id"]
@@ -305,7 +302,6 @@ async def change_password(
     Requires valid x-api-token in headers.
     """
     # 1. Get user UUID from token
-    # validate_common_headers confirms presence, but does not verify. We verify here.
     user_id = await AuthService.verify_user_token(headers, db_session)
 
     # 2. Call service
@@ -333,13 +329,6 @@ async def refresh_token(
 ) -> JSONResponse:
     """Refresh access token using refresh token."""
     device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
-
-    # 0. Check if device is registered
-    if not device_id or not await DeviceService.is_device_registered(
-        device_id,
-        db_session,
-    ):
-        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
 
     if not device_id:
         raise InvalidInputError(ErrorMessages.DEVICE_ID_MISSING)

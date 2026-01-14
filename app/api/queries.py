@@ -5,13 +5,6 @@ class UserQueries:
     """Centralized SQL queries for User App API."""
 
     # ==================== DEVICE INVITE ====================
-    CHECK_DEVICE_INVITE_STATUS = text(
-        """
-        SELECT * FROM user_app.check_device_invite_status(
-            :device_id
-        );
-        """,
-    )
 
     GET_COUPON = text(
         """

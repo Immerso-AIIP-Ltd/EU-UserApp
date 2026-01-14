@@ -31,21 +31,11 @@ class Settings(BaseSettings):
 
     host: str = "127.0.0.1"
     port: int = 8000
-    # quantity of workers for uvicorn
     workers_count: int = 4
-    # Enable uvicorn reloading
     reload: bool = False
-
-    # Enable debug mode
     debug: bool = False
-
-    # Log directory
     log_dir: Path = TEMP_DIR / "logs"
-
-    # Current environment
     environment: str = "dev"
-
-    # Log level
     log_level: LogLevel = LogLevel.INFO
 
     # api version
@@ -199,8 +189,6 @@ class Settings(BaseSettings):
         """
         if self.celery_broker_url:
             return self.celery_broker_url
-        # Use Redis with authentication
-        # Build URL with password if provided
         if self.redis_pass:
             auth = (
                 f":{self.redis_pass}@"
@@ -209,7 +197,6 @@ class Settings(BaseSettings):
             )
             base = self.redis_base if self.redis_base is not None else 0
             return f"redis://{auth}{self.redis_host}:{self.redis_port}/{base}"
-        # Fallback to no auth
         base = self.redis_base if self.redis_base is not None else 0
         return f"redis://{self.redis_host}:{self.redis_port}/{base}"
 
@@ -223,8 +210,6 @@ class Settings(BaseSettings):
         """
         if self.celery_backend_url:
             return self.celery_backend_url
-        # Use Redis with authentication for backend (can be same or different DB)
-        # Build URL with password if provided
         if self.redis_pass:
             auth = (
                 f":{self.redis_pass}@"
@@ -233,7 +218,6 @@ class Settings(BaseSettings):
             )
             base = self.redis_base if self.redis_base is not None else 1
             return f"redis://{auth}{self.redis_host}:{self.redis_port}/{base}"
-        # Fallback to no auth
         base = self.redis_base if self.redis_base is not None else 1
         return f"redis://{self.redis_host}:{self.redis_port}/{base}"
 
