@@ -601,8 +601,9 @@ class ErrorCodes:
     BOOTSTRAP_KEY_ID_NOT_CONFIGURED_CODE = "US044"
     FAILED_TO_GENERATE_REFRESH_TOKEN_CODE = "US045"  # noqa: S105
     ACCOUNT_LOCKED = "US409"
-    PASSWORDS_DO_NOT_MATCH = "US400"
-    INVALID_OLD_PASSWORD = "US400"  # noqa: S105
+    PASSWORDS_DO_NOT_MATCH = "US046"
+    INVALID_OLD_PASSWORD = "US047"  # noqa: S105
+    PAYLOAD_NOT_ENCRYPTED_CODE = "US048"
 
 
 class ErrorMessages:
@@ -721,6 +722,7 @@ class ErrorMessages:
         "OTP not verified for updated email or mobile"
     )
     USER_NOT_FOUND_BYPASS = "User not found (bypass)"
+    PAYLOAD_NOT_ENCRYPTED = "Payload is not encrypted"
 
 
 class Headers:

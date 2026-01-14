@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Union
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
@@ -25,6 +25,7 @@ from app.core.exceptions import (
     DeviceAlreadyInvitedError,
     DeviceRegistrationError,
     InvalidCouponError,
+    PayloadNotEncryptedError,
     ValidationError,
 )
 from app.db.dependencies import get_db_session
@@ -42,12 +43,24 @@ router = APIRouter()
 @router.post("/invite")
 async def invite_device(
     request: Request,
-    payload: EncryptedRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """Invite a device using an Encrypted coupon code."""
+    """Invite a new device - Enforced Encryption."""
+
+    if not isinstance(payload, EncryptedRequest):
+        if (
+            not isinstance(payload, dict)
+            or "key" not in payload
+            or "data" not in payload
+        ):
+            raise PayloadNotEncryptedError
+        try:
+            payload = EncryptedRequest(**payload)
+        except Exception as e:
+            raise PayloadNotEncryptedError from e
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
@@ -115,11 +128,23 @@ async def invite_device(
 @router.post("/device_registration")
 async def register_device(
     request: Request,
-    payload: EncryptedRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_x_device_id),
 ) -> JSONResponse:
-    """Register a new device (Encrypted)."""
+    """Register a new device - Enforced Encryption."""
+
+    if not isinstance(payload, EncryptedRequest):
+        if (
+            not isinstance(payload, dict)
+            or "key" not in payload
+            or "data" not in payload
+        ):
+            raise PayloadNotEncryptedError
+        try:
+            payload = EncryptedRequest(**payload)
+        except Exception as e:
+            raise PayloadNotEncryptedError from e
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(

@@ -2,7 +2,7 @@ import asyncio
 import logging
 import time
 from datetime import date
-from typing import Any
+from typing import Any, Union
 
 import bcrypt
 from fastapi import APIRouter, Depends, Header, Request
@@ -39,11 +39,12 @@ from app.core.constants import (
     RequestParams,
     SuccessMessages,
 )
-from app.core.exceptions.exceptions import (
+from app.core.exceptions import (
     DecryptionFailedError,
     DeviceNotRegisteredError,
     OtpExpiredError,
     OtpInvalidError,
+    PayloadNotEncryptedError,
     RegistrationSessionClosedError,
     StateNotFoundError,
     UserCreationFailedError,
@@ -104,13 +105,25 @@ router = APIRouter()
 @router.post("/register_with_profile")
 async def register_with_profile(
     request: Request,
-    payload: EncryptedRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
 ) -> JSONResponse:
-    """Sign Up - Step 1 (Check Existence and Register) with Encryption."""
+    """Sign Up - Step 1 (Check Existence and Register) with Enforced Encryption."""
+
+    if not isinstance(payload, EncryptedRequest):
+        if (
+            not isinstance(payload, dict)
+            or "key" not in payload
+            or "data" not in payload
+        ):
+            raise PayloadNotEncryptedError
+        try:
+            payload = EncryptedRequest(**payload)
+        except Exception as e:
+            raise PayloadNotEncryptedError from e
 
     # 0. Check if device is registered
     await _validate_device_registered(headers, db_session)
@@ -175,12 +188,24 @@ async def register_with_profile(
 @router.post("/verify_otp_register")
 async def verify_otp_register(
     request: Request,
-    payload: EncryptedRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """Sign Up - Step 2 (Verify OTP & Create) with Encryption."""
+    """Sign Up - Step 2 (Verify OTP & Create) with Enforced Encryption."""
+
+    if not isinstance(payload, EncryptedRequest):
+        if (
+            not isinstance(payload, dict)
+            or "key" not in payload
+            or "data" not in payload
+        ):
+            raise PayloadNotEncryptedError
+        try:
+            payload = EncryptedRequest(**payload)
+        except Exception as e:
+            raise PayloadNotEncryptedError from e
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
@@ -674,13 +699,25 @@ async def _finalize_registration_and_auth(
 @router.post("/resend_otp")
 async def resend_otp(
     request: Request,
-    payload: EncryptedRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
 ) -> JSONResponse:
-    """Resend OTP (If Expired) with Encryption."""
+    """Resend OTP (If Expired) with Enforced Encryption."""
+
+    if not isinstance(payload, EncryptedRequest):
+        if (
+            not isinstance(payload, dict)
+            or "key" not in payload
+            or "data" not in payload
+        ):
+            raise PayloadNotEncryptedError
+        try:
+            payload = EncryptedRequest(**payload)
+        except Exception as e:
+            raise PayloadNotEncryptedError from e
 
     # 0. Check if device is registered
     device_id = headers.get(RequestParams.DEVICE_ID)

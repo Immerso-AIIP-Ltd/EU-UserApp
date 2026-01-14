@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, Union
 
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse
@@ -37,6 +37,7 @@ from app.core.exceptions import (
     EmailMobileRequiredError,
     OtpExpiredError,
     OtpInvalidError,
+    PayloadNotEncryptedError,
     UserNotFoundError,
     ValidationError,
 )
@@ -52,16 +53,34 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+async def _validate_and_parse_encrypted_payload(
+    payload: Union[EncryptedRequest, dict[str, Any]],
+) -> EncryptedRequest:
+    """Validate and parse encrypted payload."""
+    if isinstance(payload, EncryptedRequest):
+        return payload
+
+    if not isinstance(payload, dict) or "key" not in payload or "data" not in payload:
+        raise PayloadNotEncryptedError
+
+    try:
+        return EncryptedRequest(**payload)
+    except Exception as e:
+        raise PayloadNotEncryptedError from e
+
+
 @router.post("/waitlist")
 async def join_waitlist(
     request: Request,
-    payload: EncryptedRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
 ) -> JSONResponse:
-    """Join the waitlist using Encrypted email or mobile."""
+    """Join the waitlist - Enforced Encryption."""
+
+    payload = await _validate_and_parse_encrypted_payload(payload)
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
@@ -73,7 +92,7 @@ async def join_waitlist(
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
 
     device_id = waitlist_payload.device_id
-    email_id = waitlist_payload.email_id
+    email = waitlist_payload.email
     mobile = waitlist_payload.mobile
     calling_code = waitlist_payload.calling_code
     name = waitlist_payload.name
@@ -88,21 +107,21 @@ async def join_waitlist(
     if not device_id:
         raise ValidationError(message=ErrorMessages.DEVICE_ID_REQUIRED)
 
-    if not email_id and not (mobile and calling_code):
+    if not email and not (mobile and calling_code):
         raise EmailMobileRequiredError
 
-    if email_id and not mobile:
+    if email and not mobile:
         return await _process_email_flow(
             request,
             cache,
             db_session,
             device_id,
-            email_id,
+            email,
             name,
             client_ip,
         )
 
-    if mobile and calling_code and not email_id:
+    if mobile and calling_code and not email:
         return await _process_mobile_flow(
             request,
             cache,
@@ -122,14 +141,14 @@ async def _process_email_flow(
     cache: Redis,
     db_session: AsyncSession,
     device_id: str,
-    email_id: str,
+    email: str,
     name: str | None,
     x_forwarded_for: str,
 ) -> JSONResponse:
     # 1. Check existing device with email
     existing_device = await execute_query(
         query=UserQueries.GET_WAITLIST_BY_DEVICE_AND_EMAIL,
-        params={RequestParams.DEVICE_ID: device_id, RequestParams.EMAIL: email_id},
+        params={RequestParams.DEVICE_ID: device_id, RequestParams.EMAIL: email},
         db_session=db_session,
     )
 
@@ -152,7 +171,7 @@ async def _process_email_flow(
             # Resend OTP
             await GenerateOtpService.generate_otp(
                 redis_client=cache,
-                receiver=email_id,
+                receiver=email,
                 receiver_type=RequestParams.EMAIL,
                 intent=Intents.WAITLIST,
                 x_forwarded_for=x_forwarded_for,
@@ -174,7 +193,7 @@ async def _process_email_flow(
     # 2. Check if email exists
     existing_email = await execute_query(
         query=UserQueries.GET_WAITLIST_BY_EMAIL,
-        params={RequestParams.EMAIL: email_id},
+        params={RequestParams.EMAIL: email},
         db_session=db_session,
     )
 
@@ -196,7 +215,7 @@ async def _process_email_flow(
             # Resend OTP
             await GenerateOtpService.generate_otp(
                 redis_client=cache,
-                receiver=email_id,
+                receiver=email,
                 receiver_type=RequestParams.EMAIL,
                 intent=Intents.WAITLIST,
                 x_forwarded_for=x_forwarded_for,
@@ -218,7 +237,7 @@ async def _process_email_flow(
         query=UserQueries.INSERT_WAITLIST_ENTRY,
         params={
             RequestParams.DEVICE_ID: device_id,
-            RequestParams.EMAIL: email_id,
+            RequestParams.EMAIL: email,
             RequestParams.MOBILE: "",
             RequestParams.CALLING_CODE: "",
         },
@@ -229,7 +248,7 @@ async def _process_email_flow(
 
     await GenerateOtpService.generate_otp(
         redis_client=cache,
-        receiver=email_id,
+        receiver=email,
         receiver_type=RequestParams.EMAIL,
         intent=Intents.WAITLIST,
         x_forwarded_for=x_forwarded_for,
@@ -428,101 +447,61 @@ async def _ensure_device_exists(
         )
 
 
-@router.post("/waitlist_verify_otp")
-async def verify_waitlist(
-    request: Request,
-    payload: EncryptedRequest,
-    db_session: AsyncSession = Depends(get_db_session),
-    headers: dict[str, Any] = Depends(validate_headers_without_auth),
-    cache: Redis = Depends(get_redis_connection),
-) -> JSONResponse:
-    """Verify OTP for waitlist entry (Encrypted)."""
-
-    try:
-        decrypted_payload = SecurityService.decrypt_payload(
-            encrypted_key=payload.key,
-            encrypted_data=payload.data,
-        )
-        verify_payload = VerifyWaitlistRequest(**decrypted_payload)
-    except Exception as e:
-        raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
-
-    email_id = verify_payload.email_id
-    mobile = verify_payload.mobile
-    calling_code = verify_payload.calling_code
-    otp = verify_payload.otp
-
-    if not email_id and not (mobile and calling_code):
-        raise EmailMobileRequiredError
-
-    # 1. Verify OTP
-    is_bypass = (
-        request.headers.get(HeaderKeys.X_LOAD_TEST_BYPASS)
-        == settings.load_test_bypass_secret
-    )
-
+async def _verify_waitlist_otp(
+    cache: Redis,
+    email: str | None,
+    mobile: str | None,
+    calling_code: str | None,
+    otp: str,
+    is_bypass: bool,
+) -> None:
+    """Helper to verify waitlist OTP."""
     if is_bypass:
-        # Just pick any entry or create one if needed?
-        # Usually for load test we assume it exists or we use a pre-seeded one.
-        # But here we need to find the entry to update it.
-        pass
+        return
 
-    if email_id:
-        if not is_bypass:
-            redis_key = CacheKeyTemplates.OTP_EMAIL.format(
-                receiver=email_id,
-                intent=Intents.WAITLIST,
-            )
-            cached_otp = await cache.get(redis_key)
-
-            if (
-                not cached_otp
-                or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
-                or (isinstance(cached_otp, str) and cached_otp != otp)
-            ):
-                raise OtpExpiredError
-
-            # Consume OTP
-            await cache.delete(redis_key)
-
-        # Get waitlist entry
-        existing_entry = await execute_query(
-            query=UserQueries.GET_WAITLIST_BY_EMAIL,
-            params={RequestParams.EMAIL: email_id},
-            db_session=db_session,
+    if email:
+        redis_key = CacheKeyTemplates.OTP_EMAIL.format(
+            receiver=email,
+            intent=Intents.WAITLIST,
         )
+        cached_otp = await cache.get(redis_key)
+        if (
+            not cached_otp
+            or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
+            or (isinstance(cached_otp, str) and cached_otp != otp)
+        ):
+            raise OtpExpiredError
+        await cache.delete(redis_key)
     else:
-        # Mobile verification
         receiver = f"{calling_code}{mobile}".lstrip("+")
-        # Verify OTP
         redis_key = CacheKeyTemplates.OTP_MOBILE.format(
             receiver=receiver,
             intent=Intents.WAITLIST,
         )
         cached_otp = await cache.get(redis_key)
-
         if (
             not cached_otp
             or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
             or (isinstance(cached_otp, str) and cached_otp != otp)
         ):
             raise OtpInvalidError
+        await cache.delete(redis_key)
 
-            if (
-                not cached_otp
-                or (
-                    isinstance(cached_otp, bytes) and cached_otp.decode() != payload.otp
-                )
-                or (isinstance(cached_otp, str) and cached_otp != payload.otp)
-            ):
-                raise ValidationError(
-                    message=ErrorMessages.OTP_INVALID_OR_EXPIRED,
-                )
 
-            # Consume OTP
-            await cache.delete(redis_key)
-
-        # Get waitlist entry
+async def _get_waitlist_entry(
+    db_session: AsyncSession,
+    email: str | None,
+    mobile: str | None,
+    calling_code: str | None,
+) -> Any:
+    """Helper to get waitlist entry."""
+    if email:
+        existing_entry = await execute_query(
+            query=UserQueries.GET_WAITLIST_BY_EMAIL,
+            params={RequestParams.EMAIL: email},
+            db_session=db_session,
+        )
+    else:
         existing_entry = await execute_query(
             query=UserQueries.GET_WAITLIST_BY_MOBILE,
             params={
@@ -536,10 +515,50 @@ async def verify_waitlist(
         raise UserNotFoundError(
             message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(ProcessParams.USER),
         )
+    return existing_entry[0]
 
-    entry = existing_entry[0]
 
-    # Update verification status
+@router.post("/waitlist_verify_otp")
+async def verify_waitlist(
+    request: Request,
+    payload: Union[EncryptedRequest, dict[str, Any]],
+    db_session: AsyncSession = Depends(get_db_session),
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
+    cache: Redis = Depends(get_redis_connection),
+) -> JSONResponse:
+    """Verify waitlist OTP - Enforced Encryption."""
+
+    payload = await _validate_and_parse_encrypted_payload(payload)
+
+    try:
+        decrypted_payload = SecurityService.decrypt_payload(
+            encrypted_key=payload.key,
+            encrypted_data=payload.data,
+        )
+        verify_payload = VerifyWaitlistRequest(**decrypted_payload)
+    except Exception as e:
+        raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
+
+    email = verify_payload.email
+    mobile = verify_payload.mobile
+    calling_code = verify_payload.calling_code
+    otp = verify_payload.otp
+
+    if not email and not (mobile and calling_code):
+        raise EmailMobileRequiredError
+
+    is_bypass = (
+        request.headers.get(HeaderKeys.X_LOAD_TEST_BYPASS)
+        == settings.load_test_bypass_secret
+    )
+
+    # 1. Verify OTP
+    await _verify_waitlist_otp(cache, email, mobile, calling_code, otp, is_bypass)
+
+    # 2. Get waitlist entry
+    entry = await _get_waitlist_entry(db_session, email, mobile, calling_code)
+
+    # 3. Update verification status
     updated_entry = await execute_query(
         query=UserQueries.UPDATE_WAITLIST_VERIFIED,
         params={ProcessParams.ID: entry.id},
@@ -547,7 +566,6 @@ async def verify_waitlist(
     )
 
     await db_session.commit()
-
     updated_row = updated_entry[0]
 
     return standard_response(
@@ -555,7 +573,7 @@ async def verify_waitlist(
         message=SuccessMessages.WAITLIST_QUEUE_STATUS.format(
             updated_row.queue_number,
             ResponseParams.VERIFICATION_SUCCESS,
-        ),  # Or a simpler message
+        ),
         data={
             RequestParams.QUEUE_NUMBER: str(updated_row.queue_number),
             RequestParams.IS_VERIFIED: True,
@@ -564,16 +582,98 @@ async def verify_waitlist(
     )
 
 
+async def _handle_resend_waitlist_email_otp(
+    request: Request,
+    cache: Redis,
+    db_session: AsyncSession,
+    email: str,
+) -> JSONResponse | None:
+    """Helper to handle resending waitlist email OTP."""
+    existing_entry = await execute_query(
+        query=UserQueries.GET_WAITLIST_BY_EMAIL,
+        params={RequestParams.EMAIL: email},
+        db_session=db_session,
+    )
+    if not existing_entry:
+        raise UserNotFoundError(
+            message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(RequestParams.EMAIL),
+        )
+
+    if existing_entry[0].is_verified:
+        return standard_response(
+            request=request,
+            message=SuccessMessages.EMAIL_ALREADY_VERIFIED,
+            data={RequestParams.IS_VERIFIED: True},
+        )
+
+    await GenerateOtpService.generate_otp(
+        redis_client=cache,
+        receiver=email,
+        receiver_type=RequestParams.EMAIL,
+        intent=Intents.WAITLIST,
+        db_session=db_session,
+    )
+    return None
+
+
+async def _handle_resend_waitlist_mobile_otp(
+    request: Request,
+    cache: Redis,
+    db_session: AsyncSession,
+    mobile: str,
+    calling_code: str,
+    x_forwarded_for: str | None,
+) -> JSONResponse | None:
+    """Helper to handle resending waitlist mobile OTP."""
+    existing_entry = await execute_query(
+        query=UserQueries.GET_WAITLIST_BY_MOBILE,
+        params={
+            RequestParams.MOBILE: mobile,
+            RequestParams.CALLING_CODE: calling_code,
+        },
+        db_session=db_session,
+    )
+    if not existing_entry:
+        raise UserNotFoundError(
+            message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(
+                RequestParams.MOBILE_NUMBER,
+            ),
+        )
+
+    if existing_entry[0].is_verified:
+        return standard_response(
+            request=request,
+            message=SuccessMessages.MOBILE_ALREADY_VERIFIED,
+            data={RequestParams.IS_VERIFIED: True},
+        )
+
+    receiver = f"{calling_code}{mobile}".lstrip("+")
+    await GenerateOtpService.generate_otp(
+        redis_client=cache,
+        receiver=receiver,
+        receiver_type=RequestParams.MOBILE,
+        intent=Intents.WAITLIST,
+        x_forwarded_for=x_forwarded_for,
+        is_resend=True,
+        db_session=db_session,
+        mobile=mobile,
+        calling_code=calling_code,
+    )
+    return None
+
+
 @router.post("/waitlist_resend_otp")
 async def resend_waitlist_otp(
     request: Request,
-    payload: EncryptedRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
 ) -> JSONResponse:
-    """Resend OTP for waitlist verification (Encrypted)."""
+    """Resend waitlist OTP - Enforced Encryption."""
+
+    payload = await _validate_and_parse_encrypted_payload(payload)
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
@@ -584,14 +684,13 @@ async def resend_waitlist_otp(
     except Exception as e:
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
 
-    email_id = resend_payload.email_id
+    email = resend_payload.email
     mobile = resend_payload.mobile
     calling_code = resend_payload.calling_code
 
-    if not email_id and not (mobile and calling_code):
+    if not email and not (mobile and calling_code):
         raise EmailMobileRequiredError
 
-    # Bypass for load tests
     if (
         request.headers.get(HeaderKeys.X_LOAD_TEST_BYPASS)
         == settings.load_test_bypass_secret
@@ -602,73 +701,29 @@ async def resend_waitlist_otp(
             data={RequestParams.IS_VERIFIED: False},
         )
 
-    if email_id:
-        # Check if waitlist entry exists
-        existing_entry = await execute_query(
-            query=UserQueries.GET_WAITLIST_BY_EMAIL,
-            params={RequestParams.EMAIL: email_id},
-            db_session=db_session,
+    if email:
+        email_resp = await _handle_resend_waitlist_email_otp(
+            request,
+            cache,
+            db_session,
+            email,
         )
-        if not existing_entry:
-            raise UserNotFoundError(
-                message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(
-                    RequestParams.EMAIL,
-                ),
-            )
-
-        if existing_entry[0].is_verified:
-            return standard_response(
-                request=request,
-                message=SuccessMessages.EMAIL_ALREADY_VERIFIED,
-                data={RequestParams.IS_VERIFIED: True},
-            )
-
-        # Generate and Send OTP
-        await GenerateOtpService.generate_otp(
-            redis_client=cache,
-            receiver=email_id,
-            receiver_type=RequestParams.EMAIL,
-            intent=Intents.WAITLIST,
-            db_session=db_session,
-        )
-
+        if email_resp:
+            return email_resp
     else:
-        # Check if waitlist entry exists
-        existing_entry = await execute_query(
-            query=UserQueries.GET_WAITLIST_BY_MOBILE,
-            params={
-                RequestParams.MOBILE: mobile,
-                RequestParams.CALLING_CODE: calling_code,
-            },
-            db_session=db_session,
+        # If email is missing, mobile and calling_code must be present
+        if mobile is None or calling_code is None:
+            raise EmailMobileRequiredError
+        mobile_resp = await _handle_resend_waitlist_mobile_otp(
+            request,
+            cache,
+            db_session,
+            mobile,
+            calling_code,
+            x_forwarded_for,
         )
-        if not existing_entry:
-            raise UserNotFoundError(
-                message=ErrorMessages.WAITLIST_ENTRY_NOT_FOUND.format(
-                    RequestParams.MOBILE_NUMBER,
-                ),
-            )
-
-        if existing_entry[0].is_verified:
-            return standard_response(
-                request=request,
-                message=SuccessMessages.MOBILE_ALREADY_VERIFIED,
-                data={RequestParams.IS_VERIFIED: True},
-            )
-
-        # Generate and Send OTP
-        receiver = f"{calling_code}{mobile}".lstrip("+")
-        await GenerateOtpService.generate_otp(
-            redis_client=cache,
-            receiver=receiver,
-            receiver_type=RequestParams.MOBILE,
-            intent=Intents.WAITLIST,
-            x_forwarded_for=x_forwarded_for,
-            is_resend=True,
-            db_session=db_session,
-            mobile=mobile,
-            calling_code=calling_code,
-        )
+        if mobile_resp:
+            return mobile_resp
 
     return standard_response(
         request=request,

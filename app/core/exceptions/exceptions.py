@@ -636,3 +636,14 @@ class RequestTimeoutError(AppError):
             message=detail,
             error_code=ErrorCodes.DATA_VALIDATION_ERROR_CODE,
         )
+
+
+class PayloadNotEncryptedError(AppError):
+    """Raised when the payload is expected to be encrypted but is not."""
+
+    def __init__(self, detail: str = ErrorMessages.PAYLOAD_NOT_ENCRYPTED) -> None:
+        super().__init__(
+            http_code=status.HTTP_400_BAD_REQUEST,
+            message=detail,
+            error_code=ErrorCodes.PAYLOAD_NOT_ENCRYPTED_CODE,
+        )

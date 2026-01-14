@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Union
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
@@ -16,7 +16,7 @@ from app.api.v1.service.google_oauth_service import GoogleOAuthService
 from app.api.v1.service.social_login_service import SocialLoginService
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import SuccessMessages
-from app.core.exceptions import DecryptionFailedError
+from app.core.exceptions import DecryptionFailedError, PayloadNotEncryptedError
 from app.db.dependencies import get_db_session
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
@@ -28,12 +28,24 @@ router = APIRouter()
 @router.post("/google_login")
 async def google_login(
     request: Request,
-    payload: EncryptedRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
 ) -> JSONResponse:
-    """Google Login / Sign Up API (Encrypted)."""
+    """Google Login / Sign Up API - Enforced Encryption."""
+
+    if not isinstance(payload, EncryptedRequest):
+        if (
+            not isinstance(payload, dict)
+            or "key" not in payload
+            or "data" not in payload
+        ):
+            raise PayloadNotEncryptedError
+        try:
+            payload = EncryptedRequest(**payload)
+        except Exception as e:
+            raise PayloadNotEncryptedError from e
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
@@ -73,12 +85,24 @@ async def google_login(
 @router.post("/apple_login")
 async def apple_login(
     request: Request,
-    payload: EncryptedRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
 ) -> JSONResponse:
-    """Apple Login / Sign Up API (Encrypted)."""
+    """Apple Login / Sign Up API - Enforced Encryption."""
+
+    if not isinstance(payload, EncryptedRequest):
+        if (
+            not isinstance(payload, dict)
+            or "key" not in payload
+            or "data" not in payload
+        ):
+            raise PayloadNotEncryptedError
+        try:
+            payload = EncryptedRequest(**payload)
+        except Exception as e:
+            raise PayloadNotEncryptedError from e
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
@@ -120,12 +144,24 @@ async def apple_login(
 @router.post("/facebook_login")
 async def facebook_login(
     request: Request,
-    payload: EncryptedRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
 ) -> JSONResponse:
-    """Facebook Login / Sign Up API (Encrypted)."""
+    """Facebook Login / Sign Up API - Enforced Encryption."""
+
+    if not isinstance(payload, EncryptedRequest):
+        if (
+            not isinstance(payload, dict)
+            or "key" not in payload
+            or "data" not in payload
+        ):
+            raise PayloadNotEncryptedError
+        try:
+            payload = EncryptedRequest(**payload)
+        except Exception as e:
+            raise PayloadNotEncryptedError from e
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(

@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Sequence
+from typing import Any, Sequence, Union
 
 import jwt
 import pytz  # type: ignore[import-untyped]
@@ -39,6 +39,7 @@ from app.core.exceptions import (
     DeviceNotRegisteredError,
     EmailMobileRequiredError,
     InvalidInputError,
+    PayloadNotEncryptedError,
     UserNotFoundError,
 )
 from app.db.dependencies import get_db_session
@@ -59,24 +60,36 @@ router = APIRouter()
 @router.post("/login")
 async def login_user(
     request: Request,
-    payload: EncryptedRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """Authenticate user using Encrypted or Plain JSON (for Testing)."""
+    """Authenticate user - Enforces encrypted payload."""
 
-    if isinstance(payload, EncryptedRequest):
+    if not isinstance(payload, EncryptedRequest):
+        # Even if it's a dict, we check for expected keys to be sure it's not plain JSON
+        if (
+            not isinstance(payload, dict)
+            or "key" not in payload
+            or "data" not in payload
+        ):
+            raise PayloadNotEncryptedError
+
+        # If it's a dict with key/data but not parsed yet, parse it
         try:
-            decrypted_payload = SecurityService.decrypt_payload(
-                encrypted_key=payload.key,
-                encrypted_data=payload.data,
-            )
-            login_data = LoginRequest(**decrypted_payload)
+            payload = EncryptedRequest(**payload)
         except Exception as e:
-            raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
-    else:
-        login_data = payload
+            raise PayloadNotEncryptedError from e
+
+    try:
+        decrypted_payload = SecurityService.decrypt_payload(
+            encrypted_key=payload.key,
+            encrypted_data=payload.data,
+        )
+        login_data = LoginRequest(**decrypted_payload)
+    except Exception as e:
+        raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
 
     device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
     client_id = headers.get(HeaderKeys.X_API_CLIENT) or headers.get(
@@ -189,12 +202,24 @@ async def login_user(
 @router.post("/forgot_password")
 async def forgot_password(
     request: Request,
-    payload: EncryptedRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     db: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """Forgot password handler using Encrypted email or mobile."""
+    """Forgot password handler - Enforced Encryption."""
+
+    if not isinstance(payload, EncryptedRequest):
+        if (
+            not isinstance(payload, dict)
+            or "key" not in payload
+            or "data" not in payload
+        ):
+            raise PayloadNotEncryptedError
+        try:
+            payload = EncryptedRequest(**payload)
+        except Exception as e:
+            raise PayloadNotEncryptedError from e
 
     # 0. Check if device is registered
     device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
@@ -246,12 +271,24 @@ async def forgot_password(
 @router.post("/set_forgot_password")
 async def set_forgot_password(
     request: Request,
-    payload: EncryptedRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     db: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """Set new password after OTP verification (Encrypted)."""
+    """Set new password after OTP verification - Enforced Encryption."""
+
+    if not isinstance(payload, EncryptedRequest):
+        if (
+            not isinstance(payload, dict)
+            or "key" not in payload
+            or "data" not in payload
+        ):
+            raise PayloadNotEncryptedError
+        try:
+            payload = EncryptedRequest(**payload)
+        except Exception as e:
+            raise PayloadNotEncryptedError from e
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
