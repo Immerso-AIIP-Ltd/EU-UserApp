@@ -91,6 +91,7 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore:.*unclosed.*:ResourceWarning",
     "ignore:Module already imported so cannot be rewritten; anyio:pytest.PytestAssertRewriteWarning",
+    "ignore::pydantic.warnings.UnsupportedFieldAttributeWarning",
 ]
 asyncio_mode = "auto"
 

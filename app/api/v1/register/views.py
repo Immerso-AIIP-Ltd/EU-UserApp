@@ -402,8 +402,6 @@ async def _finalize_user_registration(
     data_dict: dict[str, Any] = dict(user_rows[0])
     data_dict[RequestParams.TOKEN] = auth_token
     data_dict[RequestParams.REFRESH_TOKEN] = refresh_token
-    data_dict[ProcessParams.REG_ACCESS_TOKEN] = auth_token
-    data_dict[ProcessParams.REG_REFRESH_TOKEN] = refresh_token
     data_dict[RequestParams.TOKEN_EXPIRY] = token_expiry
     data_dict[ProcessParams.ID] = str(user_id)
 
@@ -573,7 +571,7 @@ async def _create_user_profile(
                 params={},
             )
             # user_count_rows returns list of RowMapping
-            count = user_count_rows[0][0] if user_count_rows else 0  # type: ignore
+            count = user_count_rows[0]["count"] if user_count_rows else 0  # type: ignore
             raw_name = f"user{count}"
 
     # Split name into firstname and lastname

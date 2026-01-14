@@ -1,6 +1,6 @@
 from datetime import date
 from enum import Enum
-from typing import Any, Dict, Generic, List, Optional, Self, TypeVar, Union
+from typing import Annotated, Any, Dict, Generic, List, Optional, Self, TypeVar, Union
 from uuid import UUID
 
 from pydantic import AliasChoices, BaseModel, EmailStr, Field, model_validator
@@ -96,11 +96,14 @@ class RefreshTokenRequest(BaseModel):
 class LoginRequest(BaseModel):
     """Request schema for /user/v1/user/login."""
 
-    email: Optional[EmailStr] = Field(
-        default=None,
-        description=Description.EMAIL,
-        validation_alias=AliasChoices("email", "email_id"),
-    )
+    email: Annotated[
+        Optional[EmailStr],
+        Field(
+            default=None,
+            description=Description.EMAIL,
+            validation_alias=AliasChoices("email", "email_id"),
+        ),
+    ]
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
         default=None,
@@ -121,11 +124,14 @@ class LoginRequest(BaseModel):
 class RegisterWithProfileRequest(BaseModel):
     """Request schema for /user/v1/user/register_with_profile."""
 
-    email: Optional[EmailStr] = Field(
-        default=None,
-        description=Description.EMAIL,
-        validation_alias=AliasChoices("email", "email_id"),
-    )
+    email: Annotated[
+        Optional[EmailStr],
+        Field(
+            default=None,
+            description=Description.EMAIL,
+            validation_alias=AliasChoices("email", "email_id"),
+        ),
+    ]
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
         default=None,
@@ -153,11 +159,14 @@ class RegisterWithProfileRequest(BaseModel):
 class VerifyOTPRequest(BaseModel):
     """Request schema for OTP verification endpoints."""
 
-    email: Optional[EmailStr] = Field(
-        default=None,
-        description=Description.EMAIL,
-        validation_alias=AliasChoices("email", "email_id"),
-    )
+    email: Annotated[
+        Optional[EmailStr],
+        Field(
+            default=None,
+            description=Description.EMAIL,
+            validation_alias=AliasChoices("email", "email_id"),
+        ),
+    ]
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
         default=None,
@@ -179,11 +188,14 @@ class VerifyOTPRequest(BaseModel):
 class VerifyOTPRegisterRequest(BaseModel):
     """Request schema for /user/v1/user/verify_otp_register."""
 
-    email: Optional[EmailStr] = Field(
-        default=None,
-        description=Description.EMAIL,
-        validation_alias=AliasChoices("email", "email_id"),
-    )
+    email: Annotated[
+        Optional[EmailStr],
+        Field(
+            default=None,
+            description=Description.EMAIL,
+            validation_alias=AliasChoices("email", "email_id"),
+        ),
+    ]
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
         default=None,
@@ -209,11 +221,14 @@ class VerifyOTPRegisterRequest(BaseModel):
 class ResendOTPRequest(BaseModel):
     """Request schema for resending OTP."""
 
-    email: Optional[EmailStr] = Field(
-        default=None,
-        description=Description.EMAIL,
-        validation_alias=AliasChoices("email", "email_id"),
-    )
+    email: Annotated[
+        Optional[EmailStr],
+        Field(
+            default=None,
+            description=Description.EMAIL,
+            validation_alias=AliasChoices("email", "email_id"),
+        ),
+    ]
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
         default=None,
@@ -234,11 +249,14 @@ class ResendOTPRequest(BaseModel):
 class ForgotPasswordRequest(BaseModel):
     """Request schema for /user/v1/user/forgot_password."""
 
-    email: Optional[EmailStr] = Field(
-        default=None,
-        description=Description.EMAIL,
-        validation_alias=AliasChoices("email", "email_id"),
-    )
+    email: Annotated[
+        Optional[EmailStr],
+        Field(
+            default=None,
+            description=Description.EMAIL,
+            validation_alias=AliasChoices("email", "email_id"),
+        ),
+    ]
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
         default=None,
@@ -296,11 +314,14 @@ class UpdateProfileRequest(BaseModel):
 class UpdateEmailMobileRequest(BaseModel):
     """Request schema for /user/v1/user/update_email_mobile."""
 
-    email: Optional[EmailStr] = Field(
-        default=None,
-        description=Description.EMAIL,
-        validation_alias=AliasChoices("email", "email_id"),
-    )
+    email: Annotated[
+        Optional[EmailStr],
+        Field(
+            default=None,
+            description=Description.EMAIL,
+            validation_alias=AliasChoices("email", "email_id"),
+        ),
+    ]
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
         default=None,
@@ -323,11 +344,14 @@ class WaitlistRequest(BaseModel):
     """Request schema for /user/v1/social/waitlist."""
 
     device_id: str = Field(..., description=Description.DEVICE_ID)
-    email: Optional[EmailStr] = Field(
-        default=None,
-        description=Description.EMAIL,
-        validation_alias=AliasChoices("email", "email_id"),
-    )
+    email: Annotated[
+        Optional[EmailStr],
+        Field(
+            default=None,
+            description=Description.EMAIL,
+            validation_alias=AliasChoices("email", "email_id"),
+        ),
+    ]
     name: Optional[str] = Field(default=None, description=Description.NAME)
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
@@ -349,11 +373,14 @@ class VerifyWaitlistRequest(BaseModel):
     """Request schema for /user/v1/social/waitlist/verify."""
 
     device_id: Optional[str] = Field(None, description=Description.DEVICE_ID)
-    email: Optional[EmailStr] = Field(
-        default=None,
-        description=Description.EMAIL,
-        validation_alias=AliasChoices("email", "email_id"),
-    )
+    email: Annotated[
+        Optional[EmailStr],
+        Field(
+            default=None,
+            description=Description.EMAIL,
+            validation_alias=AliasChoices("email", "email_id"),
+        ),
+    ]
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
         default=None,
@@ -374,11 +401,14 @@ class VerifyWaitlistRequest(BaseModel):
 class ResendWaitlistOtpRequest(BaseModel):
     """Request schema for /user/v1/social/waitlist/resend_otp."""
 
-    email: Optional[EmailStr] = Field(
-        default=None,
-        description=Description.EMAIL,
-        validation_alias=AliasChoices("email", "email_id"),
-    )
+    email: Annotated[
+        Optional[EmailStr],
+        Field(
+            default=None,
+            description=Description.EMAIL,
+            validation_alias=AliasChoices("email", "email_id"),
+        ),
+    ]
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
         default=None,
@@ -398,11 +428,14 @@ class ResendWaitlistOtpRequest(BaseModel):
 class FriendInviteObject(BaseModel):
     """Object schema for friend invite item containing email or mobile details."""
 
-    email: Optional[EmailStr] = Field(
-        default=None,
-        description=Description.EMAIL,
-        validation_alias=AliasChoices("email", "email_id"),
-    )
+    email: Annotated[
+        Optional[EmailStr],
+        Field(
+            default=None,
+            description=Description.EMAIL,
+            validation_alias=AliasChoices("email", "email_id"),
+        ),
+    ]
     mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
     calling_code: Optional[str] = Field(
         default=None,
