@@ -78,7 +78,12 @@ class AuthService:
 
         expiry = datetime.now(pytz.utc) + timedelta(days=int(days_to_expire))
 
-        token_payload = {RequestParams.UUID: str(user.id), RequestParams.EXP: expiry}
+        token_payload = {
+            RequestParams.UUID: str(user.id),
+            RequestParams.EXP: expiry,
+        }
+        if device_id:
+            token_payload[RequestParams.DEVICE_ID] = device_id
 
         encoded_jwt = jwt.encode(
             token_payload,
@@ -167,6 +172,11 @@ class AuthService:
 
         if not payload:
             raise UnauthorizedError
+
+        # Validate Device Matching
+        token_device_id = payload.get(RequestParams.DEVICE_ID)
+        if token_device_id and str(token_device_id) != str(device_id):
+            raise UnauthorizedError(ErrorMessages.TOKEN_DEVICE_MISMATCH)
 
         uuid = payload.get(RequestParams.UUID)
         if not uuid and "sub" in payload:

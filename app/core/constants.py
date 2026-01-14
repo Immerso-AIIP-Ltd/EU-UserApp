@@ -702,7 +702,9 @@ class ErrorMessages:
     # Duplicates removed here
     DEVICE_ID_MISSING = "Device ID missing"
     TIMESTAMP_MISSING = "Timestamp missing in payload"
-    REQUEST_EXPIRED = "Request expired (Timestamp check failed)"
+    REQUEST_EXPIRED = (
+        "Decreption payload expired(request must be decrypted within 30s of encryption)"
+    )
     INSTALL_ID_MISSING = "install_id missing"
     INVALID_ENCRYPTED_DATA_LENGTH = "Invalid Encrypted Data Length"
     KEY_RETRIEVAL_FAILED = "Key Retrieval Failed"
@@ -720,6 +722,7 @@ class ErrorMessages:
     OTP_NOT_VERIFIED_FOR_UPDATED_EMAIL_OR_MOBILE = (
         "OTP not verified for updated email or mobile"
     )
+    TOKEN_DEVICE_MISMATCH = "Access token not valid for this device"  # noqa: S105
     USER_NOT_FOUND_BYPASS = "User not found (bypass)"
 
 
@@ -855,6 +858,7 @@ class AuthConfig:
     ALGORITHM = "HS256"
     RS256 = "RS256"
     DECODE_CODE = "utf-8"
+    MAX_LOGIN_ATTEMPTS = 5
 
 
 class JwtOptions:
