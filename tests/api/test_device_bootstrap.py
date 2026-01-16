@@ -9,6 +9,7 @@ import pytest
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from httpx import AsyncClient
 
@@ -18,7 +19,7 @@ from tests.api.test_helper import assert_endpoint_success, get_auth_headers
 
 
 # Helper to generate keys
-def generate_rsa_keys() -> tuple[object, object, str]:
+def generate_rsa_keys() -> tuple[RSAPrivateKey, RSAPublicKey, str]:
     private_key = rsa.generate_private_key(
         public_exponent=65537,
         key_size=2048,
@@ -43,7 +44,7 @@ async def test_bootstrap_device_success(client: AsyncClient) -> None:
     install_id = "test-uuid-1234"
     timestamp = int(time.time())
     data_payload = {
-        "device_id": install_id,
+        "serial_number": install_id,
         "timestamp": timestamp,
         "platform": "android",
         "device_name": "Test Device",
