@@ -20,7 +20,8 @@ class LoginUser(EncryptedUser):
         """Run on user start to register a fresh user."""
         super().on_start()
         # Register a fresh user for this session
-        self.email = f"loadtest_login_{''.join(random.choices(string.ascii_lowercase, k=8))}@example.com"
+        random_suffix = "".join(random.choices(string.ascii_lowercase, k=8))  # noqa: S311
+        self.email = f"loadtest_login_{random_suffix}@example.com"
 
         # 1. Register Device (Required for Session creation)
         # We do this FIRST to ensure DB integrity for later steps
@@ -73,7 +74,7 @@ class LoginUser(EncryptedUser):
                 # Prefer accessToken as per new API, fallback to token
                 self.auth_token = data.get("accessToken") or data.get("token")
                 self.refresh_token = data.get("refreshToken") or data.get(
-                    "refresh_token"
+                    "refresh_token",
                 )
                 if self.auth_token:
                     self.client.headers.update({"x-api-token": self.auth_token})

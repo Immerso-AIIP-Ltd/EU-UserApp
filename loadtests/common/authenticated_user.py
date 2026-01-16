@@ -19,7 +19,7 @@ class AuthenticatedUser(EncryptedUser):
 
     def perform_registration_and_login(self) -> None:
         """Register and login user to get auth token."""
-        random_str = "".join(random.choices(string.ascii_lowercase, k=10))
+        random_str = "".join(random.choices(string.ascii_lowercase, k=10))  # noqa: S311
         self.email = f"loadtest_auth_{random_str}@example.com"
 
         # 1. Register Device (Required for Session creation)

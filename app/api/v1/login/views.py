@@ -36,7 +36,6 @@ from app.core.constants import (
 )
 from app.core.exceptions import (
     DecryptionFailedError,
-    DeviceNotRegisteredError,
     EmailMobileRequiredError,
     InvalidInputError,
     PayloadNotEncryptedError,
@@ -222,12 +221,11 @@ async def forgot_password(
             raise PayloadNotEncryptedError from e
 
     # 0. Check if device is registered
-    device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
-    if not device_id or not await DeviceService.is_device_registered(
-        device_id,
-        db,
-    ):
-        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+    device_id = (
+        headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID) or ""
+    )
+    # Validate and resolve device
+    await DeviceService.resolve_device_id(device_id, db)
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
@@ -299,7 +297,14 @@ async def set_forgot_password(
     except Exception as e:
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
 
-    device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
+    device_id_raw = (
+        headers.get(HeaderKeys.X_DEVICE_ID)
+        or headers.get(
+            HeaderKeys.DEVICE_ID,
+        )
+        or ""
+    )
+    real_device_id = await DeviceService.resolve_device_id(device_id_raw, db)
     client_id = headers.get(HeaderKeys.X_API_CLIENT) or headers.get(
         HeaderKeys.API_CLIENT,
     )
@@ -309,7 +314,7 @@ async def set_forgot_password(
         email=str(set_forgot_payload.email),
         password=set_forgot_payload.password,
         client_id=str(client_id),
-        device_id=str(device_id),
+        device_id=real_device_id,
         cache=cache,
     )
 
@@ -365,15 +370,19 @@ async def refresh_token(
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
 ) -> JSONResponse:
     """Refresh access token using refresh token."""
-    device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
+    device_id_raw = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(
+        HeaderKeys.DEVICE_ID,
+    )
 
-    if not device_id:
+    if not device_id_raw:
         raise InvalidInputError(ErrorMessages.DEVICE_ID_MISSING)
+
+    real_device_id = await DeviceService.resolve_device_id(device_id_raw, db_session)
 
     token, new_refresh_token, expires_at = await AuthService.refresh_access_token(
         db_session=db_session,
         refresh_token=payload.refresh_token,
-        device_id=device_id,
+        device_id=real_device_id,
     )
 
     response_data = {

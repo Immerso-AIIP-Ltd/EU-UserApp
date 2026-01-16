@@ -563,7 +563,7 @@ class UserProfileResponse(GenericResponse[UserProfileData]):
 class DeviceInviteData(BaseModel):
     """Data schema for Device Invite."""
 
-    device_id: str
+    device_id: UUID
     coupon_id: Optional[str] = None
 
 
@@ -659,7 +659,7 @@ class EncryptedRequest(BaseModel):
 class DeviceRegisterRequest(BaseModel):
     """Request schema for device registration."""
 
-    device_id: str = Field(..., description=Headers.X_DEVICE_ID)
+    serial_number: str = Field(..., description=Headers.X_DEVICE_ID)
     device_name: Optional[str] = Field(default=None, description=Headers.X_DEVICE_NAME)
     device_type: Optional[str] = Field(default=None, description=Headers.X_DEVICE_TYPE)
     platform: Optional[PlatformEnum] = Field(

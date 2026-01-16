@@ -18,4 +18,3 @@ RegistrationUser.weight = 2
 SocialUser.weight = 1
 
 # Optional: Set a common host if not provided in command line
-# AnalysisUser.host = "http://localhost:8000"

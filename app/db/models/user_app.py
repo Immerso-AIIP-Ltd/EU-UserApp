@@ -9,6 +9,7 @@ from sqlalchemy import (
     UUID,
     VARCHAR,
     Boolean,
+    CheckConstraint,
     Column,
     Date,
     DateTime,
@@ -16,6 +17,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Text,
+    text,
 )
 from sqlalchemy import String as SAString
 from sqlalchemy.dialects.postgresql import INET
@@ -70,26 +72,35 @@ class User(Base):
     """Represents the user table."""
 
     __tablename__ = "user"
-    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
+    __table_args__ = (
+        CheckConstraint(
+            "login_type IN ('google', 'facebook', 'apple', 'email', 'mobile')",
+            name="chk_login_type",
+        ),
+        {"schema": "user_app"},
+    )
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
     email = Column(VARCHAR(255), nullable=False, unique=True, index=True)
-    mobile = Column(VARCHAR(20), nullable=False)
-    calling_code = Column(VARCHAR(10), nullable=False)
+    mobile = Column(VARCHAR(20), nullable=True)
+    calling_code = Column(VARCHAR(10), nullable=True)
     is_password_set = Column(Boolean, default=False)
     password = Column(Text)
     state: Mapped[UserState] = mapped_column(
         Enum(UserState),
         default=UserState.active,
+        server_default=text("'active'"),
     )
     is_email_verified = Column(Boolean, default=False)
     is_mobile_verified = Column(Boolean, default=False)
     account_locked_until = Column(DateTime(timezone=True))
     failed_login_attempts = Column(Integer, default=0)
-    login_type: Mapped[LoginType] = mapped_column(
-        Enum(LoginType),
-        nullable=True,
-    )
+    login_type = Column(VARCHAR(50), nullable=True)
     type: Mapped[UserType] = mapped_column(
         Enum(UserType),
         default=UserType.regular,
@@ -195,7 +206,7 @@ class Device(Base):
     __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    device_id = Column(VARCHAR(255), nullable=False, unique=True, index=True)
+    serial_number = Column(VARCHAR(255), nullable=False, unique=True, index=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("user_app.user.id"), index=True)
     device_name = Column(VARCHAR(255))
     device_type = Column(VARCHAR(50), index=True)
@@ -219,11 +230,12 @@ class Device(Base):
     user_token = Column(Text)
     native_token = Column(Text)
     date_deactivated = Column(DateTime(timezone=True), index=True)
+    country_code = Column(VARCHAR(10))
     created_at = Column(
         DateTime(timezone=True),
         default=datetime.now(dt_timezone.utc),
     )
-    updated_at = Column(
+    modified_at = Column(
         DateTime(timezone=True),
         default=datetime.now(dt_timezone.utc),
         onupdate=datetime.now(dt_timezone.utc),
@@ -243,7 +255,12 @@ class AuthenticationSession(Base):
     __tablename__ = "authentication_session"
     __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
     user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("user_app.user.id"),
@@ -254,8 +271,8 @@ class AuthenticationSession(Base):
     token_secret = Column(Text)
     auth_token_expiry = Column(DateTime(timezone=True), index=True)
     device_id = Column(
-        VARCHAR(255),
-        ForeignKey("user_app.device.device_id"),
+        UUID(as_uuid=True),
+        ForeignKey("user_app.device.id"),
         index=True,
     )
     platform = Column(VARCHAR(20))
@@ -336,8 +353,8 @@ class Waitlist(Base):
     mobile = Column(VARCHAR(20), nullable=False)
     calling_code = Column(VARCHAR(10), nullable=False)
     device_id = Column(
-        VARCHAR(255),
-        ForeignKey("user_app.device.device_id"),
+        UUID(as_uuid=True),
+        ForeignKey("user_app.device.id"),
         unique=True,
         index=True,
     )
@@ -444,8 +461,8 @@ class InviteDevice(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     device_id = Column(
-        VARCHAR(255),
-        ForeignKey("user_app.device.device_id"),
+        UUID(as_uuid=True),
+        ForeignKey("user_app.device.id"),
     )
     coupon_id = Column(
         UUID(as_uuid=True),
@@ -541,7 +558,7 @@ class UserAuthToken(Base):
 
     uuid = Column(UUID(as_uuid=True), primary_key=True)
     token = Column(Text)
-    app_consumer_id = Column(Integer, ForeignKey("user_app.app_consumer.id"))
+    app_consumer_id = Column(UUID(as_uuid=True), ForeignKey("user_app.app_consumer.id"))
     device_id = Column(VARCHAR(128))
     expires_at = Column(DateTime(timezone=True))
     oauth1_token = Column(VARCHAR(128))

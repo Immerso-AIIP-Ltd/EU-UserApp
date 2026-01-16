@@ -68,7 +68,7 @@ def _get_public_key() -> Any:
     raise Exception("Could not retrieve public key for encryption.")
 
 
-def encrypt_payload(data: dict) -> dict:
+def encrypt_payload(data: dict[str, Any]) -> dict[str, Any]:
     """Encrypts the payload using Hybrid Encryption (RSA + AES)."""
     # 1. Fetch Public Key
     public_key = _get_public_key()
@@ -103,7 +103,6 @@ def encrypt_payload(data: dict) -> dict:
         encryptor.update(json.dumps(data).encode("utf-8")) + encryptor.finalize()
     )
 
-    # Format: IV + Ciphertext + TAG
     encrypted_data = base64.b64encode(iv + ciphertext + encryptor.tag).decode("utf-8")
 
     return {"key": encrypted_key, "data": encrypted_data}

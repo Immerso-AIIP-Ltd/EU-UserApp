@@ -101,6 +101,7 @@ class UserQueries:
             calling_code,
             password,
             is_password_set,
+            state,
             login_type,
             type,
             is_email_verified,
@@ -113,7 +114,8 @@ class UserQueries:
             :calling_code,
             :password,
             TRUE,
-            :login_type,
+            CAST('active' AS user_app.user_state),
+            CAST(:login_type AS VARCHAR),
             :type,
             CASE WHEN CAST(:login_type AS varchar) = 'email' THEN TRUE ELSE FALSE END,
             CASE WHEN CAST(:login_type AS varchar) = 'mobile' THEN TRUE ELSE FALSE END,
@@ -306,36 +308,65 @@ class UserQueries:
 
     UPDATE_USER_PROFILE = text(
         """
+        WITH updated_rows AS (
+            UPDATE user_app.user_profile
+            SET
+                firstname = CASE
+                    WHEN CAST(:name AS VARCHAR) IS NOT NULL
+                         AND CAST(:name AS VARCHAR) != ''
+                    THEN SPLIT_PART(CAST(:name AS VARCHAR), ' ', 1)
+                    ELSE firstname
+                END,
+                lastname = CASE
+                    WHEN CAST(:name AS VARCHAR) IS NOT NULL
+                         AND CAST(:name AS VARCHAR) != ''
+                    THEN SUBSTRING(
+                        CAST(:name AS VARCHAR) FROM LENGTH(
+                            SPLIT_PART(CAST(:name AS VARCHAR), ' ', 1)
+                        ) + 2
+                    )
+                    ELSE lastname
+                END,
+                gender = CASE
+                    WHEN CAST(:gender AS VARCHAR) IS NOT NULL
+                    THEN CAST(:gender AS VARCHAR)
+                    ELSE gender
+                END,
+                about_me = COALESCE(CAST(:about_me AS VARCHAR), about_me),
+                birth_date = CASE
+                    WHEN CAST(:birth_date AS VARCHAR) IS NOT NULL
+                    THEN TO_DATE(CAST(:birth_date AS VARCHAR), 'DD/MM/YYYY')
+                    ELSE birth_date
+                END,
+                nick_name = COALESCE(CAST(:nick_name AS VARCHAR), nick_name),
+                country_code = COALESCE(CAST(:country AS VARCHAR), country_code),
+                avatar_id = COALESCE(CAST(:avatar_id AS INTEGER), avatar_id),
+                image_url = COALESCE(CAST(:profile_image AS VARCHAR), image_url),
+                modified_at = NOW()
+            WHERE id = :user_id
+            RETURNING *
+        )
         SELECT
-            uuid,
-            email,
-            TRIM(CONCAT(firstname, ' ', lastname)) AS name,
-            firstname,
-            lastname,
-            mobile,
-            calling_code,
-            image,
-            country,
-            CAST(gender AS VARCHAR) as gender,
-            about_me,
-            birth_day,
-            birth_month,
-            birth_year,
-            avatar_id,
-            is_password_set,
-            nick_name,
-            (birth_day || '/' || birth_month || '/' || birth_year) AS birth_date
-        FROM user_app.update_user_profile(
-            :user_id,
-            :name,
-            :gender,
-            :about_me,
-            :birth_date,
-            :nick_name,
-            :country,
-            :avatar_id,
-            :profile_image
-        );
+            u.id AS uuid,
+            u.email,
+            TRIM(CONCAT(p.firstname, ' ', p.lastname)) AS name,
+            p.firstname,
+            p.lastname,
+            u.mobile,
+            u.calling_code,
+            p.image_url AS image,
+            p.country_code AS country,
+            CAST(p.gender AS VARCHAR) as gender,
+            p.about_me,
+            EXTRACT(DAY FROM p.birth_date)::INTEGER AS birth_day,
+            EXTRACT(MONTH FROM p.birth_date)::INTEGER AS birth_month,
+            EXTRACT(YEAR FROM p.birth_date)::INTEGER AS birth_year,
+            p.avatar_id,
+            u.is_password_set,
+            p.nick_name,
+            TO_CHAR(p.birth_date, 'DD/MM/YYYY') AS birth_date
+        FROM user_app.user u
+        JOIN updated_rows p ON u.id = p.id;
         """,
     )
 
@@ -633,7 +664,7 @@ class UserQueries:
         SELECT *
         FROM user_app.authentication_session
         WHERE auth_token = :refresh_token
-          AND device_id = :device_id
+          AND CAST(device_id AS VARCHAR) = :device_id
           AND is_active = TRUE
           AND auth_token_expiry > NOW()
         LIMIT 1;
@@ -665,8 +696,12 @@ class UserQueries:
     DEACTIVATE_OLD_SESSIONS = text(
         """
         UPDATE user_app.authentication_session
-        SET is_active = FALSE
-        WHERE device_id = :device_id AND user_id = :user_id AND is_active = TRUE;
+        SET is_active = FALSE,
+            logout_reason = 'login_on_same_device',
+            logged_out_at = NOW()
+        WHERE CAST(device_id AS VARCHAR) = :device_id
+          AND user_id = :user_id
+          AND is_active = TRUE;
         """,
     )
 
@@ -780,26 +815,32 @@ class UserQueries:
     # ==================== DEVICE MANAGEMENT ====================
     GET_DEVICE_BY_ID = text(
         """
-        SELECT * FROM user_app.device WHERE device_id = :device_id LIMIT 1
+        SELECT * FROM user_app.device WHERE id = :id LIMIT 1
         """,
     )
 
     CHECK_DEVICE_EXISTS = text(
         """
-        SELECT 1 FROM user_app.device WHERE device_id = :device_id LIMIT 1
+        SELECT 1 FROM user_app.device WHERE id = :id LIMIT 1
         """,
     )
 
     INSERT_DEVICE = text(
         """
         INSERT INTO user_app.device (
-            device_id, user_id, device_name, platform, device_type,
+            serial_number, user_id, device_name, platform, device_type,
             device_active, user_token, created_at, modified_at
         ) VALUES (
             :device_id, :user_id, :device_name, :platform, :device_type,
             TRUE, :user_token, NOW(), NOW()
         )
         RETURNING device_id
+        """,
+    )
+
+    GET_DEVICE_BY_UUID = text(
+        """
+        SELECT * FROM user_app.device WHERE id = :id LIMIT 1
         """,
     )
 
@@ -811,7 +852,7 @@ class UserQueries:
             device_name = COALESCE(:device_name, device_name),
             push_token = COALESCE(:push_token, push_token),
             modified_at = NOW()
-        WHERE device_id = :device_id
+        WHERE id = :device_id
         """,
     )
 
@@ -824,7 +865,7 @@ class UserQueries:
             device_active = TRUE,
             date_deactivated = NULL,
             modified_at = NOW()
-        WHERE device_id = :device_id
+        WHERE id = :device_id
         """,
     )
 
@@ -835,26 +876,26 @@ class UserQueries:
             device_active = FALSE,
             date_deactivated = NOW(),
             modified_at = NOW()
-        WHERE device_id = :device_id AND user_id = :user_id
+        WHERE id = :device_id AND user_id = :user_id
         """,
     )
 
     REGISTER_DEVICE = text(
         """
         INSERT INTO user_app.device AS d (
-            device_id, device_name, platform, device_type,
+            serial_number, device_name, platform, device_type,
             push_token, device_active, device_ip, is_vpn, is_anonymous_proxy,
             residency_verified, is_rooted, is_jailbroken, drm_type,
             hardware_encryption, transaction_type, is_ip_legal, native_token,
-            date_deactivated, created_at, modified_at
+            date_deactivated, country_code, created_at, modified_at, id
         ) VALUES (
-            :device_id, :device_name, :platform, :device_type,
+            :serial_number, :device_name, :platform, :device_type,
             :push_token, :device_active, :device_ip, :is_vpn, :is_anonymous_proxy,
             :residency_verified, :is_rooted, :is_jailbroken, :drm_type,
             :hardware_encryption, :transaction_type, :is_ip_legal, :native_token,
-            :date_deactivated, NOW(), NOW()
+            :date_deactivated, :country_code, NOW(), NOW(), gen_random_uuid()
         )
-        ON CONFLICT (device_id) DO UPDATE SET
+        ON CONFLICT (serial_number) DO UPDATE SET
             device_name = COALESCE(EXCLUDED.device_name, d.device_name),
             platform = COALESCE(EXCLUDED.platform, d.platform),
             device_type = COALESCE(EXCLUDED.device_type, d.device_type),
@@ -878,6 +919,7 @@ class UserQueries:
             is_ip_legal = COALESCE(EXCLUDED.is_ip_legal, d.is_ip_legal),
             native_token = COALESCE(EXCLUDED.native_token, d.native_token),
             date_deactivated = COALESCE(EXCLUDED.date_deactivated, d.date_deactivated),
+            country_code = COALESCE(EXCLUDED.country_code, d.country_code),
             modified_at = NOW()
         RETURNING id;
         """,

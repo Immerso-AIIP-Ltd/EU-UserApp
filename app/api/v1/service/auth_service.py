@@ -95,7 +95,7 @@ class AuthService:
             expires_at=expiry,
             partner_id=partner_attrs.get(RequestParams.PARTNER_ID, CacheValues.EROS),
         )
-        db_session.add(user_token)
+        await db_session.merge(user_token)
         await db_session.commit()
 
         return encoded_jwt, int(expiry.timestamp())
@@ -139,11 +139,10 @@ class AuthService:
         # Check if device is registered
         from app.api.v1.service.device_service import DeviceService
 
-        if not device_id or not await DeviceService.is_device_registered(
-            device_id,
-            db_session,
-        ):
+        if not device_id:
             raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+        # Validate device (resolving UUID if needed)
+        await DeviceService.resolve_device_id(device_id, db_session)
 
         # Get client secret (HS256 fallback)
         result = await execute_query(
@@ -223,6 +222,7 @@ class AuthService:
         device_id: str,
         user_agent: str | None = None,
         ip_address: str | None = None,
+        device_claim_id: str | None = None,
     ) -> str:
         """
         Create a new refresh token/session.
@@ -240,7 +240,12 @@ class AuthService:
         # Unique identifier
         jti = str(uuid.uuid4())
 
-        claims = {"device_id": device_id, "type": "refresh", "jti": jti}
+        # Use device_claim_id if provided, else device_id for the token claim
+        claims = {
+            "device_id": device_claim_id or device_id,
+            "type": "refresh",
+            "jti": jti,
+        }
 
         # Issue token using FusionAuth
         refresh_token = await asyncio.to_thread(
@@ -256,7 +261,7 @@ class AuthService:
         # 3. Store in DB (Delete existing then Insert)
         # Delete old/duplicate sessions first to prevent unique constraint violations
         await execute_query(
-            UserQueries.DELETE_AUTH_SESSIONS_FOR_DEVICE,
+            UserQueries.DEACTIVATE_OLD_SESSIONS,
             {"user_id": user_id, "device_id": device_id},
             db_session,
         )

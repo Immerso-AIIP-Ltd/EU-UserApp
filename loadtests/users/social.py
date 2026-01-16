@@ -15,5 +15,3 @@ class SocialUser(EncryptedUser):
     def google_login(self) -> None:
         """Attempt Google login (placeholder)."""
         # This will fail without a valid ID token signed by Google
-        # payload = {"id_token": "dummy_token_123", "uid": "123"}
-        # self.post_encrypted("/user/v1/social/google_login", payload)

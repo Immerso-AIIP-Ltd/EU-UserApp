@@ -14,7 +14,7 @@ class RegistrationUser(EncryptedUser):
     def generate_random_email(self) -> str:
         """Generate a random email for load testing."""
         random_str = "".join(
-            random.choices(string.ascii_lowercase + string.digits, k=10),
+            random.choices(string.ascii_lowercase + string.digits, k=10),  # noqa: S311
         )
         return f"loadtest_{random_str}@example.com"
 

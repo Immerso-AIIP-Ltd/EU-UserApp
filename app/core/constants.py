@@ -203,6 +203,7 @@ class RequestParams:
     FIRSTNAME = "firstname"
     LASTNAME = "lastname"
     IMAGE_URL = "image_url"
+    SERIAL_NUMBER = "serial_number"
 
 
 class DnsRecordTypes:

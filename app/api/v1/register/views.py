@@ -417,7 +417,7 @@ async def _validate_device_registered(
     db_session: AsyncSession,
 ) -> None:
     """Validate that the device is registered."""
-    device_id = headers.get(RequestParams.DEVICE_ID)
+    device_id = headers.get(HeaderKeys.X_DEVICE_ID)
     if not device_id or not await DeviceService.is_device_registered(
         device_id,
         db_session,
@@ -634,10 +634,20 @@ async def _finalize_registration_and_auth(
     cached_data: dict[str, Any],
 ) -> tuple[str | None, str | None, int | None]:
     """Register device, sync to FusionAuth, and generate auth token."""
-    device_id = headers.get(RequestParams.DEVICE_ID)
+    device_id = headers.get(HeaderKeys.X_DEVICE_ID) or ""
 
     # 1. Device Registration (if needed)
     await _validate_device_registered(headers, db_session)
+
+    # Resolve device UUID from the device_id string (serial number)
+    try:
+        device_data = await DeviceService.get_device(device_id, db_session)
+        # Use the UUID (id) from the database record
+        real_device_id = str(device_data.get("id"))
+    except Exception:
+        # Fallback to provided ID or unknown
+        # This might happen if 'unknown_device' is passed or device deleted concurrently
+        real_device_id = device_id or DeviceNames.UNKNOWN_DEVICE
 
     # 2. Sync to FusionAuth and Issue Token
     auth_token = None
@@ -660,7 +670,7 @@ async def _finalize_registration_and_auth(
             FusionAuthService.issue_token,
             user_uuid_str,
             None,
-            {RequestParams.DEVICE_ID: device_id},
+            {RequestParams.DEVICE_ID: real_device_id},
         )
 
         if fa_token:
@@ -676,6 +686,7 @@ async def _finalize_registration_and_auth(
             db_session=db_session,
             user_id=str(user_id),
             device_id=device_id or DeviceNames.UNKNOWN_DEVICE,
+            device_claim_id=real_device_id,
         )
 
     # 4. Link Device to User (Update local DB with FA token)
@@ -718,7 +729,7 @@ async def resend_otp(
             raise PayloadNotEncryptedError from e
 
     # 0. Check if device is registered
-    device_id = headers.get(RequestParams.DEVICE_ID)
+    device_id = headers.get(HeaderKeys.X_DEVICE_ID)
     if not device_id or not await DeviceService.is_device_registered(
         device_id,
         db_session,

@@ -1,6 +1,7 @@
 # This file contains the bootstrap logic for the load tests.
 
 import threading
+from typing import Any
 
 from locust import events
 from locust.contrib.fasthttp import FastHttpSession
@@ -10,13 +11,14 @@ BOOTSTRAPPED = False
 
 
 @events.test_start.add_listener
-def bootstrap_all(environment, **_) -> None:
+def bootstrap_all(environment: Any, **_: Any) -> None:
     """
     Master bootstrap function to run before tests begin.
+
     Currently performs minimal setup as user_app doesn't require
     external data fetching for countries/languages.
     """
-    global BOOTSTRAPPED
+    global BOOTSTRAPPED  # noqa: PLW0603
     with BOOTSTRAP_LOCK:
         if BOOTSTRAPPED:
             return

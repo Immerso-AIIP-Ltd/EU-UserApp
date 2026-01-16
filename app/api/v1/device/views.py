@@ -11,6 +11,7 @@ from app.api.v1.schemas import (
     DeviceRegisterRequest,
     EncryptedRequest,
 )
+from app.api.v1.service.geo_service import GeoService
 from app.cache.base import build_cache_key
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import (
@@ -156,10 +157,12 @@ async def register_device(
         raise ValidationError(detail=f"Decryption failed: {e!s}") from e
 
     try:
-        await execute_query(
+        country_code = GeoService.get_country_code_by_ip(reg_payload.device_ip or "")
+
+        result = await execute_query(
             query=UserQueries.REGISTER_DEVICE,
             params={
-                RequestParams.DEVICE_ID: reg_payload.device_id,
+                RequestParams.SERIAL_NUMBER: reg_payload.serial_number,
                 RequestParams.DEVICE_NAME: reg_payload.device_name,
                 RequestParams.PLATFORM: (
                     reg_payload.platform.value if reg_payload.platform else None
@@ -179,6 +182,7 @@ async def register_device(
                 RequestParams.IS_IP_LEGAL: reg_payload.is_ip_legal,
                 RequestParams.NATIVE_TOKEN: reg_payload.native_token,
                 RequestParams.DATE_DEACTIVATED: reg_payload.date_deactivated,
+                RequestParams.COUNTRY_CODE: country_code,
             },
             db_session=db_session,
         )
@@ -190,8 +194,9 @@ async def register_device(
             detail=f"{ErrorMessages.DEVICE_REGISTRATION_FAILED}: {e!s}",
         ) from e
 
+    device_uuid = str(result[0]["id"]) if result else None
     return standard_response(
         message=SuccessMessages.DEVICE_REGISTERED_SUCCESS,
         request=request,
-        data={RequestParams.DEVICE_ID: reg_payload.device_id},
+        data={RequestParams.DEVICE_ID: device_uuid},
     )

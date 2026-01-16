@@ -15,7 +15,7 @@ class DeviceUser(EncryptedUser):
         """Run on user start."""
         super().on_start()
         random_str = "".join(
-            random.choices(string.ascii_lowercase + string.digits, k=10),
+            random.choices(string.ascii_lowercase + string.digits, k=10),  # noqa: S311
         )
         self.device_id = f"loadtest-device-{random_str}"
         self.client.headers.update(
@@ -41,15 +41,17 @@ class DeviceUser(EncryptedUser):
                 # 404 means not found/active, which is valid for random device
                 response.success()
             else:
-                response.failure(
-                    f"Check device invite failed: {response.status_code} - {response.text}",
+                error_msg = (
+                    f"Check device invite failed: {response.status_code} "
+                    f"- {response.text}"
                 )
+                response.failure(error_msg)
 
     @task
     def invite_device(self) -> None:
         """Identify device with a fake coupon."""
         # POST request with encryption
-        random_digits = "".join(random.choices(string.digits, k=5))
+        random_digits = "".join(random.choices(string.digits, k=5))  # noqa: S311
         payload = {
             "device_id": self.device_id,
             "coupon_id": f"fake_coupon_{random_digits}",

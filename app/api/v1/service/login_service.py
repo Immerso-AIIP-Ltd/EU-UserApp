@@ -39,8 +39,17 @@ class LoginService:
         if not device_id:
             raise DeviceNotRegisteredError(ErrorMessages.DEVICE_ID_MISSING)
 
-        if not await DeviceService.is_device_registered(device_id, db_session):
-            raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+        real_device_uuid = None
+        try:
+            # Try to fetch by Serial Number
+            device_obj = await DeviceService.get_device(device_id, db_session)
+            real_device_uuid = str(device_obj["id"])
+        except Exception:
+            # Check if it is the HWID string
+            if not await DeviceService.is_device_registered(device_id, db_session):
+                raise DeviceNotRegisteredError(
+                    ErrorMessages.DEVICE_NOT_REGISTERED,
+                ) from None
 
         rows = await execute_query(
             UserQueries.GET_USER_FOR_LOGIN,
@@ -71,7 +80,7 @@ class LoginService:
             client_id=client_id or "",
             db_session=db_session,
             cache=cache,
-            device_id=device_id or "",
+            device_id=real_device_uuid or "",
         )
 
         # FusionAuth Integration
@@ -90,7 +99,7 @@ class LoginService:
             fa_token = await asyncio.to_thread(
                 FusionAuthService.issue_token,
                 user_uuid_str,
-                user_details={"device_id": device_id},
+                user_details={"device_id": real_device_uuid},
             )
 
             if not fa_token:
@@ -122,6 +131,7 @@ class LoginService:
             db_session=db_session,
             user_id=str(user_id),
             device_id=device_id or DeviceNames.UNKNOWN_DEVICE,
+            device_claim_id=real_device_uuid,
         )
 
         return user, token, refresh_token, expires_at

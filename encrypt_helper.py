@@ -2,6 +2,7 @@ import base64
 import json
 import os
 import time
+
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
@@ -9,7 +10,9 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 # 1. Generate a Test RSA Key Pair
 private_key = rsa.generate_private_key(
-    public_exponent=65537, key_size=2048, backend=default_backend()
+    public_exponent=65537,
+    key_size=2048,
+    backend=default_backend(),
 )
 public_key = private_key.public_key()
 
@@ -21,10 +24,6 @@ priv_pem = private_key.private_bytes(
 )
 priv_b64 = base64.b64encode(priv_pem).decode("utf-8")
 
-print("-" * 30)
-print("ADD THIS TO YOUR .env AND RESTART THE APP:")
-print(f"APP_DECRYPTION_PRIVATE_KEY_B64={priv_b64}")
-print("-" * 30)
 
 # 3. Your Raw Data
 data_payload = {
@@ -61,5 +60,3 @@ full_data = iv + ciphertext + encryptor.tag
 encrypted_data = base64.b64encode(full_data).decode("utf-8")
 
 # 5. Output for Postman
-print("\nPASTE THIS BODY INTO POSTMAN:")
-print(json.dumps({"key": encrypted_key, "data": encrypted_data}, indent=4))

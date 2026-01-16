@@ -1,5 +1,6 @@
 import random
 import string
+from typing import Any
 
 from app.core.constants import HeaderKeys, Intents
 
@@ -9,15 +10,16 @@ def get_bypass_headers() -> dict[str, str]:
     return {HeaderKeys.X_LOAD_TEST_BYPASS: "LOAD_TEST_BYPASS_SECRET_123"}
 
 
-def register_and_login(client, headers):
+def register_and_login(client: Any, headers: dict[str, Any]) -> tuple[Any, Any]:
     """
     Complete registration and login flow for load tests.
+
     Uses bypass header to skip physical OTP/Redis.
     """
     email = (
-        f"loadtest_{''.join(random.choices(string.ascii_lowercase, k=10))}@example.com"
+        f"loadtest_{''.join(random.choices(string.ascii_lowercase, k=10))}@example.com"  # noqa: S311
     )
-    password = "Password123!"
+    password = "Password123!"  # noqa: S105
 
     # 1. Register
     reg_payload = {
@@ -67,6 +69,6 @@ def register_and_login(client, headers):
             data = resp.json().get("data", {})
             auth_token = data.get("token") or data.get("auth_token")
             return email, auth_token
-        else:
-            resp.failure(f"Setup: Login failed: {resp.text}")
-            return None, None
+
+        resp.failure(f"Setup: Login failed: {resp.text}")
+        return None, None

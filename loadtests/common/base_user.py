@@ -18,6 +18,7 @@ OTP_BYPASS_SECRET = os.getenv(
 class EncryptedUser(HttpUser):
     """
     Base user that encrypts JSON payloads before sending.
+
     Also injects OTP bypass headers.
     """
 
@@ -26,7 +27,7 @@ class EncryptedUser(HttpUser):
     def on_start(self) -> None:
         """Called when a User is started."""
         random_str = "".join(
-            random.choices(string.ascii_lowercase + string.digits, k=10),
+            random.choices(string.ascii_lowercase + string.digits, k=10),  # noqa: S311
         )
         self.device_id = f"loadtest-device-{random_str}"
         # Initialize session headers with required fields
@@ -42,7 +43,9 @@ class EncryptedUser(HttpUser):
             },
         )
 
-    def post_encrypted(self, endpoint: str, json_payload: dict, **kwargs: Any) -> Any:
+    def post_encrypted(
+        self, endpoint: str, json_payload: dict[str, Any], **kwargs: Any,
+    ) -> Any:
         """Helper to encrypt payload and send POST request."""
         try:
             encrypted_data = encrypt_payload(json_payload)
@@ -51,7 +54,9 @@ class EncryptedUser(HttpUser):
             logging.error(f"Encryption failed for {endpoint}: {e}")
             raise e
 
-    def put_encrypted(self, endpoint: str, json_payload: dict, **kwargs: Any) -> Any:
+    def put_encrypted(
+        self, endpoint: str, json_payload: dict[str, Any], **kwargs: Any,
+    ) -> Any:
         """Helper to encrypt payload and send PUT request."""
         try:
             encrypted_data = encrypt_payload(json_payload)
