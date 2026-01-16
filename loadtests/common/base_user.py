@@ -44,7 +44,10 @@ class EncryptedUser(HttpUser):
         )
 
     def post_encrypted(
-        self, endpoint: str, json_payload: dict[str, Any], **kwargs: Any,
+        self,
+        endpoint: str,
+        json_payload: dict[str, Any],
+        **kwargs: Any,
     ) -> Any:
         """Helper to encrypt payload and send POST request."""
         try:
@@ -55,7 +58,10 @@ class EncryptedUser(HttpUser):
             raise e
 
     def put_encrypted(
-        self, endpoint: str, json_payload: dict[str, Any], **kwargs: Any,
+        self,
+        endpoint: str,
+        json_payload: dict[str, Any],
+        **kwargs: Any,
     ) -> Any:
         """Helper to encrypt payload and send PUT request."""
         try:

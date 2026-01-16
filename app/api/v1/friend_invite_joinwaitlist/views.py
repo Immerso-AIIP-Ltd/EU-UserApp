@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Union
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse
@@ -107,6 +108,16 @@ async def join_waitlist(
     if not device_id:
         raise ValidationError(message=ErrorMessages.DEVICE_ID_REQUIRED)
 
+    # Validate device registration
+    device_exists = await execute_query(
+        query=UserQueries.CHECK_DEVICE_EXISTS,
+        params={ProcessParams.ID: device_id},
+        db_session=db_session,
+    )
+
+    if not device_exists:
+        raise ValidationError(message=ErrorMessages.DEVICE_NOT_REGISTERED)
+
     if not email and not (mobile and calling_code):
         raise EmailMobileRequiredError
 
@@ -140,7 +151,7 @@ async def _process_email_flow(
     request: Request,
     cache: Redis,
     db_session: AsyncSession,
-    device_id: str,
+    device_id: UUID,
     email: str,
     name: str | None,
     x_forwarded_for: str,
@@ -270,7 +281,7 @@ async def _process_mobile_flow(
     request: Request,
     cache: Redis,
     db_session: AsyncSession,
-    device_id: str,
+    device_id: UUID,
     mobile: str,
     calling_code: str,
     name: str | None,
@@ -850,7 +861,7 @@ async def friend_invite(
 async def _resolve_inviter(
     db_session: AsyncSession,
     x_device_id: str,
-) -> tuple[Any | None, int | None]:
+) -> tuple[Any | None, UUID | None]:
     """Resolve waitlist entry and inviter user ID."""
     waitlist_entries = await execute_query(
         query=UserQueries.GET_WAITLIST_BY_DEVICE,
@@ -937,7 +948,7 @@ async def _send_invite_notification(
 
 async def _persist_invite(
     db_session: AsyncSession,
-    inviter_user_id: int | None,
+    inviter_user_id: UUID | None,
     waitlist_id: int,
     invited_email: str | None,
     invited_mobile: str | None,

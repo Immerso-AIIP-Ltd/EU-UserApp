@@ -20,8 +20,8 @@ class LoginUser(EncryptedUser):
         """Run on user start to register a fresh user."""
         super().on_start()
         # Register a fresh user for this session
-        random_suffix = "".join(random.choices(string.ascii_lowercase, k=8))  # noqa: S311
-        self.email = f"loadtest_login_{random_suffix}@example.com"
+        random_id = "".join(random.choices(string.ascii_lowercase, k=10))  # noqa: S311
+        self.email = f"loadtest_{random_id}@example.com"
 
         # 1. Register Device (Required for Session creation)
         # We do this FIRST to ensure DB integrity for later steps

@@ -343,7 +343,7 @@ class UpdateEmailMobileRequest(BaseModel):
 class WaitlistRequest(BaseModel):
     """Request schema for /user/v1/social/waitlist."""
 
-    device_id: str = Field(..., description=Description.DEVICE_ID)
+    device_id: UUID = Field(..., description=Description.DEVICE_ID)
     email: Annotated[
         Optional[EmailStr],
         Field(
@@ -372,7 +372,7 @@ class WaitlistRequest(BaseModel):
 class VerifyWaitlistRequest(BaseModel):
     """Request schema for /user/v1/social/waitlist/verify."""
 
-    device_id: Optional[str] = Field(None, description=Description.DEVICE_ID)
+    device_id: Optional[UUID] = Field(None, description=Description.DEVICE_ID)
     email: Annotated[
         Optional[EmailStr],
         Field(

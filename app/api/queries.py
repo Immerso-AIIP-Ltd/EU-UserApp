@@ -509,6 +509,7 @@ class UserQueries:
     INSERT_WAITLIST_ENTRY = text(
         """
         INSERT INTO user_app.waitlist (
+            id,
             device_id,
             email,
             mobile,
@@ -519,6 +520,7 @@ class UserQueries:
             modified_at
         )
         VALUES (
+            gen_random_uuid(),
             :device_id,
             :email,
             :mobile,

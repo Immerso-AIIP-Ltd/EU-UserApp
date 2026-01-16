@@ -16,9 +16,8 @@ def register_and_login(client: Any, headers: dict[str, Any]) -> tuple[Any, Any]:
 
     Uses bypass header to skip physical OTP/Redis.
     """
-    email = (
-        f"loadtest_{''.join(random.choices(string.ascii_lowercase, k=10))}@example.com"  # noqa: S311
-    )
+    random_id = "".join(random.choices(string.ascii_lowercase, k=10))  # noqa: S311
+    email = f"loadtest_{random_id}@example.com"
     password = "Password123!"  # noqa: S105
 
     # 1. Register
