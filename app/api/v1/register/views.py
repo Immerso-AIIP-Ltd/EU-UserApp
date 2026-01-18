@@ -283,18 +283,46 @@ async def _handle_otp_redirect_or_callback(
         )
 
     if intent == IntentEnum.UPDATE_PROFILE:
-        # Fetch user and update verified status
-        user_rows = await _get_user_by_receiver(
-            db_session,
-            receiver,
-            receiver_type,
-            mobile,
-            calling_code,
+        # Fetch pending update data from cache
+        pending_cache_key = build_cache_key(
+            CacheKeyTemplates.CACHE_KEY_UPDATE_PROFILE_DATA,
+            identifier=receiver,
         )
-        if not user_rows:
-            raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
+        update_data = await get_cache(cache, pending_cache_key)
 
-        user_id = user_rows[0].id
+        if not update_data:
+            # Fallback for old flow or if cache expired
+            logger.warning(f"No pending update data found for {receiver}")
+            # Try to get user and just update verified status as before
+            user_rows = await _get_user_by_receiver(
+                db_session,
+                receiver,
+                receiver_type,
+                mobile,
+                calling_code,
+            )
+            if not user_rows:
+                raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
+            user_id = user_rows[0]["id"]
+        else:
+            user_id = update_data.get(RequestParams.USER_ID)
+            email = update_data.get(RequestParams.EMAIL)
+            mobile = update_data.get(RequestParams.MOBILE)
+            cc = update_data.get(RequestParams.CALLING_CODE)
+
+            # Update actual email/mobile in DB
+            await execute_query(
+                query=UserQueries.UPDATE_EMAIL_MOBILE,
+                params={
+                    RequestParams.USER_ID: user_id,
+                    RequestParams.EMAIL: email,
+                    RequestParams.MOBILE: mobile,
+                    RequestParams.CALLING_CODE: cc,
+                },
+                db_session=db_session,
+            )
+
+        # Update verified status
         await execute_query(
             query=UserQueries.UPDATE_USER_VERIFIED,
             params={RequestParams.USER_ID: user_id, "type": receiver_type},
@@ -305,8 +333,16 @@ async def _handle_otp_redirect_or_callback(
         # Invalidate Profile Cache
         await _invalidate_profile_cache(cache, user_id, headers)
 
+        # Clean up pending update cache if exists
+        if update_data:
+            await cache.delete(pending_cache_key)
+
         return standard_response(
-            message=SuccessMessages.OTP_VERIFIED,
+            message=(
+                SuccessMessages.EMAIL_UPDATED
+                if receiver_type == RequestParams.EMAIL
+                else SuccessMessages.MOBILE_UPDATED
+            ),
             request=request,
             data={LoginParams.REDIRECT_URL: None},
         )
