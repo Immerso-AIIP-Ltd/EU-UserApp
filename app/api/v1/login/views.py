@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.schemas import (
-    ChangePasswordRequest,
     EncryptedRequest,
     ForgotPasswordRequest,
     LoginRequest,
@@ -21,7 +20,6 @@ from app.api.v1.schemas import (
     UserProfileData,
 )
 from app.api.v1.service.auth_service import AuthService
-from app.api.v1.service.change_password_service import ChangePasswordService
 from app.api.v1.service.device_service import DeviceService
 from app.api.v1.service.forgot_password_service import ForgotPasswordService
 from app.api.v1.service.login_service import LoginService
@@ -47,7 +45,6 @@ from app.settings import settings
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import (
-    validate_common_headers,
     validate_headers_without_auth,
 )
 
@@ -328,37 +325,6 @@ async def set_forgot_password(
         message=SuccessMessages.PASSWORD_RESET_SUCCESS,
         request=request,
         data=response_data,
-    )
-
-
-@router.put("/change_password")
-async def change_password(
-    request: Request,
-    payload: ChangePasswordRequest,
-    headers: dict[str, Any] = Depends(validate_common_headers),
-    db_session: AsyncSession = Depends(get_db_session),
-) -> JSONResponse:
-    """
-    Change user password.
-
-    Requires valid x-api-token in headers.
-    """
-    # 1. Get user UUID from token
-    user_id = await AuthService.verify_user_token(headers, db_session)
-
-    # 2. Call service
-    await ChangePasswordService.change_password(
-        user_uuid=user_id,
-        new_password=payload.new_password,
-        new_password_confirm=payload.new_password_confirm,
-        db_session=db_session,
-    )
-
-    data: dict[str, Any] = {}
-    return standard_response(
-        message=SuccessMessages.PASSWORD_CHANGED_SUCCESS,
-        request=request,
-        data=data,
     )
 
 

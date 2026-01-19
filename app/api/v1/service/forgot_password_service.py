@@ -181,6 +181,7 @@ class ForgotPasswordService:
             # Log the error but continue if token was already generated locally
             # In production, you might want more strict handling
             import logging
+
             logging.getLogger(__name__).warning(f"Error in FusionAuth integration: {e}")
             if not refresh_token:
                 # Fallback to local refresh token if FA failed (if applicable)

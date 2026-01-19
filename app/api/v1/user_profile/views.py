@@ -278,9 +278,7 @@ async def update_email_mobile(
         )
 
         return standard_response(
-            message=(
-                SuccessMessages.OTP_SENT
-            ),
+            message=(SuccessMessages.OTP_SENT),
             request=request,
             data={LoginParams.REDIRECT_URL: redirect_url},
         )

@@ -47,7 +47,7 @@ async def test_join_waitlist_success(
         await assert_endpoint_success(
             client,
             "POST",
-            "/user/v1/auth/social/waitlist",
+            "/user/v1/social/waitlist",
             SuccessMessages.WAITLIST_OTP_SENT.format("email"),
             payload=payload,
             headers=headers,
@@ -64,7 +64,10 @@ async def test_friend_invite_success(
             {"email": "friend@example.com"},
         ],
     }
-    headers = get_auth_headers(device_id="test_device")
+    headers = get_auth_headers(
+        device_id="test_device",
+        token="test_token",  # noqa: S106
+    )
 
     mock_waitlist_entry = MockModel(
         id=123,

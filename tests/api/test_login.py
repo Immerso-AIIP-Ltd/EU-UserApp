@@ -189,10 +189,10 @@ async def test_change_password_success(
     headers = get_auth_headers(token="valid_token")  # noqa: S106
 
     with patch(
-        "app.api.v1.login.views.AuthService.verify_user_token",
+        "app.api.v1.logout.views.AuthService.verify_user_token",
         new_callable=AsyncMock,
     ) as mock_verify, patch(
-        "app.api.v1.login.views.ChangePasswordService.change_password",
+        "app.api.v1.logout.views.ChangePasswordService.change_password",
         new_callable=AsyncMock,
     ) as _:
 
@@ -200,7 +200,7 @@ async def test_change_password_success(
         await assert_endpoint_success(
             client,
             "PUT",
-            "/user/v1/user/change_password",
+            "/user/v1/auth/user/change_password",
             SuccessMessages.PASSWORD_CHANGED_SUCCESS,
             payload=payload,
             headers=headers,

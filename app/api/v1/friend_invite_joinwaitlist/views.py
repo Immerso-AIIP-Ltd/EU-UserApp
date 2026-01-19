@@ -48,11 +48,15 @@ from app.db.utils import execute_query
 from app.settings import settings
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
-from app.utils.validate_headers import validate_headers_without_auth
+from app.utils.validate_headers import (
+    validate_common_headers,
+    validate_headers_without_auth,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+friend_invite_router = APIRouter()
 
 
 async def _validate_and_parse_encrypted_payload(
@@ -749,13 +753,13 @@ async def resend_waitlist_otp(
     )
 
 
-@router.post("/friend_invite")
+@friend_invite_router.post("/friend_invite")
 async def friend_invite(
     request: Request,
     payload: FriendInviteRequest,
     db_session: AsyncSession = Depends(get_db_session),
-    headers: dict[str, Any] = Depends(validate_headers_without_auth),
-    x_device_id: str = Header(..., alias=RequestParams.X_DEVICE_ID),
+    headers: dict[str, Any] = Depends(validate_common_headers),
+    x_device_id: str = Header(..., alias=HeaderKeys.X_DEVICE_ID),
 ) -> JSONResponse:
     """Invite a friend via email or mobile."""
     # 1. Resolve Inviter
