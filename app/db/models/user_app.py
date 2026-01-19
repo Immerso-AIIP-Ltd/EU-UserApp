@@ -17,6 +17,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy import String as SAString
@@ -86,7 +87,7 @@ class User(Base):
         default=uuid.uuid4,
         server_default=text("gen_random_uuid()"),
     )
-    email = Column(VARCHAR(255), nullable=False, unique=True, index=True)
+    email = Column(VARCHAR(255), nullable=True, unique=True, index=True)
     mobile = Column(VARCHAR(20), nullable=True)
     calling_code = Column(VARCHAR(10), nullable=True)
     is_password_set = Column(Boolean, default=False)
@@ -99,13 +100,15 @@ class User(Base):
     is_email_verified = Column(Boolean, default=False)
     is_mobile_verified = Column(Boolean, default=False)
     account_locked_until = Column(DateTime(timezone=True))
-    failed_login_attempts = Column(Integer, default=0)
+    failed_login_attempts = Column(Integer, default=0, server_default=text("0"))
     login_type = Column(VARCHAR(50), nullable=True)
     type: Mapped[UserType] = mapped_column(
         Enum(UserType),
         default=UserType.regular,
+        server_default=text("'regular'"),
+        nullable=False,
     )
-    login_count = Column(Integer, default=0)
+    login_count = Column(Integer, default=0, server_default=text("0"))
     last_login_at = Column(DateTime(timezone=True))
     deactivated_at = Column(DateTime(timezone=True))
     deactivation_reason = Column(Text)
@@ -432,21 +435,29 @@ class InviteCoupon(Base):
     __tablename__ = "invite_coupon"
     __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
     code = Column(VARCHAR(255), unique=True)
     status: Mapped[CouponStatus] = mapped_column(
         Enum(CouponStatus),
         default=CouponStatus.active,
+        nullable=False,
     )
     expiry_date = Column(DateTime(timezone=True))
     created_at = Column(
         DateTime(timezone=True),
         default=datetime.now(dt_timezone.utc),
+        server_default=text("now()"),
     )
     modified_at = Column(
         DateTime(timezone=True),
         default=datetime.now(dt_timezone.utc),
         onupdate=datetime.now(dt_timezone.utc),
+        server_default=text("now()"),
     )
 
     # Relationships
@@ -497,9 +508,21 @@ class SocialIdentityProvider(Base):
     """Represents the social_identity_provider table."""
 
     __tablename__ = "social_identity_provider"
-    __table_args__ = {"schema": "user_app"}  # type: ignore[misc] # noqa: RUF012
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "provider",
+            name="uq_social_identity_user_provider",
+        ),
+        {"schema": "user_app"},
+    )
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
     user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("user_app.user.id"),

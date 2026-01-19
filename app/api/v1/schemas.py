@@ -1,8 +1,6 @@
 from datetime import date
 from enum import Enum
 from typing import Annotated, Any, Dict, Generic, List, Optional, Self, TypeVar, Union
-from typing import Any, Dict, Generic, List, Optional, TypeVar, Union
-from typing_extensions import Self
 from uuid import UUID
 
 from pydantic import AliasChoices, BaseModel, EmailStr, Field, model_validator

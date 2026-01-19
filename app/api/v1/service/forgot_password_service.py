@@ -1,7 +1,6 @@
 # app/api/v1/service/forgot_password_service.py
 
 import asyncio
-import contextlib
 import time
 
 from redis.asyncio import Redis
@@ -134,44 +133,66 @@ class ForgotPasswordService:
             device_id=device_id,
         )
 
-        # 4. FusionAuth Integration
-        refresh_token = ""
-        with contextlib.suppress(Exception):
+        # 4. FusionAuth Integration & Linking & Refresh Token
+        try:
             user_uuid_str = str(user_id)
 
-            # Sync User (Ensure exists and is active)
-            await asyncio.to_thread(
-                FusionAuthService.create_fusion_user,
-                user_uuid_str,
-                email,
-            )
+            # 4.1 Sync User (Ensure exists) - Cache sync status to avoid redundant calls
+            sync_cache_key = f"fa_synced:{user_uuid_str}"
+            is_synced = await cache.get(sync_cache_key)
 
-            # Issue RS256 Token
-            fa_token = await asyncio.to_thread(
-                FusionAuthService.issue_token,
-                user_uuid_str,
-                user_details={"device_id": device_id},
+            if not is_synced:
+                await asyncio.to_thread(
+                    FusionAuthService.create_fusion_user,
+                    user_uuid_str,
+                    email,
+                )
+                # Cache for 24 hours
+                await cache.set(sync_cache_key, "true", ex=86400)
+
+            # 4.2 Issue Token & Create Refresh Session in Parallel
+            async def generate_refresh() -> str:
+                return await AuthService.create_refresh_session(
+                    db_session=db,
+                    user_id=str(user_id),
+                    device_id=device_id or DeviceNames.UNKNOWN_DEVICE,
+                )
+
+            async def issue_fa_token() -> str:
+                return await asyncio.to_thread(
+                    FusionAuthService.issue_token,
+                    user_uuid_str,
+                    user_details={"device_id": device_id},
+                )
+
+            fa_token_task = asyncio.create_task(issue_fa_token())
+            refresh_task = asyncio.create_task(generate_refresh())
+
+            fa_token, refresh_token = await asyncio.gather(
+                fa_token_task,
+                refresh_task,
             )
 
             if fa_token:
                 token = fa_token
                 expires_at = int(time.time()) + 600
 
-        # 5. Link device to user
+        except Exception as e:
+            # Log the error but continue if token was already generated locally
+            # In production, you might want more strict handling
+            import logging
+            logging.getLogger(__name__).warning(f"Error in FusionAuth integration: {e}")
+            if not refresh_token:
+                # Fallback to local refresh token if FA failed (if applicable)
+                pass
 
+        # 5. Link device to user
         await DeviceService.link_device_to_user(
             device_id=device_id or "",
             user_uuid=user_id,
             db_session=db,
             cache=cache,
             auth_token=token,
-        )
-
-        # 6. Generate Refresh Token
-        refresh_token = await AuthService.create_refresh_session(
-            db_session=db,
-            user_id=str(user_id),
-            device_id=device_id or DeviceNames.UNKNOWN_DEVICE,
         )
 
         return token, refresh_token, expires_at

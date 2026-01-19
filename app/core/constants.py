@@ -158,6 +158,7 @@ class RequestParams:
     INVITED_CALLING_CODE = "invited_calling_code"
     INVITED_USER_ID = "invited_user_id"
     WAITLIST_ID = "waitlist_id"
+    INVITE_TOKEN = "invite_token"  # noqa: S105
     API_CLIENT = "api_client"
     TOKEN = "token"  # noqa: S105
     TOKEN_EXPIRY = "token_expiry"  # noqa: S105

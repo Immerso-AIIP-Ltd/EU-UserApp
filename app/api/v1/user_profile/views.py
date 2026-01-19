@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.schemas import (
-    UpdateEmailMobileData,
     UpdateEmailMobileRequest,
     UpdateProfileRequest,
     UserProfileData,
@@ -221,7 +220,10 @@ async def update_email_mobile(
         and contact_update.mobile == current_profile.get("mobile")
         and (
             not contact_update.calling_code
-            or str(contact_update.calling_code) == str(current_profile.get("calling_code"))
+            or (
+                str(contact_update.calling_code)
+                == str(current_profile.get("calling_code"))
+            )
         )
     ):
         return standard_response(
@@ -282,12 +284,6 @@ async def update_email_mobile(
             request=request,
             data={LoginParams.REDIRECT_URL: redirect_url},
         )
-
-    except Exception as e:
-        logger.exception(e)
-        raise ProfileFetchError(
-            detail=f"{ErrorMessages.PROFILE_FETCH_FAILED}: {e!s}",
-        ) from e
 
     except UserNotFoundError:
         raise

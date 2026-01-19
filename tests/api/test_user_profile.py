@@ -113,7 +113,7 @@ async def test_update_email_mobile_success(
         "email": "new@example.com",
     }
 
-    mock_data = {"email": "new@example.com"}
+    mock_data = {"email": "old@example.com"}
 
     with patch(
         "app.api.v1.user_profile.views.execute_and_transform",
@@ -128,7 +128,7 @@ async def test_update_email_mobile_success(
             client,
             "POST",
             "/user/v1/auth/user_profile/update_email_mobile",
-            SuccessMessages.EMAIL_UPDATED,
+            "OTP sent successfully",
             payload=payload,
             headers=auth_headers,
         )

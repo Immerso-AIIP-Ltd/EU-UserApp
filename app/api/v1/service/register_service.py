@@ -273,18 +273,21 @@ class UserVerifyService:
         redis_client: Any,
         email: str,
         db_session: Any,
+        user: Any = None,
+        name: str | None = None,
     ) -> dict[str, Any]:
         """Check if user exists by email and start registration OTP if not."""
-        user_rows = await execute_query(
-            query=UserQueries.CHECK_USER_EXISTS,
-            params={
-                RequestParams.EMAIL: email,
-                RequestParams.MOBILE: None,
-                RequestParams.CALLING_CODE: None,
-            },
-            db_session=db_session,
-        )
-        user = user_rows[0] if user_rows else None
+        if user is None:
+            user_rows = await execute_query(
+                query=UserQueries.CHECK_USER_EXISTS,
+                params={
+                    RequestParams.EMAIL: email,
+                    RequestParams.MOBILE: None,
+                    RequestParams.CALLING_CODE: None,
+                },
+                db_session=db_session,
+            )
+            user = user_rows[0] if user_rows else None
 
         if not user:
             await GenerateOtpService.generate_otp(
@@ -293,6 +296,7 @@ class UserVerifyService:
                 RequestParams.EMAIL,
                 Intents.REGISTRATION,
                 db_session=db_session,
+                name=name,
             )
         return await UserVerifyService._get_user_state(
             user,
@@ -306,18 +310,21 @@ class UserVerifyService:
         calling_code: str,
         x_forwarded_for: str | None,
         db_session: Any,
+        user: Any = None,
+        name: str | None = None,
     ) -> dict[str, Any]:
         """Verify user state and generate OTP if user doesn't exist."""
-        user_rows = await execute_query(
-            query=UserQueries.CHECK_USER_EXISTS,
-            params={
-                RequestParams.EMAIL: None,
-                RequestParams.MOBILE: mobile,
-                RequestParams.CALLING_CODE: calling_code,
-            },
-            db_session=db_session,
-        )
-        user = user_rows[0] if user_rows else None
+        if user is None:
+            user_rows = await execute_query(
+                query=UserQueries.CHECK_USER_EXISTS,
+                params={
+                    RequestParams.EMAIL: None,
+                    RequestParams.MOBILE: mobile,
+                    RequestParams.CALLING_CODE: calling_code,
+                },
+                db_session=db_session,
+            )
+            user = user_rows[0] if user_rows else None
 
         if not user:
             await MobileVerificationService.mobile_verification_service(
@@ -333,6 +340,7 @@ class UserVerifyService:
                 db_session=db_session,
                 mobile=mobile,
                 calling_code=calling_code,
+                name=name,
             )
         return await UserVerifyService._get_user_state(
             user,

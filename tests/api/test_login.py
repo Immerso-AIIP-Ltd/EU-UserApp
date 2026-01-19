@@ -132,9 +132,9 @@ async def test_forgot_password_success(
         "app.api.v1.login.views.ForgotPasswordService.forgot_password_email",
         new_callable=AsyncMock,
     ) as mock_service, patch(
-        "app.api.v1.login.views.DeviceService.is_device_registered",
+        "app.api.v1.login.views.DeviceService.resolve_device_id",
         new_callable=AsyncMock,
-        return_value=True,
+        return_value="device-123",
     ):
 
         mock_service.return_value = "Reset link sent"
@@ -161,7 +161,11 @@ async def test_set_forgot_password_success(
     ), patch(
         "app.api.v1.login.views.ForgotPasswordService.set_forgot_password",
         new_callable=AsyncMock,
-    ) as mock_service:
+    ) as mock_service, patch(
+        "app.api.v1.login.views.DeviceService.resolve_device_id",
+        new_callable=AsyncMock,
+        return_value="device-123",
+    ):
 
         mock_service.return_value = ("mock_token", "mock_refresh_token", 3600)
         data = await assert_endpoint_success(
@@ -214,9 +218,9 @@ async def test_refresh_token_success(
         "app.api.v1.login.views.AuthService.refresh_access_token",
         new_callable=AsyncMock,
     ) as mock_refresh, patch(
-        "app.api.v1.login.views.DeviceService.is_device_registered",
+        "app.api.v1.login.views.DeviceService.resolve_device_id",
         new_callable=AsyncMock,
-        return_value=True,
+        return_value="device-123",
     ):
 
         mock_refresh.return_value = ("new_at", "new_rt", "expiry")

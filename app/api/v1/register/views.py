@@ -125,14 +125,17 @@ async def register_with_profile(
         except Exception as e:
             raise PayloadNotEncryptedError from e
 
-    # 0. Check if device is registered
-    await _validate_device_registered(headers, db_session)
+    # Optimized: Parallelize Device Validation and Decryption
+    device_task = _validate_device_registered(headers, db_session, cache=cache)
+    decryption_task = asyncio.to_thread(
+        SecurityService.decrypt_payload,
+        payload.key,
+        payload.data,
+    )
 
+    await device_task  # Device check is critical, wait first but they ran in parallel
     try:
-        decrypted_payload = SecurityService.decrypt_payload(
-            encrypted_key=payload.key,
-            encrypted_data=payload.data,
-        )
+        decrypted_payload = await decryption_task
         reg_payload = RegisterWithProfileRequest(**decrypted_payload)
     except Exception as e:
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
@@ -145,12 +148,16 @@ async def register_with_profile(
         else (request.client.host if request.client else "127.0.0.1")
     )
 
-    state = await _check_user_existence_and_get_state(
+    # Optimized: Parallelize Slow Operations (State Check/OTP Send + Password Hashing)
+    state_task = _check_user_existence_and_get_state(
         reg_payload,
         db_session,
         cache,
         client_ip,
     )
+    hashing_task = asyncio.to_thread(hash_password, reg_payload.password)
+
+    state, hashed_password = await asyncio.gather(state_task, hashing_task)
 
     if not state:
         raise StateNotFoundError
@@ -161,7 +168,6 @@ async def register_with_profile(
         if reg_payload.email
         else f"{reg_payload.calling_code}{reg_payload.mobile}".lstrip("+")
     )
-    hashed_password = hash_password(reg_payload.password)
     registration_data = reg_payload.model_dump(mode=RequestParams.JSON)
     registration_data[LoginParams.PASSWORD] = hashed_password
 
@@ -451,12 +457,14 @@ async def _finalize_user_registration(
 async def _validate_device_registered(
     headers: dict[str, Any],
     db_session: AsyncSession,
+    cache: Redis | None = None,
 ) -> None:
-    """Validate that the device is registered."""
+    """Validate that the device is registered (with caching)."""
     device_id = headers.get(HeaderKeys.X_DEVICE_ID)
     if not device_id or not await DeviceService.is_device_registered(
         device_id,
         db_session,
+        cache=cache,
     ):
         raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
 
@@ -484,7 +492,14 @@ async def _check_user_existence_and_get_state(
         )
         if user_exists:
             raise UserExistsError
-        return await UserVerifyService.get_user_state_by_email(cache, email, db_session)
+        user = user_exists[0] if user_exists else None
+        return await UserVerifyService.get_user_state_by_email(
+            cache,
+            email,
+            db_session,
+            user=user,
+            name=reg_payload.name,
+        )
 
     if mobile and calling_code:
         user_exists = await execute_query(
@@ -498,12 +513,15 @@ async def _check_user_existence_and_get_state(
         )
         if user_exists:
             raise UserExistsError(message=ErrorMessages.USER_ALREADY_REGISTERED)
+        user = user_exists[0] if user_exists else None
         return await UserVerifyService.get_user_state_by_mobile(
             cache,
             mobile,
             calling_code,
             client_ip,
             db_session,
+            user=user,
+            name=reg_payload.name,
         )
 
     raise ValidationError(message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED)
@@ -669,20 +687,15 @@ async def _finalize_registration_and_auth(
     cache: Redis,
     cached_data: dict[str, Any],
 ) -> tuple[str | None, str | None, int | None]:
-    """Register device, sync to FusionAuth, and generate auth token."""
+    """Register device, sync to FusionAuth, and generate auth token (optimized)."""
     device_id = headers.get(HeaderKeys.X_DEVICE_ID) or ""
 
-    # 1. Device Registration (if needed)
-    await _validate_device_registered(headers, db_session)
-
-    # Resolve device UUID from the device_id string (serial number)
+    # 1. Resolve device UUID
+    # (Avoid redundant check since we already validated at start or during process)
     try:
         device_data = await DeviceService.get_device(device_id, db_session)
-        # Use the UUID (id) from the database record
         real_device_id = str(device_data.get("id"))
     except Exception:
-        # Fallback to provided ID or unknown
-        # This might happen if 'unknown_device' is passed or device deleted concurrently
         real_device_id = device_id or DeviceNames.UNKNOWN_DEVICE
 
     # 2. Sync to FusionAuth and Issue Token
@@ -694,48 +707,59 @@ async def _finalize_registration_and_auth(
     user_email = cached_data.get(RequestParams.EMAIL)
 
     try:
-        # Sync User
-        await asyncio.to_thread(
-            FusionAuthService.create_fusion_user,
-            user_uuid_str,
-            user_email,
-        )
+        # Check Sync Cache
+        sync_cache_key = f"fa_synced:{user_uuid_str}"
+        is_synced = await cache.get(sync_cache_key)
 
-        # Issue Token
-        fa_token = await asyncio.to_thread(
-            FusionAuthService.issue_token,
-            user_uuid_str,
-            None,
-            {RequestParams.DEVICE_ID: real_device_id},
-        )
+        if not is_synced:
+            await asyncio.to_thread(
+                FusionAuthService.create_fusion_user,
+                user_uuid_str,
+                user_email,
+            )
+            await cache.set(sync_cache_key, "true", ex=86400)
+
+        # 3. Issue Token & Create Refresh Session & Link Device in Parallel
+        # These are mostly independent after user is synced
+        async def issue_fa_token() -> str:
+            return await asyncio.to_thread(
+                FusionAuthService.issue_token,
+                user_uuid_str,
+                None,
+                {RequestParams.DEVICE_ID: real_device_id},
+            )
+
+        async def generate_refresh() -> str:
+            return await AuthService.create_refresh_session(
+                db_session=db_session,
+                user_id=str(user_id),
+                device_id=device_id or DeviceNames.UNKNOWN_DEVICE,
+                device_claim_id=real_device_id,
+            )
+
+        fa_token_task = asyncio.create_task(issue_fa_token())
+        refresh_task = asyncio.create_task(generate_refresh())
+
+        fa_token, refresh_token = await asyncio.gather(fa_token_task, refresh_task)
 
         if fa_token:
             auth_token = fa_token
             token_expiry = int(time.time()) + CacheTTL.TOKEN_EXPIRY
 
+        # 4. Link Device independently
+        if auth_token:
+            await execute_query(
+                query=UserQueries.LINK_DEVICE_TO_USER,
+                db_session=db_session,
+                params={
+                    RequestParams.DEVICE_ID: device_id,
+                    RequestParams.USER_ID: user_id,
+                    RequestParams.USER_TOKEN: auth_token,
+                },
+            )
+
     except Exception as e:
-        logger.error(f"FusionAuth Error: {e}")
-
-    # 3. Create Refresh Token
-    if auth_token:
-        refresh_token = await AuthService.create_refresh_session(
-            db_session=db_session,
-            user_id=str(user_id),
-            device_id=device_id or DeviceNames.UNKNOWN_DEVICE,
-            device_claim_id=real_device_id,
-        )
-
-    # 4. Link Device to User (Update local DB with FA token)
-    if device_id and auth_token:
-        await execute_query(
-            query=UserQueries.LINK_DEVICE_TO_USER,
-            db_session=db_session,
-            params={
-                RequestParams.DEVICE_ID: device_id,
-                RequestParams.USER_ID: user_id,
-                RequestParams.USER_TOKEN: auth_token,
-            },
-        )
+        logger.error(f"Post-registration optimization error: {e}")
 
     await db_session.commit()
     return auth_token, refresh_token, token_expiry

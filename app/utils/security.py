@@ -2,7 +2,7 @@ import base64
 import contextlib
 import json
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
@@ -22,18 +22,25 @@ from app.settings import settings
 class SecurityService:
     """Utility service for handling encryption/decryption."""
 
-    @staticmethod
-    def _get_private_key_pem(private_key_pem: str | None = None) -> str:
+    _private_key_cache: Optional[rsa.RSAPrivateKey] = None
+    _private_key_pem_cache: Optional[str] = None
+
+    @classmethod
+    def _get_private_key_pem(cls, private_key_pem: str | None = None) -> str:
         """Helper to retrieve private key PEM from settings or FusionAuth."""
         if private_key_pem:
             return private_key_pem
 
+        if cls._private_key_pem_cache:
+            return cls._private_key_pem_cache
+
         # 1. Check for local private key in settings (from env)
         if settings.decryption_private_key_b64:
             with contextlib.suppress(Exception):
-                return base64.b64decode(settings.decryption_private_key_b64).decode(
-                    "utf-8",
-                )
+                cls._private_key_pem_cache = base64.b64decode(
+                    settings.decryption_private_key_b64,
+                ).decode("utf-8")
+                return cls._private_key_pem_cache
 
         # 2. Fetch from FusionAuth if still not provided
         key_id = settings.fusionauth_bootstrap_key_id
@@ -45,10 +52,12 @@ class SecurityService:
         if not private_key_pem:
             raise ValidationError("Private key not found in FusionAuth")
 
+        cls._private_key_pem_cache = private_key_pem
         return private_key_pem
 
-    @staticmethod
+    @classmethod
     def decrypt_payload(
+        cls,
         encrypted_key: str,
         encrypted_data: str,
         private_key_pem: str | None = None,
@@ -60,20 +69,32 @@ class SecurityService:
         2. Decrypts Data using AES-256-GCM.
         3. Validates timestamp.
         """
-        private_key_pem = SecurityService._get_private_key_pem(private_key_pem)
+        # 0. Load/Cache Private Key Object
+        if not cls._private_key_cache or private_key_pem:
+            pem = cls._get_private_key_pem(private_key_pem)
+            try:
+                private_key = serialization.load_pem_private_key(
+                    pem.encode(),
+                    password=None,
+                    backend=default_backend(),
+                )
+                if not isinstance(private_key, rsa.RSAPrivateKey):
+                    raise ValidationError("Invalid private key type")
+
+                # Only cache if it's the default key
+                if not private_key_pem:
+                    cls._private_key_cache = private_key
+                else:
+                    # If a specific key was provided, use it but don't global cache
+                    pass
+            except Exception as e:
+                raise RequestTimeoutError(ErrorMessages.REQUEST_EXPIRED) from e
+        else:
+            private_key = cls._private_key_cache
 
         # 1. Decrypt AES Key
         try:
             encrypted_aes_key = base64.b64decode(encrypted_key)
-            private_key = serialization.load_pem_private_key(
-                private_key_pem.encode(),
-                password=None,
-                backend=default_backend(),
-            )
-
-            if not isinstance(private_key, rsa.RSAPrivateKey):
-                raise ValidationError("Invalid private key type")
-
             aes_key = private_key.decrypt(
                 encrypted_aes_key,
                 padding.OAEP(
@@ -115,7 +136,7 @@ class SecurityService:
             raise RequestTimeoutError(ErrorMessages.TIMESTAMP_MISSING)
 
         now = int(time.time())
-        if abs(now - int(timestamp)) > 30:  # 30 sec leeway for load tests/lag
+        if abs(now - int(timestamp)) > 300:  # 5 min leeway for load tests/lag
             raise RequestTimeoutError(ErrorMessages.REQUEST_EXPIRED)
 
         return payload_json

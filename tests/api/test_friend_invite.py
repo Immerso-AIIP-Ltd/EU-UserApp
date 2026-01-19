@@ -14,14 +14,15 @@ async def test_join_waitlist_success(
     client: AsyncClient,
     dbsession: AsyncSession,
 ) -> None:
+    device_id = "131dd20e-d0ee-486d-80e1-a6aa928b0c8e"
     mock_decrypted = {
-        "device_id": "test_device",
+        "device_id": device_id,
         "email_id": "waitlist@example.com",
         "name": "Waitlist User",
     }
     payload = {"key": "k", "data": "d"}
 
-    headers = get_auth_headers(device_id="test_device")
+    headers = get_auth_headers(device_id=device_id)
     with patch(
         "app.api.v1.friend_invite_joinwaitlist.views.SecurityService.decrypt_payload",
         return_value=mock_decrypted,
@@ -33,11 +34,14 @@ async def test_join_waitlist_success(
         new_callable=AsyncMock,
     ):
 
-        # Mock for 3 calls: check device, check email, insert
+        # Mock for 4 calls: check device, check device+email, check email, insert
         mock_exec.side_effect = [
-            [],  # Call 1: check_device_and_email
-            [],  # Call 2: check_email
-            [MockModel(queue_number=123, is_verified=False)],  # Call 3: insert
+            [{"id": "test_device"}],  # Call 1: CHECK_DEVICE_EXISTS
+            [],  # Call 2: GET_WAITLIST_BY_DEVICE_AND_EMAIL
+            [],  # Call 3: GET_WAITLIST_BY_EMAIL
+            [
+                MockModel(queue_number=123, is_verified=False),
+            ],  # Call 4: INSERT_WAITLIST_ENTRY
         ]
 
         await assert_endpoint_success(
@@ -63,6 +67,7 @@ async def test_friend_invite_success(
     headers = get_auth_headers(device_id="test_device")
 
     mock_waitlist_entry = MockModel(
+        id=123,
         email="inviter@example.com",
         queue_number=123,
     )

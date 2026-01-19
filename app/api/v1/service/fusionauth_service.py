@@ -10,8 +10,10 @@ from app.core.constants import CacheTTL, ErrorMessages, HTTPStatus
 from app.core.exceptions.exceptions import FusionAuthError
 from app.settings import settings
 
-# Global cache for JWKS
+# Global cache for FusionAuth
 _jwks_client = None
+_fusionauth_client = None
+_keys_cache: Dict[str, Any] = {}
 
 
 class FusionAuthService:
@@ -22,10 +24,16 @@ class FusionAuthService:
         """Get the JWKS URL."""
         return f"{settings.fusionauth_url}/.well-known/jwks.json"
 
-    @staticmethod
-    def get_client() -> FusionAuthClient:
-        """Get the FusionAuth client."""
-        return FusionAuthClient(settings.fusionauth_api_key, settings.fusionauth_url)
+    @classmethod
+    def get_client(cls) -> FusionAuthClient:
+        """Get the FusionAuth client (cached global)."""
+        global _fusionauth_client  # noqa: PLW0603
+        if _fusionauth_client is None:
+            _fusionauth_client = FusionAuthClient(
+                settings.fusionauth_api_key,
+                settings.fusionauth_url,
+            )
+        return _fusionauth_client
 
     @classmethod
     def get_jwks_client(cls) -> PyJWKClient:
@@ -171,12 +179,17 @@ class FusionAuthService:
 
     @classmethod
     def get_key(cls, key_id: str) -> Dict[str, Any]:
-        """Retrieve a key from FusionAuth by ID."""
+        """Retrieve a key from FusionAuth by ID (with local caching)."""
+        if key_id in _keys_cache:
+            return _keys_cache[key_id]
+
         client = cls.get_client()
         response = client.retrieve_key(key_id)
 
         if response.was_successful():
-            return response.success_response["key"]
+            key = response.success_response["key"]
+            _keys_cache[key_id] = key
+            return key
 
         raise FusionAuthError(
             http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
