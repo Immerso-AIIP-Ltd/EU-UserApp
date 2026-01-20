@@ -35,8 +35,8 @@ class ProfileUser(AuthenticatedUser):
 
         # PUT /profile expects UpdateProfileRequest (NOT Encrypted)
         payload = {
-            "name": f"Updated Name {random.randint(1, 1000)}",
-            "gender": random.choice(["M", "F", "O"]),  # Ensure string
+            "name": f"Updated Name {random.randint(1, 1000)}",  # noqa: S311
+            "gender": random.choice(["M", "F", "O"]),  # noqa: S311
             "about_me": "Load Testing...",
             "country": "US",
             # Removing birth_date temporarily to debug overflow issue
@@ -61,7 +61,7 @@ class ProfileUser(AuthenticatedUser):
             return
 
         # POST /update_email_mobile expects UpdateEmailMobileRequest (NOT Encrypted)
-        random_str = "".join(random.choices(string.ascii_lowercase, k=8))
+        random_str = "".join(random.choices(string.ascii_lowercase, k=8))  # noqa: S311
         new_email = f"loadtest_updated_{random_str}@example.com"
         payload = {
             "email": new_email,

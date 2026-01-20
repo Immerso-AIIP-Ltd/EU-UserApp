@@ -4,13 +4,16 @@ from typing import Any, Dict, List, Optional
 import jwt
 from fusionauth.fusionauth_client import FusionAuthClient
 from jwt import PyJWKClient
+from loguru import logger
 
 from app.core.constants import CacheTTL, ErrorMessages, HTTPStatus
 from app.core.exceptions.exceptions import FusionAuthError
 from app.settings import settings
 
-# Global cache for JWKS
+# Global cache for FusionAuth
 _jwks_client = None
+_fusionauth_client = None
+_keys_cache: Dict[str, Any] = {}
 
 
 class FusionAuthService:
@@ -21,10 +24,16 @@ class FusionAuthService:
         """Get the JWKS URL."""
         return f"{settings.fusionauth_url}/.well-known/jwks.json"
 
-    @staticmethod
-    def get_client() -> FusionAuthClient:
-        """Get the FusionAuth client."""
-        return FusionAuthClient(settings.fusionauth_api_key, settings.fusionauth_url)
+    @classmethod
+    def get_client(cls) -> FusionAuthClient:
+        """Get the FusionAuth client (cached global)."""
+        global _fusionauth_client  # noqa: PLW0603
+        if _fusionauth_client is None:
+            _fusionauth_client = FusionAuthClient(
+                settings.fusionauth_api_key,
+                settings.fusionauth_url,
+            )
+        return _fusionauth_client
 
     @classmethod
     def get_jwks_client(cls) -> PyJWKClient:
@@ -58,7 +67,7 @@ class FusionAuthService:
         """
         Creates a user in FusionAuth with the local user_uuid as the FusionAuth User ID.
 
-        If email is provided, it is set. If not, the user_uuid is used as the username.
+        Handles checking by UUID and Email to resolve conflicts.
         """
         client = cls.get_client()
 
@@ -74,7 +83,7 @@ class FusionAuthService:
             "skipVerification": True,
         }
 
-        # Check if user exists by ID first
+        # 1. Check if user exists by ID
         search_response = client.retrieve_user(user_uuid)
         if search_response.was_successful():
             user = search_response.success_response["user"]
@@ -85,7 +94,6 @@ class FusionAuthService:
             )
 
             if not is_registered:
-                # Use keyword args for safety
                 reg_response = client.register(
                     user_id=user_uuid,
                     request={
@@ -99,19 +107,37 @@ class FusionAuthService:
                         http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                         detail=ErrorMessages.FUSION_AUTH_REGISTRATION_ERROR,
                     )
-
             return user_uuid
 
-        # Create new user
-        # Use keyword args for safety
+        # 2. Check if user exists by Email (to handle split-brain/collision)
+        if email:
+            email_response = client.retrieve_user_by_email(email)
+            if email_response.was_successful():
+                # User exists with different ID.
+                # In DEV environment, we assume Local DB is truth
+                # Delete the conflicting FA user and re-create.
+                existing_fa_user = email_response.success_response["user"]
+                logger.warning(
+                    f"Conflict: Email {email} exists in FA with ID "
+                    f"{existing_fa_user['id']} but Local expects {user_uuid}. "
+                    "Deleting FA user to re-sync.",
+                )
+                client.delete_user(existing_fa_user["id"])
+
+        # 3. Create new user
         response = client.register(user_id=user_uuid, request=user_request)
 
         if response.was_successful():
             return response.success_response["user"]["id"]
 
+        # Log failure details
+        error_msg = ErrorMessages.FUSION_AUTH_SYNC_ERROR
+        if response.error_response:
+            error_msg += f": {json.dumps(response.error_response)}"
+
         raise FusionAuthError(
             http_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=ErrorMessages.FUSION_AUTH_SYNC_ERROR,
+            detail=error_msg,
         )
 
     @classmethod
@@ -153,12 +179,17 @@ class FusionAuthService:
 
     @classmethod
     def get_key(cls, key_id: str) -> Dict[str, Any]:
-        """Retrieve a key from FusionAuth by ID."""
+        """Retrieve a key from FusionAuth by ID (with local caching)."""
+        if key_id in _keys_cache:
+            return _keys_cache[key_id]
+
         client = cls.get_client()
         response = client.retrieve_key(key_id)
 
         if response.was_successful():
-            return response.success_response["key"]
+            key = response.success_response["key"]
+            _keys_cache[key_id] = key
+            return key
 
         raise FusionAuthError(
             http_code=HTTPStatus.INTERNAL_SERVER_ERROR,

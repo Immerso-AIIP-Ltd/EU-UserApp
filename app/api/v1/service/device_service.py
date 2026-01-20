@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.service.device_redis_service import DeviceTokenRedisService
+from app.core.constants import ErrorMessages
 from app.core.exceptions.exceptions import (
     DeviceAlreadyRegisteredError,
     DeviceNotRegisteredError,
@@ -17,14 +18,30 @@ class DeviceService:
     """Service to handle device registration, updates, and user linking."""
 
     @staticmethod
-    async def is_device_registered(device_id: str, db_session: AsyncSession) -> bool:
-        """Check if a device is already registered in the database."""
+    async def is_device_registered(
+        device_id: str,
+        db_session: AsyncSession,
+        cache: Redis | None = None,
+    ) -> bool:
+        """Check if device is registered in DB (with Redis caching)."""
+        device_id = str(device_id)
+        if cache:
+            cache_key = f"device_reg:{device_id}"
+            if await cache.get(cache_key):
+                return True
+
         rows = await execute_query(
             UserQueries.CHECK_DEVICE_EXISTS,
-            {"device_id": device_id},
+            {"id": device_id},
             db_session,
         )
-        return bool(rows)
+        is_registered = bool(rows)
+
+        if is_registered and cache:
+            # Cache for 1 hour
+            await cache.set(f"device_reg:{device_id}", "1", ex=3600)
+
+        return is_registered
 
     @staticmethod
     async def create_device(
@@ -34,6 +51,7 @@ class DeviceService:
         **attrs: Any,
     ) -> dict[str, Any]:
         """Creates a new device."""
+        device_id = str(device_id)
         if await DeviceService.is_device_registered(device_id, db_session):
             raise DeviceAlreadyRegisteredError("Device already registered")
 
@@ -62,6 +80,7 @@ class DeviceService:
         **kwargs: Any,
     ) -> None:
         """Updates device details."""
+        device_id = str(device_id)
         params = {
             "device_id": device_id,
             "device_type": kwargs.get("device_type"),
@@ -73,14 +92,56 @@ class DeviceService:
     @staticmethod
     async def get_device(device_id: str, db_session: AsyncSession) -> dict[str, Any]:
         """Gets device by ID."""
+        device_id = str(device_id)
         rows = await execute_query(
             UserQueries.GET_DEVICE_BY_ID,
-            {"device_id": device_id},
+            {"id": device_id},
             db_session,
         )
         if not rows:
             raise DeviceNotRegisteredError("Device not registered")
         return dict(rows[0])
+
+    @staticmethod
+    async def get_device_by_uuid(
+        device_uuid: str,
+        db_session: AsyncSession,
+    ) -> dict[str, Any]:
+        """Gets device by UUID (PK)."""
+        if not device_uuid:
+            raise DeviceNotRegisteredError("Device UUID missing")
+        rows = await execute_query(
+            UserQueries.GET_DEVICE_BY_UUID,
+            {"id": device_uuid},
+            db_session,
+        )
+        if not rows:
+            raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+        return dict(rows[0])
+
+    @staticmethod
+    async def resolve_device_id(
+        device_identifier: str,
+        db_session: AsyncSession,
+    ) -> str:
+        """
+        Resolves device identifier to the Serial Number (device_id string).
+
+        Refactored to assume input is likely the Serial Number,
+        which identifies the device in DB.
+        """
+        if not device_identifier:
+            raise DeviceNotRegisteredError("Device Identifier missing")
+
+        # Just verify it exists using the Serial Number lookup
+        try:
+            # get_device uses serial_number lookup now (Step 1033)
+            await DeviceService.get_device(device_identifier, db_session)
+            return device_identifier
+        except Exception:
+            raise DeviceNotRegisteredError(
+                ErrorMessages.DEVICE_NOT_REGISTERED,
+            ) from None
 
     @staticmethod
     async def link_device_to_user(
@@ -94,6 +155,7 @@ class DeviceService:
         session: AsyncSession | None = None,
     ) -> None:
         """Links a device to a user and syncs token to Redis."""
+        device_id = str(device_id)
         # Handle aliases
         final_user_uuid = user_uuid or uuid
         final_session = db_session or session
@@ -158,6 +220,7 @@ class DeviceService:
         client_ip: str | None,
     ) -> None:
         """Ensures device exists, creating it if necessary."""
+        device_id = str(device_id)
         if not await DeviceService.is_device_registered(device_id, session):
             await DeviceService.create_device(
                 device_id,

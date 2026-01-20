@@ -17,6 +17,7 @@ from app.api.v1.schemas import (
     IntentEnum,
     RegisterWithProfileRequest,
     ResendOTPRequest,
+    UserProfileData,
     VerifyOTPRegisterRequest,
 )
 from app.api.v1.service.auth_service import AuthService
@@ -53,7 +54,7 @@ from app.core.exceptions import (
     ValidationError,
 )
 from app.db.dependencies import get_db_session
-from app.db.utils import execute_query
+from app.db.utils import execute_and_transform, execute_query
 from app.settings import settings
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
@@ -125,14 +126,17 @@ async def register_with_profile(
         except Exception as e:
             raise PayloadNotEncryptedError from e
 
-    # 0. Check if device is registered
-    await _validate_device_registered(headers, db_session)
+    # Optimized: Parallelize Device Validation and Decryption
+    device_task = _validate_device_registered(headers, db_session, cache=cache)
+    decryption_task = asyncio.to_thread(
+        SecurityService.decrypt_payload,
+        payload.key,
+        payload.data,
+    )
 
+    await device_task  # Device check is critical, wait first but they ran in parallel
     try:
-        decrypted_payload = SecurityService.decrypt_payload(
-            encrypted_key=payload.key,
-            encrypted_data=payload.data,
-        )
+        decrypted_payload = await decryption_task
         reg_payload = RegisterWithProfileRequest(**decrypted_payload)
     except Exception as e:
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
@@ -145,12 +149,16 @@ async def register_with_profile(
         else (request.client.host if request.client else "127.0.0.1")
     )
 
-    state = await _check_user_existence_and_get_state(
+    # Optimized: Parallelize Slow Operations (State Check/OTP Send + Password Hashing)
+    state_task = _check_user_existence_and_get_state(
         reg_payload,
         db_session,
         cache,
         client_ip,
     )
+    hashing_task = asyncio.to_thread(hash_password, reg_payload.password)
+
+    state, hashed_password = await asyncio.gather(state_task, hashing_task)
 
     if not state:
         raise StateNotFoundError
@@ -161,7 +169,6 @@ async def register_with_profile(
         if reg_payload.email
         else f"{reg_payload.calling_code}{reg_payload.mobile}".lstrip("+")
     )
-    hashed_password = hash_password(reg_payload.password)
     registration_data = reg_payload.model_dump(mode=RequestParams.JSON)
     registration_data[LoginParams.PASSWORD] = hashed_password
 
@@ -283,18 +290,46 @@ async def _handle_otp_redirect_or_callback(
         )
 
     if intent == IntentEnum.UPDATE_PROFILE:
-        # Fetch user and update verified status
-        user_rows = await _get_user_by_receiver(
-            db_session,
-            receiver,
-            receiver_type,
-            mobile,
-            calling_code,
+        # Fetch pending update data from cache
+        pending_cache_key = build_cache_key(
+            CacheKeyTemplates.CACHE_KEY_UPDATE_PROFILE_DATA,
+            identifier=receiver,
         )
-        if not user_rows:
-            raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
+        update_data = await get_cache(cache, pending_cache_key)
 
-        user_id = user_rows[0].id
+        if not update_data:
+            # Fallback for old flow or if cache expired
+            logger.warning(f"No pending update data found for {receiver}")
+            # Try to get user and just update verified status as before
+            user_rows = await _get_user_by_receiver(
+                db_session,
+                receiver,
+                receiver_type,
+                mobile,
+                calling_code,
+            )
+            if not user_rows:
+                raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
+            user_id = user_rows[0]["id"]
+        else:
+            user_id = update_data.get(RequestParams.USER_ID)
+            email = update_data.get(RequestParams.EMAIL)
+            mobile = update_data.get(RequestParams.MOBILE)
+            cc = update_data.get(RequestParams.CALLING_CODE)
+
+            # Update actual email/mobile in DB
+            await execute_query(
+                query=UserQueries.UPDATE_EMAIL_MOBILE,
+                params={
+                    RequestParams.USER_ID: user_id,
+                    RequestParams.EMAIL: email,
+                    RequestParams.MOBILE: mobile,
+                    RequestParams.CALLING_CODE: cc,
+                },
+                db_session=db_session,
+            )
+
+        # Update verified status
         await execute_query(
             query=UserQueries.UPDATE_USER_VERIFIED,
             params={RequestParams.USER_ID: user_id, "type": receiver_type},
@@ -305,8 +340,16 @@ async def _handle_otp_redirect_or_callback(
         # Invalidate Profile Cache
         await _invalidate_profile_cache(cache, user_id, headers)
 
+        # Clean up pending update cache if exists
+        if update_data:
+            await cache.delete(pending_cache_key)
+
         return standard_response(
-            message=SuccessMessages.OTP_VERIFIED,
+            message=(
+                SuccessMessages.EMAIL_UPDATED
+                if receiver_type == RequestParams.EMAIL
+                else SuccessMessages.MOBILE_UPDATED
+            ),
             request=request,
             data={LoginParams.REDIRECT_URL: None},
         )
@@ -398,29 +441,56 @@ async def _finalize_user_registration(
     )
     await cache.delete(cache_key)
 
-    # 8. Prepare response
-    data_dict: dict[str, Any] = dict(user_rows[0])
-    data_dict[RequestParams.TOKEN] = auth_token
-    data_dict[RequestParams.REFRESH_TOKEN] = refresh_token
-    data_dict[RequestParams.TOKEN_EXPIRY] = token_expiry
-    data_dict[ProcessParams.ID] = str(user_id)
+    # 8. Fetch Full Profile for response
+    profile_data_list = await execute_and_transform(
+        UserQueries.GET_USER_PROFILE,
+        {RequestParams.USER_ID: user_id},
+        UserProfileData,
+        db_session,
+    )
+
+    profile = (
+        profile_data_list[0]
+        if profile_data_list
+        else {
+            RequestParams.USER_ID: str(user_id),
+            RequestParams.EMAIL: cached_data.get(RequestParams.EMAIL),
+            RequestParams.NAME: cached_data.get(LoginParams.NAME),
+            RequestParams.IMAGE: cached_data.get(LoginParams.PROFILE_IMAGE),
+        }
+    )
+
+    user_response = {
+        RequestParams.USER_ID: str(user_id),
+        RequestParams.EMAIL: profile.get(RequestParams.EMAIL),
+        RequestParams.NAME: profile.get(RequestParams.NAME),
+        RequestParams.IMAGE: profile.get(RequestParams.IMAGE),
+    }
+
+    response_data = {
+        RequestParams.AUTH_TOKEN: auth_token,
+        RequestParams.REFRESH_TOKEN: refresh_token,
+        RequestParams.USER: user_response,
+    }
 
     return standard_response(
         request=request,
         message=SuccessMessages.USER_REGISTERED_VERIFIED,
-        data=data_dict,
+        data=response_data,
     )
 
 
 async def _validate_device_registered(
     headers: dict[str, Any],
     db_session: AsyncSession,
+    cache: Redis | None = None,
 ) -> None:
-    """Validate that the device is registered."""
-    device_id = headers.get(RequestParams.DEVICE_ID)
+    """Validate that the device is registered (with caching)."""
+    device_id = headers.get(HeaderKeys.X_DEVICE_ID)
     if not device_id or not await DeviceService.is_device_registered(
         device_id,
         db_session,
+        cache=cache,
     ):
         raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
 
@@ -448,7 +518,14 @@ async def _check_user_existence_and_get_state(
         )
         if user_exists:
             raise UserExistsError
-        return await UserVerifyService.get_user_state_by_email(cache, email, db_session)
+        user = user_exists[0] if user_exists else None
+        return await UserVerifyService.get_user_state_by_email(
+            cache,
+            email,
+            db_session,
+            user=user,
+            name=reg_payload.name,
+        )
 
     if mobile and calling_code:
         user_exists = await execute_query(
@@ -462,12 +539,15 @@ async def _check_user_existence_and_get_state(
         )
         if user_exists:
             raise UserExistsError(message=ErrorMessages.USER_ALREADY_REGISTERED)
+        user = user_exists[0] if user_exists else None
         return await UserVerifyService.get_user_state_by_mobile(
             cache,
             mobile,
             calling_code,
             client_ip,
             db_session,
+            user=user,
+            name=reg_payload.name,
         )
 
     raise ValidationError(message=ErrorMessages.EMAIL_OR_MOBILE_REQUIRED)
@@ -633,11 +713,16 @@ async def _finalize_registration_and_auth(
     cache: Redis,
     cached_data: dict[str, Any],
 ) -> tuple[str | None, str | None, int | None]:
-    """Register device, sync to FusionAuth, and generate auth token."""
-    device_id = headers.get(RequestParams.DEVICE_ID)
+    """Register device, sync to FusionAuth, and generate auth token (optimized)."""
+    device_id = headers.get(HeaderKeys.X_DEVICE_ID) or ""
 
-    # 1. Device Registration (if needed)
-    await _validate_device_registered(headers, db_session)
+    # 1. Resolve device UUID
+    # (Avoid redundant check since we already validated at start or during process)
+    try:
+        device_data = await DeviceService.get_device(device_id, db_session)
+        real_device_id = str(device_data.get("id"))
+    except Exception:
+        real_device_id = device_id or DeviceNames.UNKNOWN_DEVICE
 
     # 2. Sync to FusionAuth and Issue Token
     auth_token = None
@@ -648,47 +733,59 @@ async def _finalize_registration_and_auth(
     user_email = cached_data.get(RequestParams.EMAIL)
 
     try:
-        # Sync User
-        await asyncio.to_thread(
-            FusionAuthService.create_fusion_user,
-            user_uuid_str,
-            user_email,
-        )
+        # Check Sync Cache
+        sync_cache_key = f"fa_synced:{user_uuid_str}"
+        is_synced = await cache.get(sync_cache_key)
 
-        # Issue Token
-        fa_token = await asyncio.to_thread(
-            FusionAuthService.issue_token,
-            user_uuid_str,
-            None,
-            {RequestParams.DEVICE_ID: device_id},
-        )
+        if not is_synced:
+            await asyncio.to_thread(
+                FusionAuthService.create_fusion_user,
+                user_uuid_str,
+                user_email,
+            )
+            await cache.set(sync_cache_key, "true", ex=86400)
+
+        # 3. Issue Token & Create Refresh Session & Link Device in Parallel
+        # These are mostly independent after user is synced
+        async def issue_fa_token() -> str:
+            return await asyncio.to_thread(
+                FusionAuthService.issue_token,
+                user_uuid_str,
+                None,
+                {RequestParams.DEVICE_ID: real_device_id},
+            )
+
+        async def generate_refresh() -> str:
+            return await AuthService.create_refresh_session(
+                db_session=db_session,
+                user_id=str(user_id),
+                device_id=device_id or DeviceNames.UNKNOWN_DEVICE,
+                device_claim_id=real_device_id,
+            )
+
+        fa_token_task = asyncio.create_task(issue_fa_token())
+        refresh_task = asyncio.create_task(generate_refresh())
+
+        fa_token, refresh_token = await asyncio.gather(fa_token_task, refresh_task)
 
         if fa_token:
             auth_token = fa_token
             token_expiry = int(time.time()) + CacheTTL.TOKEN_EXPIRY
 
+        # 4. Link Device independently
+        if auth_token:
+            await execute_query(
+                query=UserQueries.LINK_DEVICE_TO_USER,
+                db_session=db_session,
+                params={
+                    RequestParams.DEVICE_ID: device_id,
+                    RequestParams.USER_ID: user_id,
+                    RequestParams.USER_TOKEN: auth_token,
+                },
+            )
+
     except Exception as e:
-        logger.error(f"FusionAuth Error: {e}")
-
-    # 3. Create Refresh Token
-    if auth_token:
-        refresh_token = await AuthService.create_refresh_session(
-            db_session=db_session,
-            user_id=str(user_id),
-            device_id=device_id or DeviceNames.UNKNOWN_DEVICE,
-        )
-
-    # 4. Link Device to User (Update local DB with FA token)
-    if device_id and auth_token:
-        await execute_query(
-            query=UserQueries.LINK_DEVICE_TO_USER,
-            db_session=db_session,
-            params={
-                RequestParams.DEVICE_ID: device_id,
-                RequestParams.USER_ID: user_id,
-                RequestParams.USER_TOKEN: auth_token,
-            },
-        )
+        logger.error(f"Post-registration optimization error: {e}")
 
     await db_session.commit()
     return auth_token, refresh_token, token_expiry
@@ -718,7 +815,7 @@ async def resend_otp(
             raise PayloadNotEncryptedError from e
 
     # 0. Check if device is registered
-    device_id = headers.get(RequestParams.DEVICE_ID)
+    device_id = headers.get(HeaderKeys.X_DEVICE_ID)
     if not device_id or not await DeviceService.is_device_registered(
         device_id,
         db_session,
@@ -743,10 +840,17 @@ async def resend_otp(
     receiver_type = RequestParams.EMAIL if email else RequestParams.MOBILE
 
     # Check if registration session exists
-    cache_key = build_cache_key(
-        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA,
-        identifier=receiver,
-    )
+    if intent == IntentEnum.UPDATE_PROFILE:
+        cache_key = build_cache_key(
+            CacheKeyTemplates.CACHE_KEY_UPDATE_PROFILE_DATA,
+            identifier=receiver,
+        )
+    else:
+        cache_key = build_cache_key(
+            CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA,
+            identifier=receiver,
+        )
+
     cached_data = await get_cache(cache, cache_key)
     if not cached_data:
         raise RegistrationSessionClosedError

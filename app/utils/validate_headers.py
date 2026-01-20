@@ -78,7 +78,7 @@ async def validate_common_headers(
             "x-app-version": x_app_version,
             "x-api-token": x_api_token,
         },
-    ).model_dump()
+    ).model_dump(by_alias=True)
 
 
 async def validate_headers_without_auth(
@@ -117,7 +117,7 @@ async def validate_headers_without_auth(
             "x-country": x_country,
             "x-app-version": x_app_version,
         },
-    ).model_dump()
+    ).model_dump(by_alias=True)
 
 
 async def validate_headers_without_x_device_id(
@@ -153,4 +153,4 @@ async def validate_headers_without_x_device_id(
             "x-country": x_country,
             "x-app-version": x_app_version,
         },
-    ).model_dump()
+    ).model_dump(by_alias=True)

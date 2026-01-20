@@ -118,6 +118,7 @@ class UserQueries:
             calling_code,
             password,
             is_password_set,
+            state,
             login_type,
             type,
             is_email_verified,
@@ -130,7 +131,8 @@ class UserQueries:
             :calling_code,
             :password,
             TRUE,
-            :login_type,
+            CAST('active' AS user_app.user_state),
+            CAST(:login_type AS VARCHAR),
             :type,
             CASE WHEN CAST(:login_type AS varchar) = 'email' THEN TRUE ELSE FALSE END,
             CASE WHEN CAST(:login_type AS varchar) = 'mobile' THEN TRUE ELSE FALSE END,
@@ -143,12 +145,12 @@ class UserQueries:
     VERIFY_OTP_REGISTER = text(
         """
         SELECT * FROM user_app.verify_otp_register(
-            :email,
-            :mobile,
-            :calling_code,
-            :otp,
-            :password,
-            :intent
+            CAST(:email AS VARCHAR),
+            CAST(:mobile AS VARCHAR),
+            CAST(:calling_code AS VARCHAR),
+            CAST(:otp AS VARCHAR),
+            CAST(:password AS VARCHAR),
+            CAST(:intent AS VARCHAR)
         );
         """,
     )
@@ -208,10 +210,10 @@ class UserQueries:
     RESEND_OTP = text(
         """
         SELECT * FROM user_app.resend_otp(
-            :email,
-            :mobile,
-            :calling_code,
-            :intent
+            CAST(:email AS VARCHAR),
+            CAST(:mobile AS VARCHAR),
+            CAST(:calling_code AS VARCHAR),
+            CAST(:intent AS VARCHAR)
         );
         """,
     )
@@ -323,35 +325,16 @@ class UserQueries:
 
     UPDATE_USER_PROFILE = text(
         """
-        SELECT
-            uuid,
-            email,
-            TRIM(CONCAT(firstname, ' ', lastname)) AS name,
-            firstname,
-            lastname,
-            mobile,
-            calling_code,
-            image,
-            country,
-            CAST(gender AS VARCHAR) as gender,
-            about_me,
-            birth_day,
-            birth_month,
-            birth_year,
-            avatar_id,
-            is_password_set,
-            nick_name,
-            (birth_day || '/' || birth_month || '/' || birth_year) AS birth_date
-        FROM user_app.update_user_profile(
-            :user_id,
-            :name,
-            :gender,
-            :about_me,
-            :birth_date,
-            :nick_name,
-            :country,
-            :avatar_id,
-            :profile_image
+        SELECT * FROM user_app.update_user_profile(
+            CAST(:user_id AS UUID),
+            CAST(:name AS VARCHAR),
+            CAST(:gender AS VARCHAR),
+            CAST(:about_me AS TEXT),
+            CAST(:birth_date AS VARCHAR),
+            CAST(:nick_name AS VARCHAR),
+            CAST(:country AS VARCHAR),
+            CAST(:avatar_id AS INTEGER),
+            CAST(:profile_image AS TEXT)
         );
         """,
     )
@@ -359,10 +342,10 @@ class UserQueries:
     UPDATE_EMAIL_MOBILE = text(
         """
         SELECT * FROM user_app.update_email_mobile(
-            :user_id,
-            :email,
-            :mobile,
-            :calling_code
+            CAST(:user_id AS UUID),
+            CAST(:email AS VARCHAR),
+            CAST(:mobile AS VARCHAR),
+            CAST(:calling_code AS VARCHAR)
         );
         """,
     )
@@ -370,11 +353,11 @@ class UserQueries:
     VERIFY_OTP = text(
         """
         SELECT * FROM user_app.verify_otp(
-            :email,
-            :mobile,
-            :calling_code,
-            :otp,
-            :intent
+            CAST(:email AS VARCHAR),
+            CAST(:mobile AS VARCHAR),
+            CAST(:calling_code AS VARCHAR),
+            CAST(:otp AS VARCHAR),
+            CAST(:intent AS VARCHAR)
         );
         """,
     )
@@ -405,15 +388,15 @@ class UserQueries:
             modified_at
         )
         VALUES (
-            :inviter_id,
+            CAST(:inviter_id AS UUID),
             :invited_email,
             :invited_mobile,
             :invited_calling_code,
             'pending',
             :invite_token,
             NOW(),
-            :invited_user_id,
-            :waitlist_id,
+            CAST(:invited_user_id AS UUID),
+            CAST(:waitlist_id AS UUID),
             NOW(),
             NOW()
         )
@@ -443,10 +426,10 @@ class UserQueries:
     JOIN_WAITLIST = text(
         """
         SELECT * FROM user_app.join_waitlist(
-            :device_id,
-            :email,
-            :mobile,
-            :calling_code
+            CAST(:device_id AS UUID),
+            CAST(:email AS VARCHAR),
+            CAST(:mobile AS VARCHAR),
+            CAST(:calling_code AS VARCHAR)
         );
         """,
     )
@@ -469,8 +452,9 @@ class UserQueries:
 
     GET_WAITLIST_BY_DEVICE = text(
         """
-        SELECT * FROM user_app.waitlist
-        WHERE device_id = :device_id
+        SELECT w.* FROM user_app.waitlist w
+        INNER JOIN user_app.device d ON w.device_id = d.id
+        WHERE d.id::text = :device_id OR d.serial_number = :device_id
         LIMIT 1;
         """,
     )
@@ -495,6 +479,7 @@ class UserQueries:
     INSERT_WAITLIST_ENTRY = text(
         """
         INSERT INTO user_app.waitlist (
+            id,
             device_id,
             email,
             mobile,
@@ -505,7 +490,8 @@ class UserQueries:
             modified_at
         )
         VALUES (
-            :device_id,
+            gen_random_uuid(),
+            CAST(:device_id AS UUID),
             :email,
             :mobile,
             :calling_code,
@@ -560,8 +546,11 @@ class UserQueries:
                 mobile,
                 calling_code,
                 login_type,
+                type,
+                is_password_set,
                 state,
                 is_email_verified,
+                is_mobile_verified,
                 created_at,
                 modified_at
             )
@@ -570,8 +559,11 @@ class UserQueries:
                 '',
                 '',
                 :provider,
+                'regular',
+                FALSE,
                 'active',
                 TRUE,
+                FALSE,
                 NOW(),
                 NOW()
             )
@@ -650,7 +642,7 @@ class UserQueries:
         SELECT *
         FROM user_app.authentication_session
         WHERE auth_token = :refresh_token
-          AND device_id = :device_id
+          AND CAST(device_id AS VARCHAR) = :device_id
           AND is_active = TRUE
           AND auth_token_expiry > NOW()
         LIMIT 1;
@@ -682,8 +674,12 @@ class UserQueries:
     DEACTIVATE_OLD_SESSIONS = text(
         """
         UPDATE user_app.authentication_session
-        SET is_active = FALSE
-        WHERE device_id = :device_id AND user_id = :user_id AND is_active = TRUE;
+        SET is_active = FALSE,
+            logout_reason = 'login_on_same_device',
+            logged_out_at = NOW()
+        WHERE CAST(device_id AS VARCHAR) = :device_id
+          AND user_id = :user_id
+          AND is_active = TRUE;
         """,
     )
 
@@ -786,37 +782,49 @@ class UserQueries:
         UPDATE user_app.user
         SET
             is_email_verified = CASE
-                WHEN :type = 'email' THEN TRUE ELSE is_email_verified END,
+                WHEN CAST(:type AS VARCHAR) = 'email'
+                THEN TRUE ELSE is_email_verified END,
             is_mobile_verified = CASE
-                WHEN :type = 'mobile' THEN TRUE ELSE is_mobile_verified END,
+                WHEN CAST(:type AS VARCHAR) = 'mobile'
+                THEN TRUE ELSE is_mobile_verified END,
             modified_at = NOW()
-        WHERE id = :user_id;
+        WHERE id = CAST(:user_id AS UUID);
         """,
     )
 
     # ==================== DEVICE MANAGEMENT ====================
     GET_DEVICE_BY_ID = text(
         """
-        SELECT * FROM user_app.device WHERE device_id = :device_id LIMIT 1
+        SELECT * FROM user_app.device
+        WHERE id::text = :id OR serial_number = :id
+        LIMIT 1
         """,
     )
 
     CHECK_DEVICE_EXISTS = text(
         """
-        SELECT 1 FROM user_app.device WHERE device_id = :device_id LIMIT 1
+        SELECT 1 FROM user_app.device
+        WHERE id::text = :id OR serial_number = :id
+        LIMIT 1
         """,
     )
 
     INSERT_DEVICE = text(
         """
         INSERT INTO user_app.device (
-            device_id, user_id, device_name, platform, device_type,
+            serial_number, user_id, device_name, platform, device_type,
             device_active, user_token, created_at, modified_at
         ) VALUES (
             :device_id, :user_id, :device_name, :platform, :device_type,
             TRUE, :user_token, NOW(), NOW()
         )
         RETURNING device_id
+        """,
+    )
+
+    GET_DEVICE_BY_UUID = text(
+        """
+        SELECT * FROM user_app.device WHERE id = :id LIMIT 1
         """,
     )
 
@@ -828,7 +836,7 @@ class UserQueries:
             device_name = COALESCE(:device_name, device_name),
             push_token = COALESCE(:push_token, push_token),
             modified_at = NOW()
-        WHERE device_id = :device_id
+        WHERE id = :device_id
         """,
     )
 
@@ -836,12 +844,12 @@ class UserQueries:
         """
         UPDATE user_app.device
         SET
-            user_id = :user_id,
-            user_token = :user_token,
+            user_id = CAST(:user_id AS UUID),
+            user_token = CAST(:user_token AS VARCHAR),
             device_active = TRUE,
             date_deactivated = NULL,
             modified_at = NOW()
-        WHERE device_id = :device_id
+        WHERE id = CAST(:device_id AS UUID)
         """,
     )
 
@@ -852,26 +860,26 @@ class UserQueries:
             device_active = FALSE,
             date_deactivated = NOW(),
             modified_at = NOW()
-        WHERE device_id = :device_id AND user_id = :user_id
+        WHERE id = :device_id AND user_id = :user_id
         """,
     )
 
     REGISTER_DEVICE = text(
         """
         INSERT INTO user_app.device AS d (
-            device_id, device_name, platform, device_type,
+            serial_number, device_name, platform, device_type,
             push_token, device_active, device_ip, is_vpn, is_anonymous_proxy,
             residency_verified, is_rooted, is_jailbroken, drm_type,
             hardware_encryption, transaction_type, is_ip_legal, native_token,
-            date_deactivated, created_at, modified_at
+            date_deactivated, country_code, created_at, modified_at, id
         ) VALUES (
-            :device_id, :device_name, :platform, :device_type,
+            :serial_number, :device_name, :platform, :device_type,
             :push_token, :device_active, :device_ip, :is_vpn, :is_anonymous_proxy,
             :residency_verified, :is_rooted, :is_jailbroken, :drm_type,
             :hardware_encryption, :transaction_type, :is_ip_legal, :native_token,
-            :date_deactivated, NOW(), NOW()
+            :date_deactivated, :country_code, NOW(), NOW(), gen_random_uuid()
         )
-        ON CONFLICT (device_id) DO UPDATE SET
+        ON CONFLICT (serial_number) DO UPDATE SET
             device_name = COALESCE(EXCLUDED.device_name, d.device_name),
             platform = COALESCE(EXCLUDED.platform, d.platform),
             device_type = COALESCE(EXCLUDED.device_type, d.device_type),
@@ -895,6 +903,7 @@ class UserQueries:
             is_ip_legal = COALESCE(EXCLUDED.is_ip_legal, d.is_ip_legal),
             native_token = COALESCE(EXCLUDED.native_token, d.native_token),
             date_deactivated = COALESCE(EXCLUDED.date_deactivated, d.date_deactivated),
+            country_code = COALESCE(EXCLUDED.country_code, d.country_code),
             modified_at = NOW()
         RETURNING id;
         """,

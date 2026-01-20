@@ -82,6 +82,7 @@ class GenerateOtpService:
         db_session: Optional[AsyncSession] = None,
         mobile: Optional[str] = None,
         calling_code: Optional[str] = None,
+        name: Optional[str] = None,
     ) -> None:
         """Generate and send OTP based on receiver type (email or mobile)."""
         # Generate OTP locally using secrets for security (S311)
@@ -101,6 +102,7 @@ class GenerateOtpService:
                 intent,
                 is_resend,
                 db_session,
+                name=name,
             )
         elif receiver_type == RequestParams.MOBILE:
             await GenerateOtpService._handle_mobile_otp(
@@ -121,6 +123,7 @@ class GenerateOtpService:
         intent: str,
         is_resend: bool,
         db_session: Optional[AsyncSession],
+        name: Optional[str] = None,
     ) -> None:
         """Handle logic for email-based OTP delivery."""
         redis_key = CacheKeyTemplates.OTP_EMAIL.format(
@@ -136,6 +139,7 @@ class GenerateOtpService:
                     receiver,
                     otp,
                     db_session,
+                    name=name,
                 )
             elif is_resend:
                 payload = await GenerateOtpService._get_resend_payload(
@@ -143,6 +147,7 @@ class GenerateOtpService:
                     otp,
                     intent,
                     db_session,
+                    name=name,
                 )
             elif intent in [Intents.REGISTRATION, Intents.WAITLIST]:
                 payload = await GenerateOtpService._get_registration_payload(
@@ -150,6 +155,7 @@ class GenerateOtpService:
                     otp,
                     intent,
                     db_session,
+                    name=name,
                 )
             else:
                 payload = {
@@ -238,8 +244,12 @@ class GenerateOtpService:
     async def _get_username(
         receiver: str,
         db_session: Optional[AsyncSession],
+        provided_name: Optional[str] = None,
     ) -> str:
-        """Retrieve user's first name from database if available."""
+        """Retrieve user's first name from database or use provided name."""
+        if provided_name:
+            return provided_name.split(" ")[0]
+
         username = receiver.split("@")[0]
         if db_session:
             user_rows = await execute_query(
@@ -256,11 +266,16 @@ class GenerateOtpService:
         receiver: str,
         otp: str,
         db_session: Optional[AsyncSession],
+        name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Generate payload for forgot password email."""
         template_id = settings.brevo_forgot_password_template_id
         if template_id:
-            username = await GenerateOtpService._get_username(receiver, db_session)
+            username = await GenerateOtpService._get_username(
+                receiver,
+                db_session,
+                provided_name=name,
+            )
             return {
                 CommParams.RECIPIENTS: [receiver],
                 CommParams.TEMPLATE_ID: int(template_id),
@@ -282,13 +297,18 @@ class GenerateOtpService:
         otp: str,
         intent: str,
         db_session: Optional[AsyncSession],
+        name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Generate payload for resending OTP email."""
         template_id = settings.brevo_otp_resend_template_id
         if not template_id:
             raise Exception(LogMessages.BREVO_TEMPLATE_NOT_CONFIGURED)
 
-        username = await GenerateOtpService._get_username(receiver, db_session)
+        username = await GenerateOtpService._get_username(
+            receiver,
+            db_session,
+            provided_name=name,
+        )
         return {
             CommParams.RECIPIENTS: [receiver],
             CommParams.TEMPLATE_ID: int(template_id),
@@ -304,11 +324,16 @@ class GenerateOtpService:
         otp: str,
         intent: str,
         db_session: Optional[AsyncSession],
+        name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Generate payload for registration/verification email."""
         template_id = settings.brevo_email_verification_template_id
         if template_id:
-            username = await GenerateOtpService._get_username(receiver, db_session)
+            username = await GenerateOtpService._get_username(
+                receiver,
+                db_session,
+                provided_name=name,
+            )
             return {
                 CommParams.RECIPIENTS: [receiver],
                 CommParams.TEMPLATE_ID: int(template_id),

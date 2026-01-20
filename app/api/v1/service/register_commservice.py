@@ -1,8 +1,7 @@
-import json
-from asyncio.log import logger
+import logging
 from typing import Any, Dict
 
-import requests  # type: ignore
+import httpx
 
 from app.core.constants import (
     CommServiceConfig,
@@ -14,6 +13,19 @@ from app.core.constants import (
 )
 from app.core.exceptions.exceptions import CommServiceAPICallFailedError
 
+logger = logging.getLogger(__name__)
+
+
+_http_client: httpx.AsyncClient | None = None
+
+
+def get_http_client() -> httpx.AsyncClient:
+    """Get or create a global httpx.AsyncClient for persistent connections."""
+    global _http_client  # noqa: PLW0603
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(timeout=CommServiceConfig.TIMEOUT)
+    return _http_client
+
 
 async def call_communication_api(
     url: str,
@@ -21,16 +33,22 @@ async def call_communication_api(
     method: str = HTTPMethods.POST,
     headers: Dict[str, str] | None = None,
 ) -> Any:
-    """Call external communication API with JSON payload."""
+    """Call communication API using persistent httpx client."""
     if headers is None:
         headers = {HeaderKeys.CONTENT_TYPE: HeaderValues.APPLICATION_JSON}
-    response = requests.request(
-        method,
-        url,
-        data=json.dumps(payload),
-        headers=headers,
-        timeout=CommServiceConfig.TIMEOUT,
-    )
+
+    client = get_http_client()
+    try:
+        response = await client.request(
+            method,
+            url,
+            json=payload,
+            headers=headers,
+        )
+    except Exception as e:
+        logger.error(f"Failed to call communication API: {e}")
+        raise CommServiceAPICallFailedError from e
+
     if response.status_code != HTTPStatus.OK:
         logger.info(
             CommServiceConfig.LOGGER_MSG,
@@ -40,8 +58,10 @@ async def call_communication_api(
             },
         )
         raise CommServiceAPICallFailedError
+
+    result = response.json()
     logger.info(
         CommServiceConfig.LOGGER_MSG,
-        extra={LogKeys.SERVER_RESPONSE: response.json()},
+        extra={LogKeys.SERVER_RESPONSE: result},
     )
-    return response.json()
+    return result

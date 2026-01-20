@@ -79,6 +79,7 @@ class CacheKeyTemplates:
     CACHE_KEY_USER_PROFILE = (
         "user_profile:{user_id}:platform:{platform}:version:{version}:country:{country}"
     )
+    CACHE_KEY_UPDATE_PROFILE_DATA = "update_profile:data:{identifier}"
     OTP_EMAIL = "email_otp_{receiver}_{intent}"
     OTP_MOBILE = "mobile_otp_{receiver}_{intent}"
     BLOCKED_IP = "blocked_ip_{ip_address}_{receiver}"
@@ -158,6 +159,7 @@ class RequestParams:
     INVITED_CALLING_CODE = "invited_calling_code"
     INVITED_USER_ID = "invited_user_id"
     WAITLIST_ID = "waitlist_id"
+    INVITE_TOKEN = "invite_token"  # noqa: S105
     API_CLIENT = "api_client"
     TOKEN = "token"  # noqa: S105
     TOKEN_EXPIRY = "token_expiry"  # noqa: S105
@@ -204,6 +206,7 @@ class RequestParams:
     FIRSTNAME = "firstname"
     LASTNAME = "lastname"
     IMAGE_URL = "image_url"
+    SERIAL_NUMBER = "serial_number"
 
 
 class DnsRecordTypes:
@@ -669,6 +672,7 @@ class ErrorMessages:
     REDIS_DOWN = "Redis server is down"
     USER_NOT_FOUND = "User not found"
     PROFILE_FETCH_FAILED = "Failed to fetch user profile"
+    DATA_ALREADY_PRESENT = "data is already present"
     INVALID_INPUT = "Invalid input data"
     CLIENT_ID_VALIDATION_FAILED = "Invalid Client ID"
     USER_TOKEN_NOT_VALID = "Invalid Token"  # noqa: S105

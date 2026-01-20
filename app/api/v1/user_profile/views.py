@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.schemas import (
-    UpdateEmailMobileData,
     UpdateEmailMobileRequest,
     UpdateProfileRequest,
     UserProfileData,
@@ -193,45 +192,68 @@ async def update_email_mobile(
     if not user_id:
         raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
 
-    # Invalidate cache
-    cache_key = build_cache_key(
-        CacheKeyTemplates.CACHE_KEY_USER_PROFILE,
-        **{
-            RequestParams.USER_ID: user_id,
-            RequestParams.PLATFORM: headers.get(RequestParams.PLATFORM),
-            RequestParams.VERSION: headers.get(RequestParams.APP_VERSION),
-            RequestParams.COUNTRY: headers.get(RequestParams.COUNTRY),
-        },
+    # Fetch current user profile to check if data is already present
+    query_profile = UserQueries.GET_USER_PROFILE
+    params_profile = {RequestParams.USER_ID: user_id}
+    profile_data_rows = await execute_and_transform(
+        query_profile,
+        params_profile,
+        UserProfileData,
+        db_session,
     )
-    await cache.delete(cache_key)
 
-    query = UserQueries.UPDATE_EMAIL_MOBILE
-    params = {
-        RequestParams.USER_ID: user_id,
+    if not profile_data_rows:
+        raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
+
+    current_profile = profile_data_rows[0]
+
+    # Check if user updating same data which is already present in db
+    if contact_update.email and contact_update.email == current_profile.get("email"):
+        return standard_response(
+            message=ErrorMessages.DATA_ALREADY_PRESENT,
+            request=request,
+            data={},
+        )
+
+    if (
+        contact_update.mobile
+        and contact_update.mobile == current_profile.get("mobile")
+        and (
+            not contact_update.calling_code
+            or (
+                str(contact_update.calling_code)
+                == str(current_profile.get("calling_code"))
+            )
+        )
+    ):
+        return standard_response(
+            message=ErrorMessages.DATA_ALREADY_PRESENT,
+            request=request,
+            data={},
+        )
+
+    # Determine receiver and type
+    rx_type = RequestParams.EMAIL if contact_update.email else RequestParams.MOBILE
+    receiver = (
+        contact_update.email
+        if contact_update.email
+        else f"{contact_update.calling_code}{contact_update.mobile}".lstrip("+")
+    )
+
+    # Store pending update data in cache
+    update_data = {
+        RequestParams.USER_ID: str(user_id),
         RequestParams.EMAIL: contact_update.email,
         RequestParams.MOBILE: contact_update.mobile,
         RequestParams.CALLING_CODE: contact_update.calling_code,
     }
+    pending_cache_key = build_cache_key(
+        CacheKeyTemplates.CACHE_KEY_UPDATE_PROFILE_DATA,
+        identifier=receiver,
+    )
+    await set_cache(cache, pending_cache_key, update_data, ttl=CacheTTL.OTP_EXPIRY)
 
     try:
-        data = await execute_and_transform(
-            query,
-            params,
-            UpdateEmailMobileData,
-            db_session,
-        )
-
-        if not data or len(data) == 0:
-            raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
-
-        # Determine receiver and type
-        rx_type = RequestParams.EMAIL if contact_update.email else RequestParams.MOBILE
-        receiver = (
-            contact_update.email
-            if contact_update.email
-            else f"{contact_update.calling_code}{contact_update.mobile}".lstrip("+")
-        )
-
         client_ip = request.client.host if request.client else RequestParams.LOCALHOST
         x_ff = request.headers.get("x-forwarded-for")
         if x_ff:
@@ -256,11 +278,7 @@ async def update_email_mobile(
         )
 
         return standard_response(
-            message=(
-                SuccessMessages.EMAIL_UPDATED
-                if contact_update.email
-                else SuccessMessages.MOBILE_UPDATED
-            ),
+            message=(SuccessMessages.OTP_SENT),
             request=request,
             data={LoginParams.REDIRECT_URL: redirect_url},
         )

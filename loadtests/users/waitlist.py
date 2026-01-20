@@ -34,7 +34,8 @@ class WaitlistUser(AuthenticatedUser):
             catch_response=True,
         ) as resp:
             if resp.status_code in [200, 409]:
-                # We mark as joined even if not verified just to move on in load test tasks
+                # We mark as joined even if not verified
+                # just to move on in load test tasks
                 self.joined = True
                 resp.success()
             else:
@@ -46,7 +47,7 @@ class WaitlistUser(AuthenticatedUser):
         if not self.joined:
             return
 
-        random_str = "".join(random.choices(string.ascii_lowercase, k=5))
+        random_str = "".join(random.choices(string.ascii_lowercase, k=5))  # noqa: S311
         friends = [
             {
                 "email": f"friend_{random_str}@example.com",

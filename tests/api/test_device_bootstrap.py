@@ -18,7 +18,7 @@ from tests.api.test_helper import assert_endpoint_success, get_auth_headers
 
 
 # Helper to generate keys
-def generate_rsa_keys() -> tuple[object, object, str]:
+def generate_rsa_keys() -> tuple[rsa.RSAPrivateKey, rsa.RSAPublicKey, str]:
     private_key = rsa.generate_private_key(
         public_exponent=65537,
         key_size=2048,
@@ -43,7 +43,7 @@ async def test_bootstrap_device_success(client: AsyncClient) -> None:
     install_id = "test-uuid-1234"
     timestamp = int(time.time())
     data_payload = {
-        "device_id": install_id,
+        "serial_number": install_id,
         "timestamp": timestamp,
         "platform": "android",
         "device_name": "Test Device",

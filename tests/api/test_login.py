@@ -132,9 +132,9 @@ async def test_forgot_password_success(
         "app.api.v1.login.views.ForgotPasswordService.forgot_password_email",
         new_callable=AsyncMock,
     ) as mock_service, patch(
-        "app.api.v1.login.views.DeviceService.is_device_registered",
+        "app.api.v1.login.views.DeviceService.resolve_device_id",
         new_callable=AsyncMock,
-        return_value=True,
+        return_value="device-123",
     ):
 
         mock_service.return_value = "Reset link sent"
@@ -161,9 +161,26 @@ async def test_set_forgot_password_success(
     ), patch(
         "app.api.v1.login.views.ForgotPasswordService.set_forgot_password",
         new_callable=AsyncMock,
-    ) as mock_service:
+    ) as mock_service, patch(
+        "app.api.v1.login.views.DeviceService.resolve_device_id",
+        new_callable=AsyncMock,
+        return_value="device-123",
+    ), patch(
+        "app.api.v1.login.views.execute_and_transform",
+        new_callable=AsyncMock,
+    ) as mock_transform:
 
-        mock_service.return_value = ("mock_token", "mock_refresh_token", 3600)
+        user_id = "test-user-id"
+        mock_service.return_value = ("mock_token", "mock_refresh_token", 3600, user_id)
+        mock_transform.return_value = [
+            {
+                "uuid": user_id,
+                "email": "test@example.com",
+                "name": "Test User",
+                "image": None,
+            },
+        ]
+
         data = await assert_endpoint_success(
             client,
             "POST",
@@ -172,6 +189,8 @@ async def test_set_forgot_password_success(
             payload=payload,
         )
         assert data["data"]["auth_token"] == "mock_token"  # noqa: S105
+        assert data["data"]["user"]["user_id"] == user_id
+        assert data["data"]["user"]["email"] == "test@example.com"
 
 
 @pytest.mark.anyio
@@ -185,10 +204,10 @@ async def test_change_password_success(
     headers = get_auth_headers(token="valid_token")  # noqa: S106
 
     with patch(
-        "app.api.v1.login.views.AuthService.verify_user_token",
+        "app.api.v1.logout.views.AuthService.verify_user_token",
         new_callable=AsyncMock,
     ) as mock_verify, patch(
-        "app.api.v1.login.views.ChangePasswordService.change_password",
+        "app.api.v1.logout.views.ChangePasswordService.change_password",
         new_callable=AsyncMock,
     ) as _:
 
@@ -196,7 +215,7 @@ async def test_change_password_success(
         await assert_endpoint_success(
             client,
             "PUT",
-            "/user/v1/user/change_password",
+            "/user/v1/auth/user/change_password",
             SuccessMessages.PASSWORD_CHANGED_SUCCESS,
             payload=payload,
             headers=headers,
@@ -214,9 +233,9 @@ async def test_refresh_token_success(
         "app.api.v1.login.views.AuthService.refresh_access_token",
         new_callable=AsyncMock,
     ) as mock_refresh, patch(
-        "app.api.v1.login.views.DeviceService.is_device_registered",
+        "app.api.v1.login.views.DeviceService.resolve_device_id",
         new_callable=AsyncMock,
-        return_value=True,
+        return_value="device-123",
     ):
 
         mock_refresh.return_value = ("new_at", "new_rt", "expiry")

@@ -7,6 +7,7 @@ class AnalysisUser(HttpUser):
     wait_time = between(1, 5)
 
     def on_start(self) -> None:
+        """Initialize session headers."""
         self.headers = {
             "Content-Type": "application/json",
             "x-api-client": "android_app",

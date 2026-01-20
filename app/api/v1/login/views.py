@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
 from app.api.v1.schemas import (
-    ChangePasswordRequest,
     EncryptedRequest,
     ForgotPasswordRequest,
     LoginRequest,
@@ -21,7 +20,6 @@ from app.api.v1.schemas import (
     UserProfileData,
 )
 from app.api.v1.service.auth_service import AuthService
-from app.api.v1.service.change_password_service import ChangePasswordService
 from app.api.v1.service.device_service import DeviceService
 from app.api.v1.service.forgot_password_service import ForgotPasswordService
 from app.api.v1.service.login_service import LoginService
@@ -36,7 +34,6 @@ from app.core.constants import (
 )
 from app.core.exceptions import (
     DecryptionFailedError,
-    DeviceNotRegisteredError,
     EmailMobileRequiredError,
     InvalidInputError,
     PayloadNotEncryptedError,
@@ -48,7 +45,6 @@ from app.settings import settings
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import (
-    validate_common_headers,
     validate_headers_without_auth,
 )
 
@@ -222,12 +218,11 @@ async def forgot_password(
             raise PayloadNotEncryptedError from e
 
     # 0. Check if device is registered
-    device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
-    if not device_id or not await DeviceService.is_device_registered(
-        device_id,
-        db,
-    ):
-        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+    device_id = (
+        headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID) or ""
+    )
+    # Validate and resolve device
+    await DeviceService.resolve_device_id(device_id, db)
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
@@ -299,61 +294,67 @@ async def set_forgot_password(
     except Exception as e:
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
 
-    device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
+    device_id_raw = (
+        headers.get(HeaderKeys.X_DEVICE_ID)
+        or headers.get(
+            HeaderKeys.DEVICE_ID,
+        )
+        or ""
+    )
+    real_device_id = await DeviceService.resolve_device_id(device_id_raw, db)
     client_id = headers.get(HeaderKeys.X_API_CLIENT) or headers.get(
         HeaderKeys.API_CLIENT,
     )
 
-    token, refresh_token, expires_at = await ForgotPasswordService.set_forgot_password(
+    (
+        token,
+        refresh_token,
+        expires_at,
+        user_id,
+    ) = await ForgotPasswordService.set_forgot_password(
         db=db,
         email=str(set_forgot_payload.email),
         password=set_forgot_payload.password,
         client_id=str(client_id),
-        device_id=str(device_id),
+        device_id=real_device_id,
         cache=cache,
     )
+
+    # Fetch Full Profile for response
+    profile_data_list = await execute_and_transform(
+        UserQueries.GET_USER_PROFILE,
+        {RequestParams.USER_ID: user_id},
+        UserProfileData,
+        db,
+    )
+
+    profile = (
+        profile_data_list[0]
+        if profile_data_list
+        else {
+            RequestParams.USER_ID: str(user_id),
+            RequestParams.EMAIL: str(set_forgot_payload.email),
+            RequestParams.NAME: None,
+        }
+    )
+
+    user_response = {
+        RequestParams.USER_ID: str(user_id),
+        RequestParams.EMAIL: profile.get(RequestParams.EMAIL),
+        RequestParams.NAME: profile.get(RequestParams.NAME),
+        RequestParams.IMAGE: profile.get(RequestParams.IMAGE),
+    }
 
     response_data = {
         RequestParams.AUTH_TOKEN: token,
         RequestParams.REFRESH_TOKEN: refresh_token,
-        RequestParams.AUTH_TOKEN_EXPIRY: expires_at,
+        RequestParams.USER: user_response,
     }
 
     return standard_response(
         message=SuccessMessages.PASSWORD_RESET_SUCCESS,
         request=request,
         data=response_data,
-    )
-
-
-@router.put("/change_password")
-async def change_password(
-    request: Request,
-    payload: ChangePasswordRequest,
-    headers: dict[str, Any] = Depends(validate_common_headers),
-    db_session: AsyncSession = Depends(get_db_session),
-) -> JSONResponse:
-    """
-    Change user password.
-
-    Requires valid x-api-token in headers.
-    """
-    # 1. Get user UUID from token
-    user_id = await AuthService.verify_user_token(headers, db_session)
-
-    # 2. Call service
-    await ChangePasswordService.change_password(
-        user_uuid=user_id,
-        new_password=payload.new_password,
-        new_password_confirm=payload.new_password_confirm,
-        db_session=db_session,
-    )
-
-    data: dict[str, Any] = {}
-    return standard_response(
-        message=SuccessMessages.PASSWORD_CHANGED_SUCCESS,
-        request=request,
-        data=data,
     )
 
 
@@ -365,15 +366,19 @@ async def refresh_token(
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
 ) -> JSONResponse:
     """Refresh access token using refresh token."""
-    device_id = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(HeaderKeys.DEVICE_ID)
+    device_id_raw = headers.get(HeaderKeys.X_DEVICE_ID) or headers.get(
+        HeaderKeys.DEVICE_ID,
+    )
 
-    if not device_id:
+    if not device_id_raw:
         raise InvalidInputError(ErrorMessages.DEVICE_ID_MISSING)
+
+    real_device_id = await DeviceService.resolve_device_id(device_id_raw, db_session)
 
     token, new_refresh_token, expires_at = await AuthService.refresh_access_token(
         db_session=db_session,
         refresh_token=payload.refresh_token,
-        device_id=device_id,
+        device_id=real_device_id,
     )
 
     response_data = {

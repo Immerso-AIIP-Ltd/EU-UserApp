@@ -343,7 +343,7 @@ class UpdateEmailMobileRequest(BaseModel):
 class WaitlistRequest(BaseModel):
     """Request schema for /user/v1/social/waitlist."""
 
-    device_id: str = Field(..., description=Description.DEVICE_ID)
+    device_id: UUID = Field(..., description=Description.DEVICE_ID)
     email: Annotated[
         Optional[EmailStr],
         Field(
@@ -372,7 +372,7 @@ class WaitlistRequest(BaseModel):
 class VerifyWaitlistRequest(BaseModel):
     """Request schema for /user/v1/social/waitlist/verify."""
 
-    device_id: Optional[str] = Field(None, description=Description.DEVICE_ID)
+    device_id: Optional[UUID] = Field(None, description=Description.DEVICE_ID)
     email: Annotated[
         Optional[EmailStr],
         Field(
@@ -563,7 +563,7 @@ class UserProfileResponse(GenericResponse[UserProfileData]):
 class DeviceInviteData(BaseModel):
     """Data schema for Device Invite."""
 
-    device_id: str
+    device_id: UUID
     coupon_id: Optional[str] = None
     queue_number: Optional[int] = None
 
@@ -660,7 +660,7 @@ class EncryptedRequest(BaseModel):
 class DeviceRegisterRequest(BaseModel):
     """Request schema for device registration."""
 
-    device_id: str = Field(..., description=Headers.X_DEVICE_ID)
+    serial_number: str = Field(..., description=Headers.X_DEVICE_ID)
     device_name: Optional[str] = Field(default=None, description=Headers.X_DEVICE_NAME)
     device_type: Optional[str] = Field(default=None, description=Headers.X_DEVICE_TYPE)
     platform: Optional[PlatformEnum] = Field(

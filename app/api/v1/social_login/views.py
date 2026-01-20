@@ -58,15 +58,15 @@ async def google_login(
 
     google_service = GoogleOAuthService(
         login_data.id_token,
-        headers.get("platform") or "unknown",
+        headers.get("x-platform") or "unknown",
     )
 
     request_data = {
         "uid": login_data.uid,
-        "client_id": headers.get("api_client"),
-        "device_id": headers.get("device_id"),
-        "platform": headers.get("platform"),
-        "country": headers.get("country"),
+        "client_id": headers.get("x-api-client"),
+        "device_id": headers.get("x-device-id"),
+        "platform": headers.get("x-platform"),
+        "country": headers.get("x-country"),
         "user_agent": request.headers.get("User-Agent"),
     }
     data = await SocialLoginService.google_login(
@@ -115,15 +115,15 @@ async def apple_login(
 
     apple_service = AppleOAuthService(
         login_data.id_token,
-        headers.get("platform") or "unknown",
+        headers.get("x-platform") or "unknown",
     )
 
     request_data = {
         "uid": login_data.uid,
-        "client_id": headers.get("api_client"),
-        "device_id": headers.get("device_id"),
-        "platform": headers.get("platform"),
-        "country": headers.get("country"),
+        "client_id": headers.get("x-api-client"),
+        "device_id": headers.get("x-device-id"),
+        "platform": headers.get("x-platform"),
+        "country": headers.get("x-country"),
         "user_agent": request.headers.get("User-Agent"),
     }
 
@@ -175,10 +175,10 @@ async def facebook_login(
     facebook_service = FacebookOAuthService(login_data.access_token)
     request_data = {
         "uid": login_data.uid,
-        "client_id": headers.get("api_client"),
-        "device_id": headers.get("device_id"),
-        "platform": headers.get("platform"),
-        "country": headers.get("country"),
+        "client_id": headers.get("x-api-client"),
+        "device_id": headers.get("x-device-id"),
+        "platform": headers.get("x-platform"),
+        "country": headers.get("x-country"),
         "user_agent": request.headers.get("User-Agent"),
     }
     data = await SocialLoginService.facebook_login(

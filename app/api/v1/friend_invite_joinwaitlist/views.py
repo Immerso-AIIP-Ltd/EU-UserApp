@@ -1,5 +1,7 @@
 import logging
+import uuid
 from typing import Any, Union
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse
@@ -48,11 +50,15 @@ from app.db.utils import execute_query
 from app.settings import settings
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
-from app.utils.validate_headers import validate_headers_without_auth
+from app.utils.validate_headers import (
+    validate_common_headers,
+    validate_headers_without_auth,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+friend_invite_router = APIRouter()
 
 
 async def _validate_and_parse_encrypted_payload(
@@ -109,6 +115,16 @@ async def join_waitlist(
     if not device_id:
         raise ValidationError(message=ErrorMessages.DEVICE_ID_REQUIRED)
 
+    # Validate device registration
+    device_exists = await execute_query(
+        query=UserQueries.CHECK_DEVICE_EXISTS,
+        params={ProcessParams.ID: str(device_id)},
+        db_session=db_session,
+    )
+
+    if not device_exists:
+        raise ValidationError(message=ErrorMessages.DEVICE_NOT_REGISTERED)
+
     if not email and not (mobile and calling_code):
         raise EmailMobileRequiredError
 
@@ -117,7 +133,7 @@ async def join_waitlist(
             request,
             cache,
             db_session,
-            device_id,
+            str(device_id),
             email,
             name,
             client_ip,
@@ -128,7 +144,7 @@ async def join_waitlist(
             request,
             cache,
             db_session,
-            device_id,
+            str(device_id),
             mobile,
             calling_code,
             name,
@@ -142,15 +158,15 @@ async def _process_email_flow(
     request: Request,
     cache: Redis,
     db_session: AsyncSession,
-    device_id: str,
+    device_id: Union[UUID, str],
     email: str,
     name: str | None,
     x_forwarded_for: str,
 ) -> JSONResponse:
-    # 0. Check if device is registered
-    is_registered = await execute_query(
-        query=UserQueries.CHECK_DEVICE_EXISTS,
-        params={RequestParams.DEVICE_ID: device_id},
+    # 1. Check existing device with email
+    existing_device = await execute_query(
+        query=UserQueries.GET_WAITLIST_BY_DEVICE_AND_EMAIL,
+        params={RequestParams.DEVICE_ID: str(device_id), RequestParams.EMAIL: email},
         db_session=db_session,
     )
     if not is_registered:
@@ -182,7 +198,7 @@ async def _process_email_flow(
                 },
             )
 
-        # Resend OTP
+        # Resend OTP if not verified
         await GenerateOtpService.generate_otp(
             redis_client=cache,
             receiver=email,
@@ -226,31 +242,32 @@ async def _process_email_flow(
                     RequestParams.STATUS: SuccessMessages.WAITLIST_ALREADY_EXISTS,
                 },
             )
-            # Resend OTP
-            await GenerateOtpService.generate_otp(
-                redis_client=cache,
-                receiver=email,
-                receiver_type=RequestParams.EMAIL,
-                intent=Intents.WAITLIST,
-                x_forwarded_for=x_forwarded_for,
-                is_resend=True,
-                db_session=db_session,
-            )
-            return standard_response(
-                request=request,
-                message=SuccessMessages.WAITLIST_OTP_RESENT.format(RequestParams.EMAIL),
-                data={
-                    RequestParams.QUEUE_NUMBER: str(entry.queue_number),
-                    RequestParams.IS_VERIFIED: False,
-                    RequestParams.STATUS: ProcessParams.OTP_RESENT,
-                },
-            )
+
+        # Resend OTP if not verified
+        await GenerateOtpService.generate_otp(
+            redis_client=cache,
+            receiver=email,
+            receiver_type=RequestParams.EMAIL,
+            intent=Intents.WAITLIST,
+            x_forwarded_for=x_forwarded_for,
+            is_resend=True,
+            db_session=db_session,
+        )
+        return standard_response(
+            request=request,
+            message=SuccessMessages.WAITLIST_OTP_RESENT.format(RequestParams.EMAIL),
+            data={
+                RequestParams.QUEUE_NUMBER: str(entry.queue_number),
+                RequestParams.IS_VERIFIED: False,
+                RequestParams.STATUS: ProcessParams.OTP_RESENT,
+            },
+        )
 
     # 3. New registration
     new_entry_rows = await execute_query(
         query=UserQueries.INSERT_WAITLIST_ENTRY,
         params={
-            RequestParams.DEVICE_ID: device_id,
+            RequestParams.DEVICE_ID: str(device_id),
             RequestParams.EMAIL: email,
             RequestParams.MOBILE: "",
             RequestParams.CALLING_CODE: "",
@@ -296,7 +313,7 @@ async def _process_mobile_flow(
     request: Request,
     cache: Redis,
     db_session: AsyncSession,
-    device_id: str,
+    device_id: Union[UUID, str],
     mobile: str,
     calling_code: str,
     name: str | None,
@@ -314,7 +331,7 @@ async def _process_mobile_flow(
     # 1. Check existing device
     existing_device = await execute_query(
         query=UserQueries.GET_WAITLIST_BY_DEVICE,
-        params={RequestParams.DEVICE_ID: device_id},
+        params={RequestParams.DEVICE_ID: str(device_id)},
         db_session=db_session,
     )
 
@@ -336,26 +353,28 @@ async def _process_mobile_flow(
                     RequestParams.STATUS: SuccessMessages.WAITLIST_ALREADY_EXISTS,
                 },
             )
-            await _send_mobile_otp(
-                cache=cache,
-                mobile=mobile,
-                calling_code=calling_code,
-                client_ip=x_forwarded_for,
-                db_session=db_session,
-                intent=Intents.WAITLIST,
-                is_resend=True,
-            )
-            return standard_response(
-                request=request,
-                message=SuccessMessages.WAITLIST_OTP_RESENT.format(
-                    RequestParams.DEVICE,
-                ),
-                data={
-                    RequestParams.QUEUE_NUMBER: str(entry.queue_number),
-                    RequestParams.IS_VERIFIED: False,
-                    RequestParams.STATUS: ProcessParams.OTP_RESENT,
-                },
-            )
+
+        # Resend OTP if not verified
+        await _send_mobile_otp(
+            cache=cache,
+            mobile=mobile,
+            calling_code=calling_code,
+            client_ip=x_forwarded_for,
+            db_session=db_session,
+            intent=Intents.WAITLIST,
+            is_resend=True,
+        )
+        return standard_response(
+            request=request,
+            message=SuccessMessages.WAITLIST_OTP_RESENT.format(
+                RequestParams.DEVICE,
+            ),
+            data={
+                RequestParams.QUEUE_NUMBER: str(entry.queue_number),
+                RequestParams.IS_VERIFIED: False,
+                RequestParams.STATUS: ProcessParams.OTP_RESENT,
+            },
+        )
 
     # 2. Check existing mobile
     existing_mobile = await execute_query(
@@ -379,32 +398,34 @@ async def _process_mobile_flow(
                     RequestParams.STATUS: SuccessMessages.WAITLIST_ALREADY_EXISTS,
                 },
             )
-            await _send_mobile_otp(
-                cache=cache,
-                mobile=mobile,
-                calling_code=calling_code,
-                client_ip=x_forwarded_for,
-                db_session=db_session,
-                intent=Intents.WAITLIST,
-                is_resend=True,
-            )
-            return standard_response(
-                request=request,
-                message=SuccessMessages.WAITLIST_OTP_RESENT.format(
-                    ProcessParams.MOBILE_NUMBER,
-                ),
-                data={
-                    RequestParams.QUEUE_NUMBER: str(entry.queue_number),
-                    RequestParams.IS_VERIFIED: False,
-                    RequestParams.STATUS: ProcessParams.OTP_RESENT,
-                },
-            )
+
+        # Resend OTP if not verified
+        await _send_mobile_otp(
+            cache=cache,
+            mobile=mobile,
+            calling_code=calling_code,
+            client_ip=x_forwarded_for,
+            db_session=db_session,
+            intent=Intents.WAITLIST,
+            is_resend=True,
+        )
+        return standard_response(
+            request=request,
+            message=SuccessMessages.WAITLIST_OTP_RESENT.format(
+                ProcessParams.MOBILE_NUMBER,
+            ),
+            data={
+                RequestParams.QUEUE_NUMBER: str(entry.queue_number),
+                RequestParams.IS_VERIFIED: False,
+                RequestParams.STATUS: ProcessParams.OTP_RESENT,
+            },
+        )
 
     # 3. New registration
     new_entry_rows = await execute_query(
         query=UserQueries.INSERT_WAITLIST_ENTRY,
         params={
-            RequestParams.DEVICE_ID: device_id,
+            RequestParams.DEVICE_ID: str(device_id),
             RequestParams.EMAIL: "",
             RequestParams.MOBILE: mobile,
             RequestParams.CALLING_CODE: calling_code,
@@ -780,13 +801,13 @@ async def resend_waitlist_otp(
     )
 
 
-@router.post("/friend_invite")
+@friend_invite_router.post("/friend_invite")
 async def friend_invite(
     request: Request,
     payload: FriendInviteRequest,
     db_session: AsyncSession = Depends(get_db_session),
-    headers: dict[str, Any] = Depends(validate_headers_without_auth),
-    x_device_id: str = Header(..., alias=RequestParams.X_DEVICE_ID),
+    headers: dict[str, Any] = Depends(validate_common_headers),
+    x_device_id: str = Header(..., alias=HeaderKeys.X_DEVICE_ID),
 ) -> JSONResponse:
     """Invite a friend via email or mobile."""
     # 1. Resolve Inviter
@@ -805,7 +826,7 @@ async def friend_invite(
         )
 
     inviter_email = waitlist_entry.email
-    waitlist_id = waitlist_entry.queue_number
+    waitlist_id = waitlist_entry.id
 
     # 2. Check Inviter Registration
     if not inviter_user_id:
@@ -898,7 +919,7 @@ async def friend_invite(
 async def _resolve_inviter(
     db_session: AsyncSession,
     x_device_id: str,
-) -> tuple[Any | None, int | None]:
+) -> tuple[Any | None, UUID | None]:
     """Resolve waitlist entry and inviter user ID."""
     waitlist_entries = await execute_query(
         query=UserQueries.GET_WAITLIST_BY_DEVICE,
@@ -909,7 +930,7 @@ async def _resolve_inviter(
         return None, None
 
     waitlist_entry = waitlist_entries[0]
-    inviter_user_id = waitlist_entry.id
+    inviter_user_id = waitlist_entry.user_id
 
     if not inviter_user_id:
         user_entry = await execute_query(
@@ -985,7 +1006,7 @@ async def _send_invite_notification(
 
 async def _persist_invite(
     db_session: AsyncSession,
-    inviter_user_id: int | None,
+    inviter_user_id: UUID | None,
     waitlist_id: int,
     invited_email: str | None,
     invited_mobile: str | None,
@@ -1023,6 +1044,7 @@ async def _persist_invite(
                 RequestParams.INVITED_CALLING_CODE: invited_calling_code,
                 RequestParams.INVITED_USER_ID: invited_user_id,
                 RequestParams.WAITLIST_ID: waitlist_id,
+                RequestParams.INVITE_TOKEN: uuid.uuid4().hex,
             },
             db_session=db_session,
         )
