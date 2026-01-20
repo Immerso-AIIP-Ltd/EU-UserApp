@@ -605,6 +605,17 @@ class DeviceAlreadyInvitedError(AppError):
         )
 
 
+class WaitlistDeviceAlreadyExistsError(AppError):
+    """Raised when device already exists in waitlist with different credentials."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            http_code=status.HTTP_409_CONFLICT,
+            message=ErrorMessages.WAITLIST_DEVICE_ALREADY_EXISTS,
+            error_code=ErrorCodes.WAITLIST_DEVICE_ALREADY_EXISTS_CODE,
+        )
+
+
 class StateNotFoundError(AppError):
     """Raised when state is not found."""
 

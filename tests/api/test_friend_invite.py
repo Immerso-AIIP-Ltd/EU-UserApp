@@ -33,11 +33,18 @@ async def test_join_waitlist_success(
         new_callable=AsyncMock,
     ):
 
-        # Mock for 3 calls: check device, check email, insert
+        # Mock for 5 calls:
+        # 0. check registration (CHECK_DEVICE_EXISTS)
+        # 1. check device on waitlist (GET_WAITLIST_BY_DEVICE)
+        # 2. check email on waitlist (GET_WAITLIST_BY_EMAIL)
+        # 3. insert waitlist entry
+        # 4. upsert invite_device
         mock_exec.side_effect = [
-            [],  # Call 1: check_device_and_email
-            [],  # Call 2: check_email
-            [MockModel(queue_number=123, is_verified=False)],  # Call 3: insert
+            [1],  # Call 0: registered
+            [],  # Call 1: not on waitlist
+            [],  # Call 2: email not on waitlist
+            [MockModel(id="sync-id", queue_number=123, is_verified=False)],  # Call 3
+            "upserted",  # Call 4
         ]
 
         await assert_endpoint_success(
@@ -48,6 +55,84 @@ async def test_join_waitlist_success(
             payload=payload,
             headers=headers,
         )
+
+        # Verify ID sync
+        upsert_call = mock_exec.call_args_list[4]
+        assert upsert_call.kwargs["params"]["id"] == "sync-id"
+
+
+@pytest.mark.anyio
+async def test_join_waitlist_duplicate_device(
+    client: AsyncClient,
+    dbsession: AsyncSession,
+) -> None:
+    mock_decrypted = {
+        "device_id": "test_device",
+        "email": "new_email@example.com",
+        "name": "New User",
+    }
+    payload = {"key": "k", "data": "d"}
+    headers = get_auth_headers(device_id="test_device")
+
+    with patch(
+        "app.api.v1.friend_invite_joinwaitlist.views.SecurityService.decrypt_payload",
+        return_value=mock_decrypted,
+    ), patch(
+        "app.api.v1.friend_invite_joinwaitlist.views.execute_query",
+        new_callable=AsyncMock,
+    ) as mock_exec:
+
+        # Mock: 0. registered, 1. existing device with DIFFERENT email
+        mock_exec.side_effect = [
+            [1],  # Call 0: registered
+            [MockModel(email="old_email@example.com")],  # Call 1: waitlist entry
+        ]
+
+        response = await client.post(
+            "/user/v1/auth/social/waitlist",
+            json=payload,
+            headers=headers,
+        )
+
+        assert response.status_code == 409
+        json_data = response.json()
+        assert json_data["error"]["error_code"] == "US049"
+        assert "different email or mobile number" in json_data["error"]["message"]
+
+
+@pytest.mark.anyio
+async def test_join_waitlist_device_not_registered(
+    client: AsyncClient,
+    dbsession: AsyncSession,
+) -> None:
+    mock_decrypted = {
+        "device_id": "unregistered_device",
+        "email": "user@example.com",
+    }
+    payload = {"key": "k", "data": "d"}
+    headers = get_auth_headers(device_id="unregistered_device")
+
+    with patch(
+        "app.api.v1.friend_invite_joinwaitlist.views.SecurityService.decrypt_payload",
+        return_value=mock_decrypted,
+    ), patch(
+        "app.api.v1.friend_invite_joinwaitlist.views.execute_query",
+        new_callable=AsyncMock,
+    ) as mock_exec:
+
+        # Mock: device NOT registered
+        mock_exec.return_value = []
+
+        response = await client.post(
+            "/user/v1/auth/social/waitlist",
+            json=payload,
+            headers=headers,
+        )
+
+        assert response.status_code == 404
+        json_data = response.json()
+        assert json_data["error"]["error_code"] == "US404"
+        assert "Device not registered" in json_data["error"]["message"]
 
 
 @pytest.mark.anyio
