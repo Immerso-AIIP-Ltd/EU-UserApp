@@ -53,6 +53,84 @@ async def test_join_waitlist_success(
             headers=headers,
         )
 
+        # Verify ID sync
+        upsert_call = mock_exec.call_args_list[4]
+        assert upsert_call.kwargs["params"]["id"] == "sync-id"
+
+
+@pytest.mark.anyio
+async def test_join_waitlist_duplicate_device(
+    client: AsyncClient,
+    dbsession: AsyncSession,
+) -> None:
+    mock_decrypted = {
+        "device_id": "test_device",
+        "email": "new_email@example.com",
+        "name": "New User",
+    }
+    payload = {"key": "k", "data": "d"}
+    headers = get_auth_headers(device_id="test_device")
+
+    with patch(
+        "app.api.v1.friend_invite_joinwaitlist.views.SecurityService.decrypt_payload",
+        return_value=mock_decrypted,
+    ), patch(
+        "app.api.v1.friend_invite_joinwaitlist.views.execute_query",
+        new_callable=AsyncMock,
+    ) as mock_exec:
+
+        # Mock: 0. registered, 1. existing device with DIFFERENT email
+        mock_exec.side_effect = [
+            [1],  # Call 0: registered
+            [MockModel(email="old_email@example.com")],  # Call 1: waitlist entry
+        ]
+
+        response = await client.post(
+            "/user/v1/auth/social/waitlist",
+            json=payload,
+            headers=headers,
+        )
+
+        assert response.status_code == 409
+        json_data = response.json()
+        assert json_data["error"]["error_code"] == "US049"
+        assert "different email or mobile number" in json_data["error"]["message"]
+
+
+@pytest.mark.anyio
+async def test_join_waitlist_device_not_registered(
+    client: AsyncClient,
+    dbsession: AsyncSession,
+) -> None:
+    mock_decrypted = {
+        "device_id": "unregistered_device",
+        "email": "user@example.com",
+    }
+    payload = {"key": "k", "data": "d"}
+    headers = get_auth_headers(device_id="unregistered_device")
+
+    with patch(
+        "app.api.v1.friend_invite_joinwaitlist.views.SecurityService.decrypt_payload",
+        return_value=mock_decrypted,
+    ), patch(
+        "app.api.v1.friend_invite_joinwaitlist.views.execute_query",
+        new_callable=AsyncMock,
+    ) as mock_exec:
+
+        # Mock: device NOT registered
+        mock_exec.return_value = []
+
+        response = await client.post(
+            "/user/v1/auth/social/waitlist",
+            json=payload,
+            headers=headers,
+        )
+
+        assert response.status_code == 404
+        json_data = response.json()
+        assert json_data["error"]["error_code"] == "US404"
+        assert "Device not registered" in json_data["error"]["message"]
+
 
 @pytest.mark.anyio
 async def test_friend_invite_success(
