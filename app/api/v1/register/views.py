@@ -486,7 +486,7 @@ async def _validate_device_registered(
     cache: Redis | None = None,
 ) -> None:
     """Validate that the device is registered (with caching)."""
-    device_id = headers.get(HeaderKeys.X_DEVICE_ID)
+    device_id = headers.get(RequestParams.DEVICE_ID)
     if not device_id or not await DeviceService.is_device_registered(
         device_id,
         db_session,
@@ -714,7 +714,7 @@ async def _finalize_registration_and_auth(
     cached_data: dict[str, Any],
 ) -> tuple[str | None, str | None, int | None]:
     """Register device, sync to FusionAuth, and generate auth token (optimized)."""
-    device_id = headers.get(HeaderKeys.X_DEVICE_ID) or ""
+    device_id = headers.get(RequestParams.DEVICE_ID) or ""
 
     # 1. Resolve device UUID
     # (Avoid redundant check since we already validated at start or during process)
@@ -815,7 +815,7 @@ async def resend_otp(
             raise PayloadNotEncryptedError from e
 
     # 0. Check if device is registered
-    device_id = headers.get(HeaderKeys.X_DEVICE_ID)
+    device_id = headers.get(RequestParams.DEVICE_ID)
     if not device_id or not await DeviceService.is_device_registered(
         device_id,
         db_session,

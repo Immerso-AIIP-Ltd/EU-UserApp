@@ -470,7 +470,7 @@ class UserQueries:
     UPDATE_WAITLIST_VERIFIED = text(
         """
         UPDATE user_app.waitlist
-        SET is_verified = TRUE, modified_at = NOW()
+        SET is_verified = TRUE, verified_at = NOW(), modified_at = NOW()
         WHERE id = :id
         RETURNING id, queue_number;
         """,

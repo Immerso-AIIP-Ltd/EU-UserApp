@@ -12,8 +12,8 @@ from app.api.v1.schemas import (
     DeviceRegisterRequest,
     EncryptedRequest,
 )
-from app.cache.base import build_cache_key, set_cache
 from app.api.v1.service.geo_service import GeoService
+from app.cache.base import build_cache_key, set_cache
 from app.cache.dependencies import get_redis_connection
 from app.core.constants import (
     CacheKeyTemplates,
@@ -24,6 +24,7 @@ from app.core.constants import (
     SuccessMessages,
 )
 from app.core.exceptions import (
+    DecryptionFailedError,
     DeviceNotInvitedError,
     DeviceRegistrationError,
     PayloadNotEncryptedError,
@@ -51,6 +52,16 @@ async def check_device_invite_status(
     """Check if a device has been invited."""
     device_id = headers[RequestParams.DEVICE_ID]
 
+    # Check if device is registered
+    device_exists = await execute_query(
+        query=UserQueries.CHECK_DEVICE_EXISTS,
+        params={RequestParams.ID: device_id},
+        db_session=db_session,
+    )
+
+    if not device_exists:
+        raise ValidationError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
     cache_key = build_cache_key(
         CacheKeyTemplates.CACHE_KEY_DEVICE_INVITE_STATUS,
         device_id=device_id,
@@ -67,7 +78,7 @@ async def check_device_invite_status(
         db_session=db_session,
     )
 
-    if not data or data[0].get(RequestParams.COUPON_ID) is None:
+    if not data or data[0].get("coupon_code") is None:
         # Check waitlist
         waitlist_data = await execute_query(
             query=UserQueries.GET_WAITLIST_BY_DEVICE,
@@ -109,16 +120,50 @@ async def check_device_invite_status(
 @router.post("/invite")
 async def invite_device(
     request: Request,
-    payload: DeviceInviteRequest,
+    payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
-    """Invite a device using a coupon code."""
+    """Invite a device using a coupon code - Enforced Encryption."""
 
+    # Validate and parse encrypted payload
+    if not isinstance(payload, EncryptedRequest):
+        if (
+            not isinstance(payload, dict)
+            or "key" not in payload
+            or "data" not in payload
+        ):
+            raise PayloadNotEncryptedError
+        try:
+            payload = EncryptedRequest(**payload)
+        except Exception as e:
+            raise PayloadNotEncryptedError from e
+
+    # Decrypt payload
+    try:
+        decrypted_payload = SecurityService.decrypt_payload(
+            encrypted_key=payload.key,
+            encrypted_data=payload.data,
+        )
+        invite_data = DeviceInviteRequest(**decrypted_payload)
+    except Exception as e:
+        raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
+
+    # 1. Check if device is registered
+    device_exists = await execute_query(
+        query=UserQueries.CHECK_DEVICE_EXISTS,
+        params={RequestParams.ID: invite_data.device_id},
+        db_session=db_session,
+    )
+
+    if not device_exists:
+        raise ValidationError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
+    # 2. Validate coupon
     coupon = await execute_query(
         query=UserQueries.GET_COUPON,
-        params={RequestParams.COUPON_ID: payload.coupon_id},
+        params={RequestParams.COUPON_ID: invite_data.coupon_id},
         db_session=db_session,
     )
 
@@ -132,7 +177,7 @@ async def invite_device(
 
     invited = await execute_query(
         query=UserQueries.CHECK_DEVICE_INVITED,
-        params={RequestParams.DEVICE_ID: payload.device_id},
+        params={RequestParams.DEVICE_ID: invite_data.device_id},
         db_session=db_session,
     )
 
@@ -142,7 +187,7 @@ async def invite_device(
     # Check if device is in waitlist to get its ID
     waitlist_entry = await execute_query(
         query=UserQueries.GET_WAITLIST_BY_DEVICE,
-        params={RequestParams.DEVICE_ID: payload.device_id},
+        params={RequestParams.DEVICE_ID: invite_data.device_id},
         db_session=db_session,
     )
 
@@ -153,7 +198,7 @@ async def invite_device(
         query=UserQueries.UPSERT_DEVICE_INVITE,
         params={
             RequestParams.ID: invite_id,
-            RequestParams.DEVICE_ID: payload.device_id,
+            RequestParams.DEVICE_ID: invite_data.device_id,
             RequestParams.COUPON_ID: coupon_data[ProcessParams.ID],
         },
         db_session=db_session,
@@ -163,7 +208,7 @@ async def invite_device(
 
     cache_key = build_cache_key(
         CacheKeyTemplates.CACHE_KEY_DEVICE_INVITE_STATUS,
-        device_id=payload.device_id,
+        device_id=invite_data.device_id,
         platform=headers.get(RequestParams.PLATFORM),
         version=headers.get(RequestParams.API_VERSION),
         app_version=headers.get(RequestParams.APP_VERSION),
@@ -176,8 +221,8 @@ async def invite_device(
         message=SuccessMessages.DEVICE_INVITED,
         request=request,
         data={
-            RequestParams.DEVICE_ID: payload.device_id,
-            RequestParams.COUPON_ID: payload.coupon_id,
+            RequestParams.DEVICE_ID: invite_data.device_id,
+            RequestParams.COUPON_ID: invite_data.coupon_id,
         },
     )
 

@@ -123,7 +123,7 @@ async def join_waitlist(
     )
 
     if not device_exists:
-        raise ValidationError(message=ErrorMessages.DEVICE_NOT_REGISTERED)
+        raise DeviceNotRegisteredError(detail=ErrorMessages.DEVICE_NOT_REGISTERED)
 
     if not email and not (mobile and calling_code):
         raise EmailMobileRequiredError
@@ -163,19 +163,10 @@ async def _process_email_flow(
     name: str | None,
     x_forwarded_for: str,
 ) -> JSONResponse:
-    # 1. Check existing device with email
-    existing_device = await execute_query(
-        query=UserQueries.GET_WAITLIST_BY_DEVICE_AND_EMAIL,
-        params={RequestParams.DEVICE_ID: str(device_id), RequestParams.EMAIL: email},
-        db_session=db_session,
-    )
-    if not is_registered:
-        raise DeviceNotRegisteredError
-
-    # 1. Check existing device
+    # 2. Check if device is already in waitlist
     existing_device_only = await execute_query(
         query=UserQueries.GET_WAITLIST_BY_DEVICE,
-        params={RequestParams.DEVICE_ID: device_id},
+        params={RequestParams.DEVICE_ID: str(device_id)},
         db_session=db_session,
     )
 
@@ -319,15 +310,6 @@ async def _process_mobile_flow(
     name: str | None,
     x_forwarded_for: str,
 ) -> JSONResponse:
-    # 0. Check if device is registered
-    is_registered = await execute_query(
-        query=UserQueries.CHECK_DEVICE_EXISTS,
-        params={RequestParams.DEVICE_ID: device_id},
-        db_session=db_session,
-    )
-    if not is_registered:
-        raise DeviceNotRegisteredError
-
     # 1. Check existing device
     existing_device = await execute_query(
         query=UserQueries.GET_WAITLIST_BY_DEVICE,
@@ -432,18 +414,20 @@ async def _process_mobile_flow(
         },
         db_session=db_session,
     )
+    new_entry = new_entry_rows[0]
+
     # 4. Update invite_device
     await execute_query(
         query=UserQueries.UPSERT_DEVICE_INVITE,
         params={
-            RequestParams.DEVICE_ID: device_id,
+            RequestParams.ID: new_entry.id,
+            RequestParams.DEVICE_ID: str(device_id),
             RequestParams.COUPON_ID: None,
         },
         db_session=db_session,
     )
 
     await db_session.commit()
-    new_entry = new_entry_rows[0]
 
     await _send_mobile_otp(
         cache=cache,
