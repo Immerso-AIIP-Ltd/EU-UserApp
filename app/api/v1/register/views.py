@@ -840,10 +840,17 @@ async def resend_otp(
     receiver_type = RequestParams.EMAIL if email else RequestParams.MOBILE
 
     # Check if registration session exists
-    cache_key = build_cache_key(
-        CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA,
-        identifier=receiver,
-    )
+    if intent == IntentEnum.UPDATE_PROFILE:
+        cache_key = build_cache_key(
+            CacheKeyTemplates.CACHE_KEY_UPDATE_PROFILE_DATA,
+            identifier=receiver,
+        )
+    else:
+        cache_key = build_cache_key(
+            CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA,
+            identifier=receiver,
+        )
+
     cached_data = await get_cache(cache, cache_key)
     if not cached_data:
         raise RegistrationSessionClosedError
