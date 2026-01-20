@@ -1,4 +1,4 @@
-`import re
+import re
 from datetime import datetime
 from typing import Any
 
@@ -107,7 +107,7 @@ async def fetch_data(query_str: str, db_base: str) -> list[dict[str, Any]]:
             result = await session.execute(text(query_str))
             keys = list(result.keys())
             rows = result.fetchall()
-`
+
             for row in rows:
                 row_dict = {}
                 for i, key in enumerate(keys):
