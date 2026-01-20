@@ -165,9 +165,22 @@ async def test_set_forgot_password_success(
         "app.api.v1.login.views.DeviceService.resolve_device_id",
         new_callable=AsyncMock,
         return_value="device-123",
-    ):
+    ), patch(
+        "app.api.v1.login.views.execute_and_transform",
+        new_callable=AsyncMock,
+    ) as mock_transform:
 
-        mock_service.return_value = ("mock_token", "mock_refresh_token", 3600)
+        user_id = "test-user-id"
+        mock_service.return_value = ("mock_token", "mock_refresh_token", 3600, user_id)
+        mock_transform.return_value = [
+            {
+                "uuid": user_id,
+                "email": "test@example.com",
+                "name": "Test User",
+                "image": None,
+            },
+        ]
+
         data = await assert_endpoint_success(
             client,
             "POST",
@@ -176,6 +189,8 @@ async def test_set_forgot_password_success(
             payload=payload,
         )
         assert data["data"]["auth_token"] == "mock_token"  # noqa: S105
+        assert data["data"]["user"]["user_id"] == user_id
+        assert data["data"]["user"]["email"] == "test@example.com"
 
 
 @pytest.mark.anyio

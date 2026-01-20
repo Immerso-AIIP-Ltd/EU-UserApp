@@ -306,7 +306,12 @@ async def set_forgot_password(
         HeaderKeys.API_CLIENT,
     )
 
-    token, refresh_token, expires_at = await ForgotPasswordService.set_forgot_password(
+    (
+        token,
+        refresh_token,
+        expires_at,
+        user_id,
+    ) = await ForgotPasswordService.set_forgot_password(
         db=db,
         email=str(set_forgot_payload.email),
         password=set_forgot_payload.password,
@@ -315,10 +320,35 @@ async def set_forgot_password(
         cache=cache,
     )
 
+    # Fetch Full Profile for response
+    profile_data_list = await execute_and_transform(
+        UserQueries.GET_USER_PROFILE,
+        {RequestParams.USER_ID: user_id},
+        UserProfileData,
+        db,
+    )
+
+    profile = (
+        profile_data_list[0]
+        if profile_data_list
+        else {
+            RequestParams.USER_ID: str(user_id),
+            RequestParams.EMAIL: str(set_forgot_payload.email),
+            RequestParams.NAME: None,
+        }
+    )
+
+    user_response = {
+        RequestParams.USER_ID: str(user_id),
+        RequestParams.EMAIL: profile.get(RequestParams.EMAIL),
+        RequestParams.NAME: profile.get(RequestParams.NAME),
+        RequestParams.IMAGE: profile.get(RequestParams.IMAGE),
+    }
+
     response_data = {
         RequestParams.AUTH_TOKEN: token,
         RequestParams.REFRESH_TOKEN: refresh_token,
-        RequestParams.AUTH_TOKEN_EXPIRY: expires_at,
+        RequestParams.USER: user_response,
     }
 
     return standard_response(

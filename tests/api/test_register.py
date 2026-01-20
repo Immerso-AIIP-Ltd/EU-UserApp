@@ -94,11 +94,22 @@ async def test_verify_otp_register_success(
     ), patch(
         "app.api.v1.register.views._finalize_registration_and_auth",
         new_callable=AsyncMock,
-    ) as mock_finalize:
+    ) as mock_finalize, patch(
+        "app.api.v1.register.views.execute_and_transform",
+        new_callable=AsyncMock,
+    ) as mock_transform:
 
         user_id = uuid.uuid4()
         mock_insert.return_value = [{"id": user_id, "email": "register@example.com"}]
         mock_finalize.return_value = ("mock_token", "mock_refresh_token", 3600)
+        mock_transform.return_value = [
+            {
+                "uuid": str(user_id),
+                "email": "register@example.com",
+                "name": "Register User",
+                "image": None,
+            },
+        ]
 
         data = await assert_endpoint_success(
             client,
@@ -107,8 +118,8 @@ async def test_verify_otp_register_success(
             SuccessMessages.USER_REGISTERED_VERIFIED,
             payload=payload,
         )
-        assert data["data"]["id"] == str(user_id)
-        assert data["data"]["token"] == "mock_token"  # noqa: S105
+        assert data["data"]["user"]["user_id"] == str(user_id)
+        assert data["data"]["auth_token"] == "mock_token"  # noqa: S105
 
 
 @pytest.mark.anyio

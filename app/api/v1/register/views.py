@@ -17,6 +17,7 @@ from app.api.v1.schemas import (
     IntentEnum,
     RegisterWithProfileRequest,
     ResendOTPRequest,
+    UserProfileData,
     VerifyOTPRegisterRequest,
 )
 from app.api.v1.service.auth_service import AuthService
@@ -53,7 +54,7 @@ from app.core.exceptions import (
     ValidationError,
 )
 from app.db.dependencies import get_db_session
-from app.db.utils import execute_query
+from app.db.utils import execute_and_transform, execute_query
 from app.settings import settings
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
@@ -440,17 +441,42 @@ async def _finalize_user_registration(
     )
     await cache.delete(cache_key)
 
-    # 8. Prepare response
-    data_dict: dict[str, Any] = dict(user_rows[0])
-    data_dict[RequestParams.TOKEN] = auth_token
-    data_dict[RequestParams.REFRESH_TOKEN] = refresh_token
-    data_dict[RequestParams.TOKEN_EXPIRY] = token_expiry
-    data_dict[ProcessParams.ID] = str(user_id)
+    # 8. Fetch Full Profile for response
+    profile_data_list = await execute_and_transform(
+        UserQueries.GET_USER_PROFILE,
+        {RequestParams.USER_ID: user_id},
+        UserProfileData,
+        db_session,
+    )
+
+    profile = (
+        profile_data_list[0]
+        if profile_data_list
+        else {
+            RequestParams.USER_ID: str(user_id),
+            RequestParams.EMAIL: cached_data.get(RequestParams.EMAIL),
+            RequestParams.NAME: cached_data.get(LoginParams.NAME),
+            RequestParams.IMAGE: cached_data.get(LoginParams.PROFILE_IMAGE),
+        }
+    )
+
+    user_response = {
+        RequestParams.USER_ID: str(user_id),
+        RequestParams.EMAIL: profile.get(RequestParams.EMAIL),
+        RequestParams.NAME: profile.get(RequestParams.NAME),
+        RequestParams.IMAGE: profile.get(RequestParams.IMAGE),
+    }
+
+    response_data = {
+        RequestParams.AUTH_TOKEN: auth_token,
+        RequestParams.REFRESH_TOKEN: refresh_token,
+        RequestParams.USER: user_response,
+    }
 
     return standard_response(
         request=request,
         message=SuccessMessages.USER_REGISTERED_VERIFIED,
-        data=data_dict,
+        data=response_data,
     )
 
 

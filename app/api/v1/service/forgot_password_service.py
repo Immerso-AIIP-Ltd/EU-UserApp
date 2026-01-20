@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+from typing import Any
 
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -96,7 +97,7 @@ class ForgotPasswordService:
         client_id: str,
         device_id: str,
         cache: Redis,
-    ) -> tuple[str, str, int]:
+    ) -> tuple[str, str, int, Any]:
         """Update user password and return auth token."""
         # 0. Check if device is registered
         if not device_id or not await DeviceService.is_device_registered(
@@ -196,4 +197,4 @@ class ForgotPasswordService:
             auth_token=token,
         )
 
-        return token, refresh_token, expires_at
+        return token, refresh_token, expires_at, user_id
