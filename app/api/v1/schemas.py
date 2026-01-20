@@ -564,7 +564,8 @@ class DeviceInviteData(BaseModel):
     """Data schema for Device Invite."""
 
     device_id: UUID
-    coupon_id: Optional[str] = None
+    coupon_code: Optional[str] = None
+    queue_number: Optional[int] = None
 
 
 class DeviceInviteResponse(GenericResponse[DeviceInviteData]):

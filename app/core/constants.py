@@ -138,6 +138,7 @@ class RequestParams:
     COUPON_ID = "coupon_id"
     CALLING_CODE = "calling_code"
     NAME = "name"
+    ID = "id"
     INVITED_LIST = "invited_list"
     OTP = "otp"
     IS_VERIFIED = "is_verified"
@@ -520,6 +521,9 @@ class SuccessMessages:
     WAITLIST_ALREADY_EXISTS = "Already on the Waitlist."
     WAITLIST_OTP_RESENT = "{0} already exists but not verified. OTP has been resent."
     WAITLIST_OTP_SENT = "OTP sent to your {0}. Please verify to confirm your spot."
+    WAITLIST_DEVICE_ALREADY_EXISTS = (
+        "Device already exists in waitlist with different credentials."
+    )
     FRIEND_INVITES_SENT = "{0} invites sent successfully"
     EMAIL_ALREADY_VERIFIED = "This email is already verified."
     MOBILE_ALREADY_VERIFIED = "This mobile number is already verified."
@@ -579,6 +583,7 @@ class ErrorCodes:
     USER_NOT_FOUND = "US002"
     BLOCKED = "US003"
     USER_TOKEN_NOT_VALID = "US031"  # noqa: S105
+    WAITLIST_DEVICE_ALREADY_EXISTS_CODE = "US049"
 
     # Login Specific
     USER_NOT_FOUND_LOGIN_CODE = "US002"
@@ -727,6 +732,10 @@ class ErrorMessages:
     )
     USER_NOT_FOUND_BYPASS = "User not found (bypass)"
     PAYLOAD_NOT_ENCRYPTED = "Payload is not encrypted"
+    WAITLIST_DEVICE_ALREADY_EXISTS = (
+        "This device is already on the waitlist with a different "
+        "email or mobile number."
+    )
 
 
 class Headers:

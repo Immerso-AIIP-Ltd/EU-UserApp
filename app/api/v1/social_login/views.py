@@ -15,7 +15,7 @@ from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
 from app.api.v1.service.google_oauth_service import GoogleOAuthService
 from app.api.v1.service.social_login_service import SocialLoginService
 from app.cache.dependencies import get_redis_connection
-from app.core.constants import SuccessMessages
+from app.core.constants import RequestParams, SuccessMessages
 from app.core.exceptions import DecryptionFailedError, PayloadNotEncryptedError
 from app.db.dependencies import get_db_session
 from app.utils.security import SecurityService
@@ -58,15 +58,15 @@ async def google_login(
 
     google_service = GoogleOAuthService(
         login_data.id_token,
-        headers.get("x-platform") or "unknown",
+        headers.get(RequestParams.PLATFORM) or "unknown",
     )
 
     request_data = {
         "uid": login_data.uid,
-        "client_id": headers.get("x-api-client"),
-        "device_id": headers.get("x-device-id"),
-        "platform": headers.get("x-platform"),
-        "country": headers.get("x-country"),
+        RequestParams.API_CLIENT: headers.get(RequestParams.API_CLIENT),
+        RequestParams.DEVICE_ID: headers.get(RequestParams.DEVICE_ID),
+        RequestParams.PLATFORM: headers.get(RequestParams.PLATFORM),
+        RequestParams.COUNTRY: headers.get(RequestParams.COUNTRY),
         "user_agent": request.headers.get("User-Agent"),
     }
     data = await SocialLoginService.google_login(
@@ -115,15 +115,15 @@ async def apple_login(
 
     apple_service = AppleOAuthService(
         login_data.id_token,
-        headers.get("x-platform") or "unknown",
+        headers.get(RequestParams.PLATFORM) or "unknown",
     )
 
     request_data = {
         "uid": login_data.uid,
-        "client_id": headers.get("x-api-client"),
-        "device_id": headers.get("x-device-id"),
-        "platform": headers.get("x-platform"),
-        "country": headers.get("x-country"),
+        RequestParams.API_CLIENT: headers.get(RequestParams.API_CLIENT),
+        RequestParams.DEVICE_ID: headers.get(RequestParams.DEVICE_ID),
+        RequestParams.PLATFORM: headers.get(RequestParams.PLATFORM),
+        RequestParams.COUNTRY: headers.get(RequestParams.COUNTRY),
         "user_agent": request.headers.get("User-Agent"),
     }
 
@@ -175,10 +175,10 @@ async def facebook_login(
     facebook_service = FacebookOAuthService(login_data.access_token)
     request_data = {
         "uid": login_data.uid,
-        "client_id": headers.get("x-api-client"),
-        "device_id": headers.get("x-device-id"),
-        "platform": headers.get("x-platform"),
-        "country": headers.get("x-country"),
+        RequestParams.API_CLIENT: headers.get(RequestParams.API_CLIENT),
+        RequestParams.DEVICE_ID: headers.get(RequestParams.DEVICE_ID),
+        RequestParams.PLATFORM: headers.get(RequestParams.PLATFORM),
+        RequestParams.COUNTRY: headers.get(RequestParams.COUNTRY),
         "user_agent": request.headers.get("User-Agent"),
     }
     data = await SocialLoginService.facebook_login(

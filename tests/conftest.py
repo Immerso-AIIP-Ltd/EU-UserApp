@@ -5,7 +5,7 @@ import pytest
 from fakeredis import FakeServer
 from fakeredis.aioredis import FakeConnection, FakeRedis
 from fastapi import FastAPI
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from loguru import logger
 from redis.asyncio import ConnectionPool
 from sqlalchemy import text
@@ -158,5 +158,9 @@ async def client(
     :param fastapi_app: the application.
     :yield: client for the app.
     """
-    async with AsyncClient(app=fastapi_app, base_url="http://test", timeout=10.0) as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=fastapi_app),
+        base_url="http://test",
+        timeout=10.0,
+    ) as ac:
         yield ac
