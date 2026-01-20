@@ -565,6 +565,7 @@ class DeviceInviteData(BaseModel):
 
     device_id: str
     coupon_id: Optional[str] = None
+    queue_number: Optional[int] = None
 
 
 class DeviceInviteResponse(GenericResponse[DeviceInviteData]):

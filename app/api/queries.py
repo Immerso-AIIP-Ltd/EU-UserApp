@@ -6,6 +6,22 @@ class UserQueries:
 
     # ==================== DEVICE INVITE ====================
 
+    CHECK_DEVICE_INVITE_STATUS = text(
+        """
+        SELECT * FROM user_app.check_device_invite_status(
+            :device_id
+        );
+        """,
+    )
+
+    CHECK_DEVICE_WAITLIST_STATUS = text(
+        """
+        SELECT * FROM user_app.check_device_waitlist_status(
+            :device_id
+        );
+        """,
+    )
+
     GET_COUPON = text(
         """
     SELECT id,
@@ -27,12 +43,13 @@ class UserQueries:
 
     UPSERT_DEVICE_INVITE = text(
         """
-        INSERT INTO user_app.invite_device (device_id, coupon_id, created_at)
-        VALUES (:device_id, :coupon_id, NOW())
+        INSERT INTO user_app.invite_device (id, device_id, coupon_id, created_at)
+        VALUES (COALESCE(:id, gen_random_uuid()), :device_id, :coupon_id, NOW())
         ON CONFLICT (device_id)
         DO UPDATE SET
+            id = EXCLUDED.id,
             coupon_id = EXCLUDED.coupon_id
-        RETURNING device_id
+        RETURNING id
     """,
     )
 

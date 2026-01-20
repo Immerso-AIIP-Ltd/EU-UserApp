@@ -63,6 +63,7 @@ from .exceptions import (
     UserTokenNotFoundError,
     ValidationError,
     VerificationRequiredError,
+    WaitlistDeviceAlreadyExistsError,
 )
 
 __all__ = [
@@ -130,4 +131,5 @@ __all__ = [
     "UserTokenNotFoundError",
     "ValidationError",
     "VerificationRequiredError",
+    "WaitlistDeviceAlreadyExistsError",
 ]

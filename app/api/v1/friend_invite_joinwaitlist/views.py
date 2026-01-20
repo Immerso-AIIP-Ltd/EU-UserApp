@@ -34,12 +34,14 @@ from app.core.constants import (
 )
 from app.core.exceptions import (
     DecryptionFailedError,
+    DeviceNotRegisteredError,
     EmailMobileRequiredError,
     OtpExpiredError,
     OtpInvalidError,
     PayloadNotEncryptedError,
     UserNotFoundError,
     ValidationError,
+    WaitlistDeviceAlreadyExistsError,
 )
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_query
@@ -145,15 +147,27 @@ async def _process_email_flow(
     name: str | None,
     x_forwarded_for: str,
 ) -> JSONResponse:
-    # 1. Check existing device with email
-    existing_device = await execute_query(
-        query=UserQueries.GET_WAITLIST_BY_DEVICE_AND_EMAIL,
-        params={RequestParams.DEVICE_ID: device_id, RequestParams.EMAIL: email},
+    # 0. Check if device is registered
+    is_registered = await execute_query(
+        query=UserQueries.CHECK_DEVICE_EXISTS,
+        params={RequestParams.DEVICE_ID: device_id},
+        db_session=db_session,
+    )
+    if not is_registered:
+        raise DeviceNotRegisteredError
+
+    # 1. Check existing device
+    existing_device_only = await execute_query(
+        query=UserQueries.GET_WAITLIST_BY_DEVICE,
+        params={RequestParams.DEVICE_ID: device_id},
         db_session=db_session,
     )
 
-    if existing_device:
-        entry = existing_device[0]
+    if existing_device_only:
+        entry = existing_device_only[0]
+        if entry.email != email:
+            raise WaitlistDeviceAlreadyExistsError
+
         if entry.is_verified:
             return standard_response(
                 request=request,
@@ -168,27 +182,27 @@ async def _process_email_flow(
                 },
             )
 
-            # Resend OTP
-            await GenerateOtpService.generate_otp(
-                redis_client=cache,
-                receiver=email,
-                receiver_type=RequestParams.EMAIL,
-                intent=Intents.WAITLIST,
-                x_forwarded_for=x_forwarded_for,
-                is_resend=True,
-                db_session=db_session,
-            )
-            return standard_response(
-                request=request,
-                message=SuccessMessages.WAITLIST_OTP_RESENT.format(
-                    RequestParams.DEVICE,
-                ),
-                data={
-                    RequestParams.QUEUE_NUMBER: str(entry.queue_number),
-                    RequestParams.IS_VERIFIED: False,
-                    RequestParams.STATUS: ProcessParams.OTP_RESENT,
-                },
-            )
+        # Resend OTP
+        await GenerateOtpService.generate_otp(
+            redis_client=cache,
+            receiver=email,
+            receiver_type=RequestParams.EMAIL,
+            intent=Intents.WAITLIST,
+            x_forwarded_for=x_forwarded_for,
+            is_resend=True,
+            db_session=db_session,
+        )
+        return standard_response(
+            request=request,
+            message=SuccessMessages.WAITLIST_OTP_RESENT.format(
+                RequestParams.DEVICE,
+            ),
+            data={
+                RequestParams.QUEUE_NUMBER: str(entry.queue_number),
+                RequestParams.IS_VERIFIED: False,
+                RequestParams.STATUS: ProcessParams.OTP_RESENT,
+            },
+        )
 
     # 2. Check if email exists
     existing_email = await execute_query(
@@ -243,8 +257,20 @@ async def _process_email_flow(
         },
         db_session=db_session,
     )
-    await db_session.commit()
     new_entry = new_entry_rows[0]
+
+    # 4. Update invite_device
+    await execute_query(
+        query=UserQueries.UPSERT_DEVICE_INVITE,
+        params={
+            RequestParams.ID: new_entry.id,
+            RequestParams.DEVICE_ID: device_id,
+            RequestParams.COUPON_ID: None,
+        },
+        db_session=db_session,
+    )
+
+    await db_session.commit()
 
     await GenerateOtpService.generate_otp(
         redis_client=cache,
@@ -276,6 +302,15 @@ async def _process_mobile_flow(
     name: str | None,
     x_forwarded_for: str,
 ) -> JSONResponse:
+    # 0. Check if device is registered
+    is_registered = await execute_query(
+        query=UserQueries.CHECK_DEVICE_EXISTS,
+        params={RequestParams.DEVICE_ID: device_id},
+        db_session=db_session,
+    )
+    if not is_registered:
+        raise DeviceNotRegisteredError
+
     # 1. Check existing device
     existing_device = await execute_query(
         query=UserQueries.GET_WAITLIST_BY_DEVICE,
@@ -285,6 +320,9 @@ async def _process_mobile_flow(
 
     if existing_device:
         entry = existing_device[0]
+        if entry.mobile != mobile or entry.calling_code != calling_code:
+            raise WaitlistDeviceAlreadyExistsError
+
         if entry.is_verified:
             return standard_response(
                 request=request,
@@ -373,6 +411,16 @@ async def _process_mobile_flow(
         },
         db_session=db_session,
     )
+    # 4. Update invite_device
+    await execute_query(
+        query=UserQueries.UPSERT_DEVICE_INVITE,
+        params={
+            RequestParams.DEVICE_ID: device_id,
+            RequestParams.COUPON_ID: None,
+        },
+        db_session=db_session,
+    )
+
     await db_session.commit()
     new_entry = new_entry_rows[0]
 
