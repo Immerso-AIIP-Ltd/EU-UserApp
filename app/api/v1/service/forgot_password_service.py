@@ -15,6 +15,7 @@ from app.api.v1.service.register_otp import GenerateOtpService
 from app.core.constants import DeviceNames, ErrorMessages, Intents, Messages
 from app.core.exceptions import (
     AccountBlockedError,
+    AccountDeactivatedError,
     DeviceNotRegisteredError,
     UserNotFoundError,
 )
@@ -25,6 +26,14 @@ from app.settings import settings
 
 class ForgotPasswordService:
     """Service to handle forgot password logic."""
+
+    @staticmethod
+    def _validate_user_state(user: dict[str, Any] | Any) -> None:
+        """Check if user account is blocked or deactivated."""
+        if user["state"] == "blocked":
+            raise AccountBlockedError
+        if user["state"] == "deactivated":
+            raise AccountDeactivatedError
 
     @staticmethod
     async def forgot_password_email(
@@ -42,8 +51,7 @@ class ForgotPasswordService:
             raise UserNotFoundError
 
         user = rows[0]
-        if user["state"] == "blocked":
-            raise AccountBlockedError
+        ForgotPasswordService._validate_user_state(user)
 
         await GenerateOtpService.generate_otp(
             redis_client=cache,
@@ -74,8 +82,7 @@ class ForgotPasswordService:
             raise UserNotFoundError
 
         user = rows[0]
-        if user["state"] == "blocked":
-            raise AccountBlockedError
+        ForgotPasswordService._validate_user_state(user)
 
         await GenerateOtpService.generate_otp(
             redis_client=cache,
@@ -114,6 +121,9 @@ class ForgotPasswordService:
 
         user_data = rows[0]
         user_id = user_data["id"]
+
+        # Check account state
+        ForgotPasswordService._validate_user_state(user_data)
 
         # 2. Update Password
         hashed_password = AuthService.hash_password(password)

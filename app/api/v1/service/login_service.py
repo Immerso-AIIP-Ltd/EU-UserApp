@@ -15,6 +15,8 @@ from app.api.v1.service.device_service import DeviceService
 from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.core.constants import DeviceNames, ErrorMessages
 from app.core.exceptions.exceptions import (
+    AccountBlockedError,
+    AccountDeactivatedError,
     DeviceNotRegisteredError,
     UnauthorizedError,
     UserNotFoundError,
@@ -44,6 +46,14 @@ class LoginService:
                     ErrorMessages.DEVICE_NOT_REGISTERED,
                 ) from None
             return device_id
+
+    @staticmethod
+    def _validate_user_state(user: dict[str, Any]) -> None:
+        """Check if user account is blocked or deactivated."""
+        if user["state"] == "blocked":
+            raise AccountBlockedError
+        if user["state"] == "deactivated":
+            raise AccountDeactivatedError
 
     @staticmethod
     async def login_user(
@@ -76,6 +86,9 @@ class LoginService:
 
         user = dict(rows[0])
         user_id = user["id"]
+
+        # Check account state
+        LoginService._validate_user_state(user)
 
         # Password verify
         if not login_data.password or not AuthService.verify_password(
