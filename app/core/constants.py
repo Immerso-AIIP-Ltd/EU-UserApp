@@ -97,7 +97,7 @@ class CacheTTL:
     TTL_INVITE_DEVICE = 60
     TTL_USER_PROFILE = 3600
     OTP_EXPIRY = 180
-    TOKEN_EXPIRY = 3600  # 1 hour
+    TOKEN_EXPIRY = 86400  # 24 hours
 
 
 class QueryTimeouts:

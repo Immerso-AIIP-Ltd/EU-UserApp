@@ -21,6 +21,7 @@ from app.core.exceptions.exceptions import (
 )
 from app.db.models.user_app import User
 from app.db.utils import execute_query
+from app.settings import settings
 
 
 class LoginService:
@@ -125,6 +126,9 @@ class LoginService:
                     FusionAuthService.issue_token,
                     user_uuid_str,
                     user_details={"device_id": real_device_uuid},
+                    ttl_seconds=int(
+                        settings.jwt_access_token_expire_minutes * 60,
+                    ),
                 )
 
             fa_token_task = asyncio.create_task(issue_fa_token())
@@ -142,7 +146,9 @@ class LoginService:
 
             token = fa_token
             # FA default TTL is 300s -> updated to 600s
-            expires_at = int(time.time()) + 600
+            expires_at = int(time.time()) + (
+                settings.jwt_access_token_expire_minutes * 60
+            )
 
         except Exception as e:
             # Raise an error if FusionAuth token cannot be issued

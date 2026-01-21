@@ -20,6 +20,7 @@ from app.core.exceptions import (
 )
 from app.db.models.user_app import User
 from app.db.utils import execute_query
+from app.settings import settings
 
 
 class ForgotPasswordService:
@@ -176,7 +177,9 @@ class ForgotPasswordService:
 
             if fa_token:
                 token = fa_token
-                expires_at = int(time.time()) + 600
+                expires_at = int(time.time()) + (
+                    settings.jwt_access_token_expire_minutes * 60
+                )
 
         except Exception as e:
             # Log the error but continue if token was already generated locally
