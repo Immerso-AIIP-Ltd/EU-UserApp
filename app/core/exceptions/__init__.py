@@ -1,5 +1,6 @@
 from .exceptions import (
     AccountBlockedError,
+    AccountDeactivatedError,
     AppError,
     AppExceptionError,
     AppleKeyFetchError,
@@ -68,6 +69,7 @@ from .exceptions import (
 
 __all__ = [
     "AccountBlockedError",
+    "AccountDeactivatedError",
     "AppError",
     "AppExceptionError",
     "AppleKeyFetchError",

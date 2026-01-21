@@ -372,6 +372,17 @@ class AccountBlockedError(AppError):
         )
 
 
+class AccountDeactivatedError(AppError):
+    """Raised when a user account is deactivated."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            http_code=status.HTTP_403_FORBIDDEN,
+            message=ErrorMessages.ACCOUNT_DEACTIVATED,
+            error_code=ErrorCodes.ACCOUNT_DEACTIVATED_CODE,
+        )
+
+
 class PasswordsDoNotMatchError(AppError):
     """Raised when password and confirmation do not match."""
 

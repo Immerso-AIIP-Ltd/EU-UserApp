@@ -584,6 +584,7 @@ class ErrorCodes:
     BLOCKED = "US003"
     USER_TOKEN_NOT_VALID = "US031"  # noqa: S105
     WAITLIST_DEVICE_ALREADY_EXISTS_CODE = "US049"
+    ACCOUNT_DEACTIVATED_CODE = "US050"
 
     # Login Specific
     USER_NOT_FOUND_LOGIN_CODE = "US002"
@@ -736,6 +737,7 @@ class ErrorMessages:
         "This device is already on the waitlist with a different "
         "email or mobile number."
     )
+    ACCOUNT_DEACTIVATED = "Your account has been deactivated."
 
 
 class Headers:
