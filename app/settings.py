@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     # JWT Settings
     jwt_secret_key: str = "your-secret-key"  # Should be set via environment variable
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 60
+    jwt_access_token_expire_minutes: int = 1440
     user_token_days_to_expire: int = 30
 
     # Celery settings

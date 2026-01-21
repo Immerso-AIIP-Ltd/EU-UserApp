@@ -62,7 +62,7 @@ class AuthService:
         client_id: str,
         cache: Redis,
         device_id: str | None = None,
-        days_to_expire: int = settings.user_token_days_to_expire,
+        days_to_expire: int = 1,
         partner_attrs: Dict[str, Any] | None = None,
     ) -> tuple[str, int]:
         """Generate a new JWT auth token for a user."""
@@ -326,11 +326,12 @@ class AuthService:
             FusionAuthService.issue_token,
             user_id,
             user_details={"device_id": device_id},
+            ttl_seconds=int(settings.jwt_access_token_expire_minutes * 60),
         )
         if not fa_token:
             raise UnauthorizedError(message=ErrorMessages.ACCESS_TOKEN_ISSUE_FAILED)
 
-        expires_at = int(time.time()) + 600
+        expires_at = int(time.time()) + (settings.jwt_access_token_expire_minutes * 60)
 
         # 3. Rotate Refresh Token
         new_refresh_token = await AuthService.create_refresh_session(
