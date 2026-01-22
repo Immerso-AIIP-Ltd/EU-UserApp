@@ -214,11 +214,17 @@ async def verify_otp_register(
         except Exception as e:
             raise PayloadNotEncryptedError from e
 
+    # Optimized: Parallelize Device Validation and Decryption
+    device_task = _validate_device_registered(headers, db_session, cache=cache)
+    decryption_task = asyncio.to_thread(
+        SecurityService.decrypt_payload,
+        payload.key,
+        payload.data,
+    )
+
+    await device_task  # Wait for device check
     try:
-        decrypted_payload = SecurityService.decrypt_payload(
-            encrypted_key=payload.key,
-            encrypted_data=payload.data,
-        )
+        decrypted_payload = await decryption_task
         verify_payload = VerifyOTPRegisterRequest(**decrypted_payload)
     except Exception as e:
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
@@ -255,6 +261,7 @@ async def verify_otp_register(
 
     # Register and Finalize
     cached_data = await _get_cached_registration_data(cache, receiver)
+
     return await _finalize_user_registration(
         request,
         db_session,
@@ -719,15 +726,12 @@ async def _finalize_registration_and_auth(
     """Register device, sync to FusionAuth, and generate auth token (optimized)."""
     device_id = headers.get(RequestParams.DEVICE_ID) or ""
 
-    # 1. Resolve device UUID
-    # (Avoid redundant check since we already validated at start or during process)
     try:
         device_data = await DeviceService.get_device(device_id, db_session)
         real_device_id = str(device_data.get("id"))
     except Exception:
         real_device_id = device_id or DeviceNames.UNKNOWN_DEVICE
 
-    # 2. Sync to FusionAuth and Issue Token
     auth_token = None
     token_expiry = None
     refresh_token = None
@@ -748,8 +752,7 @@ async def _finalize_registration_and_auth(
             )
             await cache.set(sync_cache_key, "true", ex=86400)
 
-        # 3. Issue Token & Create Refresh Session & Link Device in Parallel
-        # These are mostly independent after user is synced
+        # Generate Token and Refresh Session in Parallel
         async def issue_fa_token() -> str:
             return await asyncio.to_thread(
                 FusionAuthService.issue_token,
@@ -817,19 +820,17 @@ async def resend_otp(
         except Exception as e:
             raise PayloadNotEncryptedError from e
 
-    # 0. Check if device is registered
-    device_id = headers.get(RequestParams.DEVICE_ID)
-    if not device_id or not await DeviceService.is_device_registered(
-        device_id,
-        db_session,
-    ):
-        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+    # Optimized: Parallelize Device Validation and Decryption
+    device_task = _validate_device_registered(headers, db_session, cache=cache)
+    decryption_task = asyncio.to_thread(
+        SecurityService.decrypt_payload,
+        payload.key,
+        payload.data,
+    )
 
+    await device_task
     try:
-        decrypted_payload = SecurityService.decrypt_payload(
-            encrypted_key=payload.key,
-            encrypted_data=payload.data,
-        )
+        decrypted_payload = await decryption_task
         resend_payload = ResendOTPRequest(**decrypted_payload)
     except Exception as e:
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e

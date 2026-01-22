@@ -27,6 +27,10 @@ async def test_join_waitlist_success(
         "app.api.v1.friend_invite_joinwaitlist.views.SecurityService.decrypt_payload",
         return_value=mock_decrypted,
     ), patch(
+        "app.api.v1.friend_invite_joinwaitlist.views.DeviceService.is_device_registered",
+        new_callable=AsyncMock,
+        return_value=True,
+    ), patch(
         "app.api.v1.friend_invite_joinwaitlist.views.execute_query",
         new_callable=AsyncMock,
     ) as mock_exec, patch(
@@ -34,20 +38,18 @@ async def test_join_waitlist_success(
         new_callable=AsyncMock,
     ):
 
-        # Mock for 5 calls:
-        # 1. CHECK_DEVICE_EXISTS (join_waitlist line 119)
-        # 2. GET_WAITLIST_BY_DEVICE (_process_email_flow line 176)
-        # 3. GET_WAITLIST_BY_EMAIL (_process_email_flow line 224)
-        # 4. INSERT_WAITLIST_ENTRY (_process_email_flow line 267)
-        # 5. UPSERT_DEVICE_INVITE (_process_email_flow line 280)
+        # Mock for 4 remaining calls:
+        # 1. GET_WAITLIST_BY_DEVICE (_process_email_flow line 176)
+        # 2. GET_WAITLIST_BY_EMAIL (_process_email_flow line 224)
+        # 3. INSERT_WAITLIST_ENTRY (_process_email_flow line 267)
+        # 4. UPSERT_DEVICE_INVITE (_process_email_flow line 280)
         mock_exec.side_effect = [
-            [{"id": "test_device"}],  # Call 1
+            [],  # Call 1
             [],  # Call 2
-            [],  # Call 3
             [
                 MockModel(id="sync-id", queue_number=123, is_verified=False),
-            ],  # Call 4
-            [{"id": "invite-id"}],  # Call 5
+            ],  # Call 3
+            [{"id": "invite-id"}],  # Call 4
         ]
 
         await assert_endpoint_success(
@@ -60,7 +62,7 @@ async def test_join_waitlist_success(
         )
 
         # Verify ID sync
-        upsert_call = mock_exec.call_args_list[4]
+        upsert_call = mock_exec.call_args_list[3]
         assert upsert_call.kwargs["params"]["id"] == "sync-id"
 
 
@@ -81,14 +83,17 @@ async def test_join_waitlist_duplicate_device(
         "app.api.v1.friend_invite_joinwaitlist.views.SecurityService.decrypt_payload",
         return_value=mock_decrypted,
     ), patch(
+        "app.api.v1.friend_invite_joinwaitlist.views.DeviceService.is_device_registered",
+        new_callable=AsyncMock,
+        return_value=True,
+    ), patch(
         "app.api.v1.friend_invite_joinwaitlist.views.execute_query",
         new_callable=AsyncMock,
     ) as mock_exec:
 
-        # Mock: 1. registered, 2. existing device with DIFFERENT email
+        # Mock: 1. existing device with DIFFERENT email
         mock_exec.side_effect = [
-            [{"id": "test_device"}],  # Call 1: registered
-            [MockModel(email="old_email@example.com")],  # Call 2: waitlist entry
+            [MockModel(email="old_email@example.com")],  # Call 1: waitlist entry
         ]
 
         response = await client.post(
@@ -119,12 +124,15 @@ async def test_join_waitlist_device_not_registered(
         "app.api.v1.friend_invite_joinwaitlist.views.SecurityService.decrypt_payload",
         return_value=mock_decrypted,
     ), patch(
+        "app.api.v1.friend_invite_joinwaitlist.views.DeviceService.is_device_registered",
+        new_callable=AsyncMock,
+        return_value=False,
+    ), patch(
         "app.api.v1.friend_invite_joinwaitlist.views.execute_query",
         new_callable=AsyncMock,
-    ) as mock_exec:
+    ):
 
-        # Mock: device NOT registered
-        mock_exec.return_value = []
+        # Call the endpoint
 
         response = await client.post(
             "/user/v1/social/waitlist",

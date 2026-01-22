@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from typing import Any, Union
@@ -18,6 +19,7 @@ from app.api.v1.schemas import (
     WaitlistRequest,
 )
 from app.api.v1.service import register_deeplinks as deeplinks
+from app.api.v1.service.device_service import DeviceService
 from app.api.v1.service.register_commservice import call_communication_api
 from app.api.v1.service.register_otp import GenerateOtpService
 from app.api.v1.service.register_task import get_device_info
@@ -90,11 +92,27 @@ async def join_waitlist(
 
     payload = await _validate_and_parse_encrypted_payload(payload)
 
+    # Optimized: Parallelize decryption and device check from headers
+    # (Since we also validate device_id from payload later, this catch early)
+    device_id_header = headers.get(RequestParams.DEVICE_ID)
+    device_task = (
+        DeviceService.is_device_registered(device_id_header, db_session, cache=cache)
+        if device_id_header
+        else asyncio.sleep(0, result=False)
+    )
+
+    decryption_task = asyncio.to_thread(
+        SecurityService.decrypt_payload,
+        payload.key,
+        payload.data,
+    )
+
+    is_reg, decrypted_payload = await asyncio.gather(device_task, decryption_task)
+
+    if not device_id_header or not is_reg:
+        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
     try:
-        decrypted_payload = SecurityService.decrypt_payload(
-            encrypted_key=payload.key,
-            encrypted_data=payload.data,
-        )
         waitlist_payload = WaitlistRequest(**decrypted_payload)
     except Exception as e:
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
@@ -114,16 +132,6 @@ async def join_waitlist(
 
     if not device_id:
         raise ValidationError(message=ErrorMessages.DEVICE_ID_REQUIRED)
-
-    # Validate device registration
-    device_exists = await execute_query(
-        query=UserQueries.CHECK_DEVICE_EXISTS,
-        params={ProcessParams.ID: str(device_id)},
-        db_session=db_session,
-    )
-
-    if not device_exists:
-        raise DeviceNotRegisteredError(detail=ErrorMessages.DEVICE_NOT_REGISTERED)
 
     if not email and not (mobile and calling_code):
         raise EmailMobileRequiredError
@@ -583,11 +591,26 @@ async def verify_waitlist(
 
     payload = await _validate_and_parse_encrypted_payload(payload)
 
+    # Optimized: Parallelize device check and decryption
+    device_id_header = headers.get(RequestParams.DEVICE_ID)
+    device_task = (
+        DeviceService.is_device_registered(device_id_header, db_session, cache=cache)
+        if device_id_header
+        else asyncio.sleep(0, result=False)
+    )
+
+    decryption_task = asyncio.to_thread(
+        SecurityService.decrypt_payload,
+        payload.key,
+        payload.data,
+    )
+
+    is_reg, decrypted_payload = await asyncio.gather(device_task, decryption_task)
+
+    if not device_id_header or not is_reg:
+        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
     try:
-        decrypted_payload = SecurityService.decrypt_payload(
-            encrypted_key=payload.key,
-            encrypted_data=payload.data,
-        )
         verify_payload = VerifyWaitlistRequest(**decrypted_payload)
     except Exception as e:
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
@@ -728,11 +751,26 @@ async def resend_waitlist_otp(
 
     payload = await _validate_and_parse_encrypted_payload(payload)
 
+    # Optimized: Parallelize device check and decryption
+    device_id_header = headers.get(RequestParams.DEVICE_ID)
+    device_task = (
+        DeviceService.is_device_registered(device_id_header, db_session, cache=cache)
+        if device_id_header
+        else asyncio.sleep(0, result=False)
+    )
+
+    decryption_task = asyncio.to_thread(
+        SecurityService.decrypt_payload,
+        payload.key,
+        payload.data,
+    )
+
+    is_reg, decrypted_payload = await asyncio.gather(device_task, decryption_task)
+
+    if not device_id_header or not is_reg:
+        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
     try:
-        decrypted_payload = SecurityService.decrypt_payload(
-            encrypted_key=payload.key,
-            encrypted_data=payload.data,
-        )
         resend_payload = ResendWaitlistOtpRequest(**decrypted_payload)
     except Exception as e:
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
