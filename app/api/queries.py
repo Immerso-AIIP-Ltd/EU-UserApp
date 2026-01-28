@@ -664,6 +664,15 @@ class UserQueries:
         """,
     )
 
+    UPDATE_AUTH_SESSION_LAST_USED = text(
+        """
+        UPDATE user_app.authentication_session
+        SET last_used_at = NOW()
+        WHERE auth_token = :refresh_token
+        RETURNING id;
+        """,
+    )
+
     DELETE_AUTH_SESSIONS_FOR_DEVICE = text(
         """
         DELETE FROM user_app.authentication_session

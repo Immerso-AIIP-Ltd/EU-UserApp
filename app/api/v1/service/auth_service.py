@@ -333,13 +333,11 @@ class AuthService:
 
         expires_at = int(time.time()) + (settings.jwt_access_token_expire_minutes * 60)
 
-        # 3. Rotate Refresh Token
-        new_refresh_token = await AuthService.create_refresh_session(
-            db_session=db_session,
-            user_id=user_id,
-            device_id=device_id,
-            user_agent=session.get("user_agent"),  # get from DictRow
-            ip_address=session.get("ip_address"),
+        # 3. Update Last Used (No rotation as per request)
+        await execute_query(
+            UserQueries.UPDATE_AUTH_SESSION_LAST_USED,
+            {"refresh_token": refresh_token},
+            db_session,
         )
 
-        return fa_token, new_refresh_token, expires_at
+        return fa_token, refresh_token, expires_at
