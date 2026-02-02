@@ -1,4 +1,3 @@
-
 import logging
 from typing import Any, Dict
 
@@ -12,6 +11,7 @@ from app.core.constants import (
 from app.settings import settings
 
 logger = logging.getLogger(__name__)
+
 
 class AssetManagerService:
     """Service to interact with the Asset Manager API."""
@@ -62,9 +62,9 @@ class AssetManagerService:
         }
 
         for header_key, internal_key in header_map.items():
-             val = headers.get(header_key) or headers.get(internal_key)
-             if val:
-                 req_headers[header_key] = str(val)
+            val = headers.get(header_key) or headers.get(internal_key)
+            if val:
+                req_headers[header_key] = str(val)
 
         try:
             response = await call_communication_api(
