@@ -105,6 +105,34 @@ async def get_user_profile(
         ) from e
 
 
+async def _handle_profile_asset_commit(
+    new_profile_image: str | None,
+    user_id: Any,
+    headers: dict[str, Any],
+) -> tuple[Any, Any]:
+    """Handle asset commit for profile image update."""
+    thumbnail_url = None
+    if new_profile_image and headers:
+        try:
+            # Logic to detect if it's a temp key? We just try commit.
+            commit_res = await AssetManagerService.commit_asset(
+                temp_key=new_profile_image,
+                user_id=str(user_id),
+                headers=headers,
+            )
+            if commit_res:
+                # Update params with committed URL
+                new_profile_image = commit_res.get("original_url")
+                thumbnail_url = commit_res.get("thumbnail_url")
+                # Note: Thumbnail update needs separate handling.
+
+        except Exception as e:
+            logger.error(f"Asset commit failed in update_profile: {e}")
+            # We proceed with original input value if commit fails
+
+    return new_profile_image, thumbnail_url
+
+
 @router.put("/profile")
 async def update_user_profile(
     request: Request,
@@ -134,38 +162,45 @@ async def update_user_profile(
     await cache.delete(cache_key)
 
     query = UserQueries.UPDATE_USER_PROFILE
-    params = {
-        RequestParams.USER_ID: user_id,
-        RequestParams.NAME: profile_update.name,
-        RequestParams.GENDER: profile_update.gender,
-        RequestParams.ABOUT_ME: profile_update.about_me,
-        RequestParams.BIRTH_DATE: profile_update.birth_date,
-        RequestParams.NICK_NAME: profile_update.nick_name,
-        RequestParams.COUNTRY: profile_update.country,
-        RequestParams.AVATAR_ID: profile_update.avatar_id,
-        RequestParams.PROFILE_IMAGE: profile_update.profile_image,
-    }
+    # Fetch current profile to support partial updates
+    current_data_list = await execute_and_transform(
+        UserQueries.GET_USER_PROFILE,
+        {RequestParams.USER_ID: user_id},
+        UserProfileData,
+        db_session,
+    )
+
+    if not current_data_list:
+        raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
+
+    current_profile = current_data_list[0]
 
     # Handle Asset Commit if profile_image is changed/provided
-    thumbnail_url = None
-    if profile_update.profile_image and headers:
-        try:
-            # Logic to detect if it's a temp key? We just try commit.
-            commit_res = await AssetManagerService.commit_asset(
-                temp_key=profile_update.profile_image,
-                user_id=str(user_id),
-                headers=headers,
-            )
-            if commit_res:
-                # Update params with committed URL
-                params[RequestParams.PROFILE_IMAGE] = commit_res.get("original_url")
-                thumbnail_url = commit_res.get("thumbnail_url")
+    new_profile_image, thumbnail_url = await _handle_profile_asset_commit(
+        profile_update.profile_image,
+        user_id,
+        headers,
+    )
 
-                # Note: Thumbnail update needs separate handling.
-        except Exception as e:
-            logger.error(f"Asset commit failed in update_profile: {e}")
-            # We proceed with original value if commit fails, or maybe we should fail?
-            # Proceeding seems safer for now, let the DB update run.
+    # Merge values: Use provided value if present, else fallback to current
+    def _val(val: Any, key: str) -> Any:
+        return val if val is not None else current_profile.get(key)
+
+    params = {
+        RequestParams.USER_ID: user_id,
+        RequestParams.NAME: _val(profile_update.name, "name"),
+        RequestParams.GENDER: _val(profile_update.gender, "gender"),
+        RequestParams.ABOUT_ME: _val(profile_update.about_me, "about_me"),
+        RequestParams.BIRTH_DATE: _val(profile_update.birth_date, "birth_date"),
+        RequestParams.NICK_NAME: _val(profile_update.nick_name, "nick_name"),
+        RequestParams.COUNTRY: _val(profile_update.country, "country"),
+        RequestParams.AVATAR_ID: _val(profile_update.avatar_id, "avatar_id"),
+        RequestParams.PROFILE_IMAGE: (
+            new_profile_image
+            if new_profile_image is not None
+            else current_profile.get("image")
+        ),
+    }
 
     try:
         data = await execute_and_transform(query, params, UserProfileData, db_session)
@@ -176,11 +211,7 @@ async def update_user_profile(
         user_profile = data[0]
 
         # If we updated thumbnail separately, ensure it's in the response
-        if (
-            "thumbnail_url" in locals()
-            and thumbnail_url
-            and not user_profile.get("thumbnail")
-        ):
+        if thumbnail_url and not user_profile.get("thumbnail"):
             user_profile["thumbnail"] = thumbnail_url
 
         # Update cache with new data
