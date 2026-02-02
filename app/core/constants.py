@@ -207,6 +207,7 @@ class RequestParams:
     LASTNAME = "lastname"
     IMAGE_URL = "image_url"
     SERIAL_NUMBER = "serial_number"
+    THUMBNAIL_URL = "thumbnail_url"
 
 
 class DnsRecordTypes:
@@ -414,6 +415,8 @@ class LogMessages:
     EMAIL_SEND_FAILED = "Failed to send OTP email via CommService: {0}"
     BREVO_TEMPLATE_NOT_CONFIGURED = "BREVO_OTP_RESEND_TEMPLATE_ID not configured"
     REDIS_ERROR_INCREMENT = "Redis error during OTP increment for {0}_{1}: {2}"
+    ASSET_COMMIT_FAILED = "Asset commit failed. Response: {0}"
+    ASSET_COMMIT_EXCEPTION = "Error calling Asset Manager Commit API: {0}"
 
 
 class RedisLogMessages:

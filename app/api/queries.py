@@ -170,6 +170,7 @@ class UserQueries:
             birth_date,
             avatar_id,
             image_url,
+            thumbnail_url,
             created_at,
             modified_at
         )
@@ -180,6 +181,7 @@ class UserQueries:
             :birth_date,
             :avatar_id,
             :image_url,
+            :thumbnail_url,
             NOW(),
             NOW()
         );
@@ -299,6 +301,7 @@ class UserQueries:
             u.mobile,
             u.calling_code,
             p.image_url AS image,
+            p.thumbnail_url AS thumbnail,
             p.country_code AS country,
             p.gender,
             p.about_me,
@@ -311,9 +314,9 @@ class UserQueries:
             TO_CHAR(p.birth_date, 'DD/MM/YYYY') AS birth_date,
             JSONB_BUILD_OBJECT(
                 'facebook', (SELECT provider FROM user_app.social_identity_provider
-                             WHERE user_id = u.id AND provider = 'facebook' LIMIT 1),
+                           WHERE user_id = u.id AND provider = 'facebook' LIMIT 1),
                 'apple', (SELECT provider FROM user_app.social_identity_provider
-                          WHERE user_id = u.id AND provider = 'apple' LIMIT 1),
+                           WHERE user_id = u.id AND provider = 'apple' LIMIT 1),
                 'google', (SELECT provider FROM user_app.social_identity_provider
                            WHERE user_id = u.id AND provider = 'google' LIMIT 1)
             ) AS identity_providers

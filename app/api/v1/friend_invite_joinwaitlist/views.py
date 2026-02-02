@@ -517,7 +517,7 @@ async def _verify_waitlist_otp(
     is_bypass: bool,
 ) -> None:
     """Helper to verify waitlist OTP."""
-    if is_bypass or otp == "1234":
+    if is_bypass:
         return
 
     if email:

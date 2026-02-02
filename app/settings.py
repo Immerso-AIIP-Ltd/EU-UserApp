@@ -261,6 +261,11 @@ class Settings(BaseSettings):
         """URL for mapping GCM tokens in legacy API."""
         return f"{self.legacy_api_url}/api/v2/secured/user/mapgcm"
 
+    @property
+    def asset_commit_url(self) -> str:
+        """URL for asset commit via Asset Manager."""
+        return f"{self.communication_api_url}/asset/v1/asset-manager/commit"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="APP_",

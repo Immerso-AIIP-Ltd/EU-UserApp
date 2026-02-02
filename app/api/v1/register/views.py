@@ -20,6 +20,7 @@ from app.api.v1.schemas import (
     UserProfileData,
     VerifyOTPRegisterRequest,
 )
+from app.api.v1.service.asset_manager import AssetManagerService
 from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.device_service import DeviceService
 from app.api.v1.service.fusionauth_service import FusionAuthService
@@ -172,6 +173,11 @@ async def register_with_profile(
     registration_data = reg_payload.model_dump(mode=RequestParams.JSON)
     registration_data[LoginParams.PASSWORD] = hashed_password
 
+    logger.info(
+        f"Caching registration data for {identifier}: "
+        f"profile_image={registration_data.get(LoginParams.PROFILE_IMAGE)}",
+    )
+
     cache_key = build_cache_key(
         CacheKeyTemplates.CACHE_KEY_REGISTRATION_DATA,
         identifier=identifier,
@@ -261,6 +267,9 @@ async def verify_otp_register(
 
     # Register and Finalize
     cached_data = await _get_cached_registration_data(cache, receiver)
+
+    if verify_payload.temp_key:
+        cached_data[LoginParams.PROFILE_IMAGE] = verify_payload.temp_key
 
     return await _finalize_user_registration(
         request,
@@ -420,7 +429,7 @@ async def _finalize_user_registration(
     user_id = user_rows[0][ProcessParams.ID]
 
     # 4. Handle User Profile Creation
-    await _create_user_profile(db_session, user_id, cached_data)
+    await _create_user_profile(db_session, user_id, cached_data, headers)
 
     # 5. Log OTP Verification
     await _log_otp_verification(db_session, user_id, cached_data)
@@ -472,6 +481,7 @@ async def _finalize_user_registration(
         RequestParams.EMAIL: profile.get(RequestParams.EMAIL),
         RequestParams.NAME: profile.get(RequestParams.NAME),
         RequestParams.IMAGE: profile.get(RequestParams.IMAGE),
+        "thumbnail": profile.get("thumbnail"),
     }
 
     response_data = {
@@ -582,9 +592,6 @@ async def _verify_and_consume_otp(
         f"Verifying OTP for {receiver}. Received: {otp}. Cached Raw: {cached_otp}",
     )
 
-    if otp == "1234":
-        return
-
     if (
         not cached_otp
         or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
@@ -611,6 +618,11 @@ async def _get_cached_registration_data(cache: Redis, receiver: str) -> dict[str
     cached_data = await get_cache(cache, cache_key)
     if not cached_data:
         raise RegistrationSessionClosedError
+
+    logger.info(
+        f"Retrieved cached data for {receiver}: "
+        f"profile_image={cached_data.get(LoginParams.PROFILE_IMAGE)}",
+    )
     return cached_data
 
 
@@ -642,10 +654,14 @@ async def _insert_user_record(
     return user_rows
 
 
+# ...
+
+
 async def _create_user_profile(
     db_session: AsyncSession,
     user_id: Any,
     cached_data: dict[str, Any],
+    headers: dict[str, Any] | None = None,
 ) -> None:
     """Generate name and insert user profile."""
     # Name Generation Logic
@@ -681,6 +697,33 @@ async def _create_user_profile(
             logger.warning(f"Failed to parse birth_date: {birth_date}")
             birth_date = None
 
+    # Check for temporary key (profile image)
+    # The temp_key is stored in LoginParams.PROFILE_IMAGE in `verify_otp_register`
+    # if it was passed.
+    profile_image_val = cached_data.get(LoginParams.PROFILE_IMAGE)
+    image_url = profile_image_val
+    thumbnail_url = None
+
+    logger.info(f"Profile image value from cache: {profile_image_val}")
+
+    if profile_image_val and headers:
+        # We try to commit.
+        # Note: If profile_image_val is already a full URL (from previous flow),
+        # If it returns nothing/fails, we keep original value.
+        # But wait, if it IS a temp key, we commit it.
+        commit_res = await AssetManagerService.commit_asset(
+            temp_key=profile_image_val,
+            user_id=str(user_id),
+            headers=headers,
+        )
+
+        if commit_res:
+            image_url = commit_res.get("original_url")
+            thumbnail_url = commit_res.get("thumbnail_url")
+
+            # Update cache for response use
+            cached_data[LoginParams.PROFILE_IMAGE] = image_url
+
     # Insert User Profile
     profile_params = {
         RequestParams.USER_ID: user_id,
@@ -688,7 +731,8 @@ async def _create_user_profile(
         RequestParams.LASTNAME: lastname,
         LoginParams.BIRTH_DATE: birth_date,
         LoginParams.AVATAR_ID: cached_data.get(LoginParams.AVATAR_ID),
-        RequestParams.IMAGE_URL: cached_data.get(LoginParams.PROFILE_IMAGE),
+        RequestParams.IMAGE_URL: image_url,
+        RequestParams.THUMBNAIL_URL: thumbnail_url,
     }
     await execute_query(
         query=UserQueries.INSERT_USER_PROFILE,

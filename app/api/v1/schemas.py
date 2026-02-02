@@ -203,6 +203,10 @@ class VerifyOTPRegisterRequest(BaseModel):
     )
     otp: str = Field(..., description=Description.OTP)
     password: Optional[str] = Field(default=None, description=Description.PASSWORD)
+    temp_key: Optional[str] = Field(
+        default=None,
+        description=Description.PROFILE_IMAGE,
+    )
     intent: IntentEnum = Field(
         default=IntentEnum.REGISTRATION,
         description=Description.INTENT,
@@ -511,6 +515,7 @@ class UserProfileData(BaseModel):
     mobile: Optional[str] = None
     calling_code: Optional[Union[str, int]] = None
     image: Optional[str] = None
+    thumbnail: Optional[str] = None
     country: Optional[str] = None
     gender: Optional[str] = None
     about_me: Optional[str] = None
