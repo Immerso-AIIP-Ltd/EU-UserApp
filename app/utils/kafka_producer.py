@@ -62,7 +62,7 @@ class KafkaProducerService:
             # Ensure data is a dictionary (handle Pydantic models)
             if hasattr(data, "model_dump"):
                 data = data.model_dump()
-            elif hasattr(data, "dict"): # Fallback for Pydantic v1
+            elif hasattr(data, "dict"):  # Fallback for Pydantic v1
                 data = data.dict()
 
             message = {
