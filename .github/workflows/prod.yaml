@@ -34,8 +34,25 @@ jobs:
 
       - name: Create .env
         run: |
-          echo "APP_ENVIRONMENT=test" >> .env
-          echo "APP_DB_BASE=app_test" >> .env
+          cat << EOF > .env
+          APP_ENVIRONMENT=test
+          APP_DB_BASE=app_test
+          APP_GOOGLE_CLIENT_ID=dummy
+          APP_GOOGLE_ANDROID_CLIENT_ID=dummy
+          APP_GOOGLE_IOS_CLIENT_ID=dummy
+          APP_GOOGLE_WEB_CLIENT_ID=dummy
+          APP_APPLE_CLIENT_ID=dummy
+          APP_APPLE_IOS_CLIENT_ID=dummy
+          APP_APPLE_TEAM_ID=dummy
+          APP_APPLE_KEY_ID=dummy
+          APP_APPLE_PRIVATE_KEY=dummy
+          APP_FACEBOOK_CLIENT_ID=dummy
+          APP_FACEBOOK_CLIENT_SECRET=dummy
+          APP_FUSIONAUTH_URL=http://localhost:9011
+          APP_FUSIONAUTH_API_KEY=dummy
+          APP_FUSIONAUTH_CLIENT_ID=dummy
+          OTEL_SDK_DISABLED=true
+          EOF
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -63,7 +80,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set IMAGE_TAG
-        run: echo "IMAGE_TAG=eu-user-prod-${GITHUB_SHA}" >> $GITHUB_ENV
+        run: echo "IMAGE_TAG=eu-user-gcp-prod-${GITHUB_SHA}" >> $GITHUB_ENV
 
       - uses: docker/build-push-action@v6
         with:
