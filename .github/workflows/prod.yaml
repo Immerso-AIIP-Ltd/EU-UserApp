@@ -3,7 +3,7 @@ name: Eternals eu-user - Prod Build & Push
 on:
   push:
     tags:
-      - "*-user-gcp-pord"
+      - "*-user-gcp-prod"
 
 jobs:
 
