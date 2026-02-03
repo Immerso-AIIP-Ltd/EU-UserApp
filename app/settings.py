@@ -115,6 +115,10 @@ class Settings(BaseSettings):
     fusionauth_bootstrap_key_id: Optional[str] = Field(default=None)
     decryption_private_key_b64: Optional[str] = Field(default=None)
 
+    # Kafka Settings
+    kafka_bootstrap_servers: str = "localhost:9092"
+    kafka_topic_user_profile: str = "user_profile_event"
+
     # Other settings
     CACHE_TIMEOUT_FOR_EMAIL_DNS: int = 300
     skip_partner_auth_redis_check: list[str] = []

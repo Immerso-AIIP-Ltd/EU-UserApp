@@ -222,6 +222,13 @@ async def update_user_profile(
             ttl=CacheTTL.TTL_USER_PROFILE,
         )
 
+        from app.utils.kafka_producer import KafkaProducerService
+
+        await KafkaProducerService.publish_event(
+            event_type="USER_UPDATED",
+            data=user_profile,
+        )
+
         return standard_response(
             message=SuccessMessages.PROFILE_UPDATED,
             request=request,
