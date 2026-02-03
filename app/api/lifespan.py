@@ -35,8 +35,13 @@ async def lifespan_setup(
 
     app.middleware_stack = app.build_middleware_stack()
 
+    from app.utils.kafka_producer import KafkaProducerService
+
+    await KafkaProducerService.start()
+
     try:
         yield
     finally:
+        await KafkaProducerService.stop()
         await app.state.redis_factory.close()
         await app.state.db_factory.close()

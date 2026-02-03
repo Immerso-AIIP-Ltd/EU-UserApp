@@ -306,6 +306,11 @@ async def _handle_otp_redirect_or_callback(
         )
 
     if intent == IntentEnum.UPDATE_PROFILE:
+        from app.api.queries import UserQueries
+        from app.api.v1.schemas import UserProfileData
+        from app.db.utils import execute_and_transform
+        from app.utils.kafka_producer import KafkaProducerService
+
         # Fetch pending update data from cache
         pending_cache_key = build_cache_key(
             CacheKeyTemplates.CACHE_KEY_UPDATE_PROFILE_DATA,
@@ -359,6 +364,18 @@ async def _handle_otp_redirect_or_callback(
         # Clean up pending update cache if exists
         if update_data:
             await cache.delete(pending_cache_key)
+
+        profile_data_rows = await execute_and_transform(
+            UserQueries.GET_USER_PROFILE,
+            {RequestParams.USER_ID: user_id},
+            UserProfileData,
+            db_session,
+        )
+        if profile_data_rows:
+            await KafkaProducerService.publish_event(
+                event_type="USER_UPDATED",
+                data=profile_data_rows[0],
+            )
 
         return standard_response(
             message=(
@@ -476,11 +493,30 @@ async def _finalize_user_registration(
         }
     )
 
+    from app.utils.kafka_producer import KafkaProducerService
+
+    await KafkaProducerService.publish_event(
+        event_type="USER_CREATED",
+        data=profile,
+    )
+
     user_response = {
         RequestParams.USER_ID: str(user_id),
-        RequestParams.EMAIL: profile.get(RequestParams.EMAIL),
-        RequestParams.NAME: profile.get(RequestParams.NAME),
-        RequestParams.IMAGE: profile.get(RequestParams.IMAGE),
+        RequestParams.EMAIL: (
+            profile.get(RequestParams.EMAIL)
+            if isinstance(profile, dict)
+            else profile.email
+        ),
+        RequestParams.NAME: (
+            profile.get(RequestParams.NAME)
+            if isinstance(profile, dict)
+            else profile.name
+        ),
+        RequestParams.IMAGE: (
+            profile.get(RequestParams.IMAGE)
+            if isinstance(profile, dict)
+            else profile.image
+        ),
         "thumbnail": profile.get("thumbnail"),
     }
 
