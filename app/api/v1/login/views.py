@@ -180,6 +180,7 @@ async def login_user(
         RequestParams.EMAIL: profile.get(RequestParams.EMAIL),
         RequestParams.NAME: profile.get(RequestParams.NAME),
         RequestParams.IMAGE: profile.get(RequestParams.IMAGE),
+        RequestParams.THUMBNAIL: profile.get(RequestParams.THUMBNAIL),
     }
 
     response_data = {
@@ -343,6 +344,7 @@ async def set_forgot_password(
         RequestParams.EMAIL: profile.get(RequestParams.EMAIL),
         RequestParams.NAME: profile.get(RequestParams.NAME),
         RequestParams.IMAGE: profile.get(RequestParams.IMAGE),
+        RequestParams.THUMBNAIL: profile.get(RequestParams.THUMBNAIL),
     }
 
     response_data = {

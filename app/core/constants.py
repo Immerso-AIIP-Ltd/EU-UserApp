@@ -208,6 +208,7 @@ class RequestParams:
     IMAGE_URL = "image_url"
     SERIAL_NUMBER = "serial_number"
     THUMBNAIL_URL = "thumbnail_url"
+    THUMBNAIL = "thumbnail"
 
 
 class DnsRecordTypes:
