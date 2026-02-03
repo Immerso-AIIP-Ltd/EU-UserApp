@@ -3,7 +3,7 @@ name: Eternals eu-user - Prod Build & Push
 on:
   push:
     tags:
-      - "*-user-dev"
+      - "*-user-gcp-pord"
 
 jobs:
 
@@ -83,7 +83,7 @@ jobs:
         run: |
           git clone https://$GIT_USER:$GIT_TOKEN@github.com/Immerso-AIIP-Ltd/eros-universe-Helm-charts.git
           cd eros-universe-Helm-charts
-          git checkout eros-universe-prod
+          git checkout gcp-prod
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
@@ -93,4 +93,4 @@ jobs:
 
           git add "$service"
           git commit -m "chore: update eu-user image tag to ${IMAGE_TAG}" || echo "No changes to commit"
-          git push origin eros-universe-prod
+          git push origin gcp-prod
