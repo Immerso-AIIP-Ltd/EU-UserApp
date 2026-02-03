@@ -268,7 +268,7 @@ async def verify_otp_register(
     # Register and Finalize
     cached_data = await _get_cached_registration_data(cache, receiver)
 
-    if verify_payload.temp_key:
+    if verify_payload.temp_key and not cached_data.get(LoginParams.PROFILE_IMAGE):
         cached_data[LoginParams.PROFILE_IMAGE] = verify_payload.temp_key
 
     return await _finalize_user_registration(
