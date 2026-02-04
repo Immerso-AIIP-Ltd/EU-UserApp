@@ -29,87 +29,87 @@ class Settings(BaseSettings):
     with environment variables.
     """
 
-    host: str = "127.0.0.1"
-    port: int = 8000
-    workers_count: int = 4
-    reload: bool = False
-    debug: bool = False
-    log_dir: Path = TEMP_DIR / "logs"
-    environment: str = "dev"
-    log_level: LogLevel = LogLevel.INFO
+    host: str = Field(default="127.0.0.1")
+    port: int = Field(default=8000)
+    workers_count: int = Field(default=4)
+    reload: bool = Field(default=False)
+    debug: bool = Field(default=False)
+    log_dir: Path = Field(default=TEMP_DIR / "logs")
+    environment: str = Field(default="dev")
+    log_level: LogLevel = Field(default=LogLevel.INFO)
 
     # api version
-    api_version: str = "v1"
+    api_version: str = Field(default="v1")
 
     # Variables for the database
-    db_host: str = Field(...)
-    db_port: int = Field(...)
-    db_user: str = Field(...)
-    db_pass: str = Field(...)
-    db_base: str = Field(...)
-    db_echo: bool = False
-    db_pool_size: int = 100
-    db_max_overflow: int = 50
+    db_host: str = Field(default="localhost")
+    db_port: int = Field(default=5432)
+    db_user: str = Field(default="app")
+    db_pass: str = Field(default="app")
+    db_base: str = Field(default="admin")
+    db_echo: bool = Field(default=False)
+    db_pool_size: int = Field(default=100)
+    db_max_overflow: int = Field(default=50)
 
     # Variables for Redis
-    redis_host: str = Field(...)
-    redis_port: int = Field(...)
-    redis_user: Optional[str] = None
-    redis_pass: Optional[str] = None
-    redis_base: Optional[int] = None
+    redis_host: str = Field(default="localhost")
+    redis_port: int = Field(default=6379)
+    redis_user: Optional[str] = Field(default=None)
+    redis_pass: Optional[str] = Field(default=None)
+    redis_base: Optional[int] = Field(default=None)
 
     # JWT Settings
-    jwt_secret_key: str = Field(...)
+    jwt_secret_key: str = Field(default="dummy")
     jwt_algorithm: str = Field(default="HS256")
     jwt_access_token_expire_minutes: int = Field(default=1440)
     user_token_days_to_expire: int = Field(default=30)
 
     # Celery settings
-    celery_broker_url: Optional[str] = None
-    celery_backend_url: Optional[str] = None
+    celery_broker_url: Optional[str] = Field(default=None)
+    celery_backend_url: Optional[str] = Field(default=None)
 
     # Register block timeout
-    block_duration_seconds: str = Field(...)
-    brevo_forgot_password_template_id: str = Field(...)
-    brevo_registration_success_template_id: str = Field(...)
-    brevo_email_verification_template_id: str = Field(...)
-    brevo_otp_resend_template_id: str = Field(...)
-    brevo_password_change_success_template_id: str = Field(...)
-    brevo_profile_update_success_template_id: str = Field(...)
-    erosuniverse_website_url: str = Field(...)
-    brevo_reset_url: str = Field(...)
+    block_duration_seconds: str = Field(default="60")
+    brevo_forgot_password_template_id: str = Field(default="dummy")
+    brevo_registration_success_template_id: str = Field(default="dummy")
+    brevo_email_verification_template_id: str = Field(default="dummy")
+    brevo_otp_resend_template_id: str = Field(default="dummy")
+    brevo_password_change_success_template_id: str = Field(default="dummy")
+    brevo_profile_update_success_template_id: str = Field(default="dummy")
+    erosuniverse_website_url: str = Field(default="https://example.com")
+    brevo_reset_url: str = Field(default="https://example.com/reset")
 
     # Communication Service settings
-    comm_service_x_api_client: str = Field(...)
-    comm_service_x_service_token: str = Field(...)
-    communication_api_url: str = Field(...)
-    web_url: str = Field(...)
+    comm_service_x_api_client: str = Field(default="dummy")
+    comm_service_x_service_token: str = Field(default="dummy")
+    communication_api_url: str = Field(default="https://example.com")
+    web_url: str = Field(default="https://example.com")
 
     # Legacy API settings
-    legacy_api_url: str = Field(...)
-    legacy_oauth_consumer_key: str = Field(...)
-    legacy_oauth_consumer_secret: str = Field(...)
+    legacy_api_url: str = Field(default="https://example.com")
+    legacy_oauth_consumer_key: str = Field(default="dummy")
+    legacy_oauth_consumer_secret: str = Field(default="dummy")
 
-    google_client_id: str = Field(...)
-    google_android_client_id: str = Field(...)
-    google_ios_client_id: str = Field(...)
-    google_web_client_id: str = Field(...)
+    google_client_id: str = Field(default="dummy")
+    google_android_client_id: str = Field(default="dummy")
+    google_ios_client_id: str = Field(default="dummy")
+    google_web_client_id: str = Field(default="dummy")
 
-    apple_client_id: str = Field(...)
-    apple_ios_client_id: str = Field(...)
-    apple_team_id: str = Field(...)
-    apple_key_id: str = Field(...)
-    apple_private_key: str = Field(...)
+    apple_client_id: str = Field(default="dummy")
+    apple_ios_client_id: str = Field(default="dummy")
+    apple_team_id: str = Field(default="dummy")
+    apple_key_id: str = Field(default="dummy")
+    apple_private_key: str = Field(default="dummy")
     apple_public_key_url: str = Field(default="https://appleid.apple.com/auth/keys")
     apple_issuer: str = Field(default="https://appleid.apple.com")
 
-    facebook_client_id: str = Field(...)
-    facebook_client_secret: str = Field(...)
+    facebook_client_id: str = Field(default="dummy")
+    facebook_client_secret: str = Field(default="dummy")
 
     # FusionAuth Settings
-    fusionauth_url: str = Field(...)
-    fusionauth_api_key: str = Field(...)
-    fusionauth_client_id: str = Field(...)
+    fusionauth_url: str = Field(default="http://localhost:9011")
+    fusionauth_api_key: str = Field(default="dummy")
+    fusionauth_client_id: str = Field(default="dummy")
     fusionauth_bootstrap_key_id: Optional[str] = Field(default=None)
     decryption_private_key_b64: Optional[str] = Field(default=None)
 
@@ -119,16 +119,16 @@ class Settings(BaseSettings):
 
     # Other settings
     CACHE_TIMEOUT_FOR_EMAIL_DNS: int = Field(default=300)
-    skip_partner_auth_redis_check: list[str] = []
+    skip_partner_auth_redis_check: list[str] = Field(default=[])
     token_leeway_threshold_in_days: int = Field(default=15)
-    load_test_bypass_secret: str = Field(...)
+    load_test_bypass_secret: str = Field(default="dummy")
 
     # Deep Links
-    deeplink_login_screen: str = Field(...)
-    deeplink_otp_screen: str = Field(...)
-    deeplink_set_password: str = Field(...)
-    deeplink_link_account: str = Field(...)
-    facebook_auth_link: str = Field(...)
+    deeplink_login_screen: str = Field(default="dummy")
+    deeplink_otp_screen: str = Field(default="dummy")
+    deeplink_set_password: str = Field(default="dummy")
+    deeplink_link_account: str = Field(default="dummy")
+    facebook_auth_link: str = Field(default="dummy")
 
     @property
     def db_url(self) -> URL:
