@@ -42,55 +42,53 @@ class Settings(BaseSettings):
     api_version: str = "v1"
 
     # Variables for the database
-    db_host: str = "localhost"
-    db_port: int = 5432
-    db_user: str = "app"
-    db_pass: str = "app"
-    db_base: str = "admin"
+    db_host: str = Field(...)
+    db_port: int = Field(...)
+    db_user: str = Field(...)
+    db_pass: str = Field(...)
+    db_base: str = Field(...)
     db_echo: bool = False
     db_pool_size: int = 100
     db_max_overflow: int = 50
 
     # Variables for Redis
-    redis_host: str = "app-redis"
-    redis_port: int = 6379
+    redis_host: str = Field(...)
+    redis_port: int = Field(...)
     redis_user: Optional[str] = None
     redis_pass: Optional[str] = None
     redis_base: Optional[int] = None
 
     # JWT Settings
-    jwt_secret_key: str = "your-secret-key"  # Should be set via environment variable
-    jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 1440
-    user_token_days_to_expire: int = 30
+    jwt_secret_key: str = Field(...)
+    jwt_algorithm: str = Field(default="HS256")
+    jwt_access_token_expire_minutes: int = Field(default=1440)
+    user_token_days_to_expire: int = Field(default=30)
 
     # Celery settings
     celery_broker_url: Optional[str] = None
     celery_backend_url: Optional[str] = None
 
     # Register block timeout
-    block_duration_seconds: str = "240000"
-    brevo_forgot_password_template_id: str = "8"
-    brevo_registration_success_template_id: str = "9"
-    brevo_email_verification_template_id: str = "10"
-    brevo_otp_resend_template_id: str = "11"
-    brevo_password_change_success_template_id: str = "14"
-    brevo_profile_update_success_template_id: str = "15"
-    erosuniverse_website_url: str = "https://dev.erosuniverse.com/"
-    brevo_reset_url: str = "https://dev.erosuniverse.com/forgotPwd"
+    block_duration_seconds: str = Field(...)
+    brevo_forgot_password_template_id: str = Field(...)
+    brevo_registration_success_template_id: str = Field(...)
+    brevo_email_verification_template_id: str = Field(...)
+    brevo_otp_resend_template_id: str = Field(...)
+    brevo_password_change_success_template_id: str = Field(...)
+    brevo_profile_update_success_template_id: str = Field(...)
+    erosuniverse_website_url: str = Field(...)
+    brevo_reset_url: str = Field(...)
 
     # Communication Service settings
-    comm_service_x_api_client: str = "CZgbPYnmcj5iyEH9tg0GYvB4lm9gGQ9qs6jQwllV"
-    comm_service_x_service_token: str = (
-        "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.e30.TWUdmzGEToMw7xpFthorSm9Os5qdl-SU0XAg3qGLRM4"
-    )
-    communication_api_url: str = "https://dev-apigateway.erosuniverse.com"
-    web_url: str = "https://dev.erosuniverse.com/"
+    comm_service_x_api_client: str = Field(...)
+    comm_service_x_service_token: str = Field(...)
+    communication_api_url: str = Field(...)
+    web_url: str = Field(...)
 
     # Legacy API settings
-    legacy_api_url: str = "https://dev-apigateway.erosuniverse.com"
-    legacy_oauth_consumer_key: str = "4e297e55a0600bb031c03b579f3151d3050220d41"
-    legacy_oauth_consumer_secret: str = "8fadbc16ca36f3d2165a33f43be07411"
+    legacy_api_url: str = Field(...)
+    legacy_oauth_consumer_key: str = Field(...)
+    legacy_oauth_consumer_secret: str = Field(...)
 
     google_client_id: str = Field(...)
     google_android_client_id: str = Field(...)
@@ -116,21 +114,21 @@ class Settings(BaseSettings):
     decryption_private_key_b64: Optional[str] = Field(default=None)
 
     # Kafka Settings
-    kafka_bootstrap_servers: str = "localhost:9092"
-    kafka_topic_user_profile: str = "user_profile_event"
+    kafka_bootstrap_servers: str = Field(default="localhost:9092")
+    kafka_topic_user_profile: str = Field(default="user_profile_event")
 
     # Other settings
-    CACHE_TIMEOUT_FOR_EMAIL_DNS: int = 300
+    CACHE_TIMEOUT_FOR_EMAIL_DNS: int = Field(default=300)
     skip_partner_auth_redis_check: list[str] = []
-    token_leeway_threshold_in_days: int = 15
-    load_test_bypass_secret: str = "LOAD_TEST_BYPASS_SECRET_123"
+    token_leeway_threshold_in_days: int = Field(default=15)
+    load_test_bypass_secret: str = Field(...)
 
     # Deep Links
-    deeplink_login_screen: str = "erosnowapp://login?{}"
-    deeplink_otp_screen: str = "erosnowapp://verify_otp?{}"
-    deeplink_set_password: str = "erosnowapp://set_password?{}"
-    deeplink_link_account: str = "erosnowapp://link_account"
-    facebook_auth_link: str = "https://graph.facebook.com/oauth/access_token"
+    deeplink_login_screen: str = Field(...)
+    deeplink_otp_screen: str = Field(...)
+    deeplink_set_password: str = Field(...)
+    deeplink_link_account: str = Field(...)
+    facebook_auth_link: str = Field(...)
 
     @property
     def db_url(self) -> URL:
