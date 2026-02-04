@@ -223,6 +223,7 @@ class PlatformTypes:
     ANDROID = "android"
     IOS = "ios"
     WEB = "web"
+    MWEB = "mweb"
 
 
 class DeviceTypes:
