@@ -51,6 +51,7 @@ class PlatformEnum(enum.Enum):
     ANDROID = "android"
     IOS = "ios"
     WEB = "web"
+    MWEB = "mweb"
 
 
 class GenderEnum(enum.Enum):
