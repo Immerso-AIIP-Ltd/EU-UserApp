@@ -1,6 +1,5 @@
-"""Redis Cluster factory."""
+from typing import Any
 
-from redis.asyncio import Redis
 from redis.asyncio.cluster import ClusterNode, RedisCluster
 
 
@@ -21,7 +20,7 @@ class RedisFactory:
             ClusterNode(host, int(port))
             for host, port in (node.split(":") for node in cluster_nodes.split(","))
         ]
-        kwargs = {
+        kwargs: dict[str, Any] = {
             "startup_nodes": startup_nodes,
             "decode_responses": decode_responses,
             "socket_connect_timeout": socket_connect_timeout,
@@ -32,7 +31,7 @@ class RedisFactory:
         if password:
             kwargs["password"] = password
 
-        self.client = RedisCluster(**kwargs)
+        self.client = RedisCluster(**kwargs)  # type: ignore[abstract]
 
     def get_connection(self) -> RedisCluster:
         """Get Redis Cluster client."""

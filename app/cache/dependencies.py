@@ -1,7 +1,6 @@
 """Cache dependencies."""
 
 from fastapi import Request
-from redis.asyncio import Redis
 from redis.asyncio.cluster import RedisCluster
 
 
