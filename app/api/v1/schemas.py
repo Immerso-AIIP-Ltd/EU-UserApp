@@ -722,3 +722,14 @@ class DeviceRegisterResponse(GenericResponse[DeviceInviteData]):
 
     Reusing DeviceInviteData as it has device_id.
     """
+
+
+class RecaptchaVerifyRequest(BaseModel):
+    """Request schema for reCAPTCHA verification."""
+
+    recaptcha_site_key: str = Field(..., description="Recaptcha Site Key")
+    token: str = Field(..., description="Recaptcha Token")
+    recaptcha_action: str = Field(..., description="Recaptcha Action")
+    user_ip_address: Optional[str] = Field(None, description="User IP Address")
+    user_agent: Optional[str] = Field(None, description="User Agent")
+    ja3: Optional[str] = Field(None, description="JA3 Fingerprint")

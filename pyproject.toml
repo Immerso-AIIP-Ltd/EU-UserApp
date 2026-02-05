@@ -41,6 +41,7 @@ requests = "^2.32.5"
 email-validator = "^2.3.0"
 opentelemetry-exporter-otlp = "^1.39.1"
 aiokafka = "^0.13.0"
+google-cloud-recaptcha-enterprise = "^1.30.0"
 
 
 
