@@ -11,7 +11,7 @@ from app.api.v1.service.device_service import DeviceService
 from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
 from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.api.v1.service.google_oauth_service import GoogleOAuthService
-from app.core.constants import DeviceNames, ErrorMessages
+from app.core.constants import DeviceNames, ErrorMessages, RequestParams
 from app.core.exceptions.exceptions import DeviceNotRegisteredError
 from app.db.models.user_app import User
 from app.db.utils import execute_query
@@ -110,7 +110,7 @@ class SocialLoginService:
 
         token, expires_at = await AuthService.generate_token(
             user=User(id=user_id),
-            client_id=request_data["client_id"],
+            client_id=request_data[RequestParams.API_CLIENT],
             db_session=db_session,
             cache=cache,
             device_id=device_id,
@@ -251,7 +251,7 @@ class SocialLoginService:
 
         token, expires_at = await AuthService.generate_token(
             user=User(id=user_id),
-            client_id=request_data["client_id"],
+            client_id=request_data[RequestParams.API_CLIENT],
             db_session=db_session,
             cache=cache,
             device_id=device_id,
@@ -392,7 +392,7 @@ class SocialLoginService:
 
         token, expires_at = await AuthService.generate_token(
             user=User(id=user_id),
-            client_id=request_data["client_id"],
+            client_id=request_data[RequestParams.API_CLIENT],
             db_session=db_session,
             cache=cache,
             device_id=device_id,
