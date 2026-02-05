@@ -52,11 +52,14 @@ class Settings(BaseSettings):
     db_max_overflow: int = Field(default=50)
 
     # Variables for Redis
-    redis_host: str = Field(default="localhost")
-    redis_port: int = Field(default=6379)
-    redis_user: Optional[str] = Field(default=None)
     redis_pass: Optional[str] = Field(default=None)
-    redis_base: Optional[int] = Field(default=None)
+    redis_cluster_nodes: Optional[str] = Field(default=None)
+    redis_socket_timeout: int = Field(default=5)
+
+    # Variables for OAuth Redis
+    oauth_redis_pass: Optional[str] = Field(default=None)
+    oauth_redis_cluster_nodes: Optional[str] = Field(default=None)
+    oauth_redis_socket_timeout: int = Field(default=5)
 
     # JWT Settings
     jwt_secret_key: str = Field(default="dummy")
@@ -163,65 +166,28 @@ class Settings(BaseSettings):
         )
 
     @property
-    def redis_url(self) -> URL:
-        """
-        Assemble REDIS URL from settings.
-
-        :return: redis URL.
-        """
-        path = ""
-        if self.redis_base is not None:
-            path = f"/{self.redis_base}"
-        return URL.build(
-            scheme="redis",
-            host=self.redis_host,
-            port=self.redis_port,
-            user=self.redis_user,
-            password=self.redis_pass,
-            path=path,
-        )
-
-    @property
     def celery_broker_url_computed(self) -> str:
         """Assemble Celery broker URL from settings.
 
-        Uses explicit celery_broker_url if set, otherwise defaults to Redis.
+        Uses explicit celery_broker_url if set.
 
         :return: Celery broker URL.
         """
         if self.celery_broker_url:
             return self.celery_broker_url
-        if self.redis_pass:
-            auth = (
-                f":{self.redis_pass}@"
-                if self.redis_user is None
-                else f"{self.redis_user}:{self.redis_pass}@"
-            )
-            base = self.redis_base if self.redis_base is not None else 0
-            return f"redis://{auth}{self.redis_host}:{self.redis_port}/{base}"
-        base = self.redis_base if self.redis_base is not None else 0
-        return f"redis://{self.redis_host}:{self.redis_port}/{base}"
+        return ""
 
     @property
     def celery_backend_url_computed(self) -> str:
         """Assemble Celery result backend URL from settings.
 
-        Uses explicit celery_backend_url if set, otherwise defaults to Redis.
+        Uses explicit celery_backend_url if set.
 
         :return: Celery backend URL.
         """
         if self.celery_backend_url:
             return self.celery_backend_url
-        if self.redis_pass:
-            auth = (
-                f":{self.redis_pass}@"
-                if self.redis_user is None
-                else f"{self.redis_user}:{self.redis_pass}@"
-            )
-            base = self.redis_base if self.redis_base is not None else 1
-            return f"redis://{auth}{self.redis_host}:{self.redis_port}/{base}"
-        base = self.redis_base if self.redis_base is not None else 1
-        return f"redis://{self.redis_host}:{self.redis_port}/{base}"
+        return ""
 
     @property
     def verify_otp_url(self) -> str:
