@@ -2,11 +2,13 @@ import asyncio
 import logging
 import time
 from datetime import date
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 import bcrypt
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse
+from google.cloud import recaptchaenterprise_v1
+from google.cloud.recaptchaenterprise_v1 import Assessment
 from loguru import logger
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +17,7 @@ from app.api.queries import UserQueries
 from app.api.v1.schemas import (
     EncryptedRequest,
     IntentEnum,
+    RecaptchaVerifyRequest,
     RegisterWithProfileRequest,
     ResendOTPRequest,
     UserProfileData,
@@ -446,6 +449,7 @@ async def _finalize_user_registration(
     user_id = user_rows[0][ProcessParams.ID]
 
     # 4. Handle User Profile Creation
+
     await _create_user_profile(db_session, user_id, cached_data, headers)
 
     # 5. Log OTP Verification
@@ -963,3 +967,103 @@ async def resend_otp(
         message=SuccessMessages.OTP_RESENT,
         data={RequestParams.SENT: True},
     )
+
+
+def create_assessment(
+    project_id: str,
+    recaptcha_key: str,
+    token: str,
+    recaptcha_action: str,
+    user_ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None,
+    ja3: Optional[str] = None,
+) -> Assessment:
+    """Create an assessment to analyze the risk of a UI action."""
+    client = recaptchaenterprise_v1.RecaptchaEnterpriseServiceClient()
+    event = recaptchaenterprise_v1.Event()
+    event.site_key = recaptcha_key
+    event.token = token
+    if user_ip_address:
+        event.user_ip_address = user_ip_address
+    if user_agent:
+        event.user_agent = user_agent
+    if ja3:
+        event.ja3 = ja3
+
+    assessment = recaptchaenterprise_v1.Assessment()
+    assessment.event = event
+
+    project_name = f"projects/{project_id}"
+    request = recaptchaenterprise_v1.CreateAssessmentRequest()
+    request.assessment = assessment
+    request.parent = project_name
+
+    return client.create_assessment(request)
+
+
+@router.post("/recaptcha/verify")
+async def verify_recaptcha(
+    payload: RecaptchaVerifyRequest,
+) -> JSONResponse:
+    """Verify Google reCAPTCHA token."""
+    project_id = settings.recaptcha_project_id
+    if not project_id:
+        return JSONResponse(
+            {"error": "RECAPTCHA_PROJECT_ID not set in environment"},
+            status_code=500,
+        )
+
+    try:
+        # Run synchronous gRPC call in a thread
+        assessment = await asyncio.to_thread(
+            create_assessment,
+            project_id=project_id,
+            recaptcha_key=payload.recaptcha_site_key,
+            token=payload.token,
+            recaptcha_action=payload.recaptcha_action,
+            user_ip_address=payload.user_ip_address,
+            user_agent=payload.user_agent,
+            ja3=payload.ja3,
+        )
+
+        # Handle invalid token
+        if not assessment.token_properties.valid:
+            return JSONResponse(
+                {
+                    "error": "Invalid token",
+                    "reason": str(assessment.token_properties.invalid_reason),
+                },
+                status_code=400,
+            )
+
+        # Handle action mismatch
+        if assessment.token_properties.action != payload.recaptcha_action:
+            return JSONResponse(
+                {
+                    "error": "Action mismatch",
+                    "expected": payload.recaptcha_action,
+                    "actual": assessment.token_properties.action,
+                },
+                status_code=400,
+            )
+
+        reasons = [str(reason) for reason in assessment.risk_analysis.reasons]
+        score = assessment.risk_analysis.score
+
+        service_client = recaptchaenterprise_v1.RecaptchaEnterpriseServiceClient
+        assessment_name = service_client.parse_assessment_path(
+            assessment.name,
+        ).get("assessment")
+
+        return JSONResponse(
+            {
+                "score": score,
+                "reasons": reasons,
+                "assessment_name": assessment_name,
+            },
+            status_code=200,
+        )
+
+    except Exception as e:
+        logger.exception("Recaptcha verification failed")
+        return JSONResponse({"error": str(e)}, status_code=500)

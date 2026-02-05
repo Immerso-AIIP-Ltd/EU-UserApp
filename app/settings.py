@@ -115,6 +115,9 @@ class Settings(BaseSettings):
     fusionauth_bootstrap_key_id: Optional[str] = Field(default=None)
     decryption_private_key_b64: Optional[str] = Field(default=None)
 
+    # ReCaptcha Settings
+    recaptcha_project_id: str = Field(default="eros-universe-8cddf")
+
     # Kafka Settings
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_topic_user_profile: str = "user_profile_event"
