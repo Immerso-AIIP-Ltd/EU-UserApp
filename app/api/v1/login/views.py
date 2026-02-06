@@ -314,7 +314,9 @@ async def set_forgot_password(
         user_id,
     ) = await ForgotPasswordService.set_forgot_password(
         db=db,
-        email=str(set_forgot_payload.email),
+        email=set_forgot_payload.email,
+        mobile=set_forgot_payload.mobile,
+        calling_code=set_forgot_payload.calling_code,
         password=set_forgot_payload.password,
         client_id=str(client_id),
         device_id=real_device_id,
@@ -334,7 +336,7 @@ async def set_forgot_password(
         if profile_data_list
         else {
             RequestParams.USER_ID: str(user_id),
-            RequestParams.EMAIL: str(set_forgot_payload.email),
+            RequestParams.EMAIL: set_forgot_payload.email or "",
             RequestParams.NAME: None,
         }
     )

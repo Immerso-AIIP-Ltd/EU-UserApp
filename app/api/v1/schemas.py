@@ -296,8 +296,29 @@ class ChangePasswordRequest(BaseModel):
 class SetForgotPasswordRequest(BaseModel):
     """Request schema for /user/v1/user/set_forgot_password."""
 
-    email: EmailStr = Field(..., description=Description.EMAIL)
+    email: Annotated[
+        Optional[EmailStr],
+        Field(
+            default=None,
+            description=Description.EMAIL,
+            validation_alias=AliasChoices("email", "email_id"),
+        ),
+    ]
+    mobile: Optional[str] = Field(default=None, description=Description.MOBILE)
+    calling_code: Optional[str] = Field(
+        default=None,
+        description=Description.CALLING_CODE,
+    )
     password: str = Field(..., description=Description.PASSWORD)
+
+    @model_validator(mode="after")
+    def validate_contact_info(self) -> Self:
+        """Validate that either email or mobile+calling_code is provided."""
+        if not self.email and not (self.mobile and self.calling_code):
+            raise ValueError(
+                ErrorMessages.EMAIL_OR_MOBILE_CC_REQUIRED,
+            )
+        return self
 
 
 class UpdateProfileRequest(BaseModel):
