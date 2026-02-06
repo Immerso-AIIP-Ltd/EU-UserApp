@@ -85,16 +85,14 @@ class GenerateOtpService:
         name: Optional[str] = None,
     ) -> None:
         """Generate and send OTP based on receiver type (email or mobile)."""
-        # Generate OTP locally using secrets for security (S311)
-        otp = "".join(secrets.choice(string.digits) for _ in range(4))
-
         logger.info(
-            f"Generating OTP for {receiver} (type={receiver_type}, intent={intent})",
+            f"Initiating OTP for {receiver} (type={receiver_type}, intent={intent})",
         )
-        # DEBUG LOGGING FOR OTP
-        logger.info(f"Generated OTP: {otp}")
 
         if receiver_type == RequestParams.EMAIL:
+            # Generate OTP locally for email
+            otp = "".join(secrets.choice(string.digits) for _ in range(4))
+            logger.info(f"Generated local OTP for email: {otp}")
             await GenerateOtpService._handle_email_otp(
                 redis_client,
                 receiver,
@@ -105,10 +103,11 @@ class GenerateOtpService:
                 name=name,
             )
         elif receiver_type == RequestParams.MOBILE:
+            # External API handles generation for mobile
             await GenerateOtpService._handle_mobile_otp(
                 redis_client,
                 receiver,
-                otp,
+                None,  # OTP is not generated locally
                 intent,
                 x_forwarded_for,
                 mobile,
@@ -172,13 +171,13 @@ class GenerateOtpService:
     async def _handle_mobile_otp(
         redis_client: Redis,
         receiver: Any,
-        otp: str,
+        otp: Optional[str],  # This is unused as external API handles it
         intent: str,
         x_forwarded_for: Optional[str],
         mobile: Optional[str],
         calling_code: Optional[str],
     ) -> None:
-        """Handle logic for mobile-based OTP delivery (SMS)."""
+        """Handle logic for mobile-based OTP delivery (SMS) via external API."""
         if not x_forwarded_for:
             logger.error(LogMessages.CLIENT_IP_MISSING)
             raise exceptions.ClientIpNotProvidedError
@@ -213,32 +212,34 @@ class GenerateOtpService:
             )
             raise exceptions.OtpTooManyAttemptsError
 
-        receiver_for_key = str(receiver).lstrip("+")
-        redis_key = CacheKeyTemplates.OTP_MOBILE.format(
-            receiver=receiver_for_key,
-            intent=intent,
-        )
-        await redis_client.setex(redis_key, CacheTTL.OTP_EXPIRY, otp)
-
-        sms_payload = {
-            RequestParams.MOBILE: mobile or receiver,
-            RequestParams.CALLING_CODE: calling_code or "",
-            CommParams.MESSAGE: None,
-            CommParams.VARIABLES: {
-                TemplateParams.OTP: otp,
-                CommParams.VAR: otp,
-            },
+        # Call External Communication API for OTP Generation
+        payload = {
+            "receiver": str(receiver).lstrip("+"),
+            "receiver_type": RequestParams.MOBILE,
+            "intent": intent,
         }
+
+        logger.info(
+            f"Calling external OTP generation for {receiver} "
+            f"with payload: {payload}",
+        )
 
         try:
             response = await call_communication_api(
-                register_deeplinks.SMS_SEND_URL,
-                sms_payload,
+                register_deeplinks.GENERATE_OTP_URL,
+                payload,
             )
-            if response and response.get(CommParams.STATUS) != ResponseParams.SUCCESS:
-                logger.error(LogMessages.SMS_SEND_FAILED.format(response))
+            if response and response.get(CommParams.STATUS) == ResponseParams.SUCCESS:
+                is_otp_sent = response.get(ResponseParams.DATA)
+                if not is_otp_sent:
+                    logger.error("Communication Service reported OTP not sent")
+                    raise exceptions.OtpTooManyAttemptsError
+            else:
+                logger.error(f"External OTP generation failed: {response}")
+                raise exceptions.CommServiceAPICallFailedError
         except Exception as e:
             logger.error(LogMessages.SMS_SEND_EXCEPTION.format(e))
+            raise exceptions.CommServiceAPICallFailedError from e
 
     @staticmethod
     async def _get_username(
