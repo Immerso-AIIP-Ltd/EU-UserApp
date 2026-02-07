@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import time
 from datetime import date
 from typing import Any, Optional, Union
@@ -34,6 +33,7 @@ from app.cache.dependencies import get_redis_connection
 from app.core.constants import (
     CacheKeyTemplates,
     CacheTTL,
+    CommParams,
     DeviceNames,
     ErrorMessages,
     HeaderKeys,
@@ -42,12 +42,13 @@ from app.core.constants import (
     ProcessParams,
     RedirectTemplates,
     RequestParams,
+    ResponseParams,
     SuccessMessages,
 )
 from app.core.exceptions import (
+    CommServiceAPICallFailedError,
     DecryptionFailedError,
     DeviceNotRegisteredError,
-    OtpExpiredError,
     OtpInvalidError,
     PayloadNotEncryptedError,
     RegistrationSessionClosedError,
@@ -617,36 +618,66 @@ async def _verify_and_consume_otp(
     intent: str,
     otp: str,
 ) -> None:
-    """Verify and delete the OTP from cache."""
-    template = (
-        CacheKeyTemplates.OTP_EMAIL
-        if receiver_type == RequestParams.EMAIL
-        else CacheKeyTemplates.OTP_MOBILE
-    )
-    redis_key = template.format(receiver=receiver, intent=intent)
-    cached_otp = await cache.get(redis_key)
+    """Verify and delete the OTP from cache or external service."""
+    if receiver_type == RequestParams.EMAIL:
+        redis_key = CacheKeyTemplates.OTP_EMAIL.format(receiver=receiver, intent=intent)
+        cached_otp = await cache.get(redis_key)
 
-    # DEBUG LOGGING
-    logger = logging.getLogger(__name__)
-    logger.info(
-        f"Verifying OTP for {receiver}. Received: {otp}. Cached Raw: {cached_otp}",
-    )
+        # DEBUG LOGGING
+        logger.info(
+            f"Verifying Email OTP for {receiver}. Received: {otp}. "
+            f"Cached Raw: {cached_otp}",
+        )
 
-    if (
-        not cached_otp
-        or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
-        or (isinstance(cached_otp, str) and cached_otp != otp)
-    ):
-        raise OtpExpiredError
+        if (
+            not cached_otp
+            or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
+            or (isinstance(cached_otp, str) and cached_otp != otp)
+        ):
+            raise OtpInvalidError
 
-    # 2. Verify OTP
-    if (isinstance(cached_otp, bytes) and cached_otp.decode() != otp) or (
-        isinstance(cached_otp, str) and cached_otp != otp
-    ):
-        raise OtpInvalidError
+        # Consume OTP
+        await cache.delete(redis_key)
+    else:
+        # For MOBILE, call external Communication API for validation
+        from app.api.v1.service import register_deeplinks
+        from app.api.v1.service.register_commservice import call_communication_api
 
-    # 3. Consume OTP
-    await cache.delete(redis_key)
+        payload = {
+            "receiver": str(receiver).lstrip("+"),
+            "receiver_type": receiver_type,
+            "intent": intent,
+            "otp": otp,
+        }
+
+        logger.info(
+            f"Calling external OTP verification for {receiver} "
+            f"with payload: {payload}",
+        )
+
+        try:
+            response = await call_communication_api(
+                register_deeplinks.VERIFY_OTP_URL,
+                payload,
+            )
+            if (
+                not response
+                or response.get(CommParams.STATUS) != ResponseParams.SUCCESS
+            ):
+                logger.warning(
+                    f"External OTP verification failed for {receiver}: {response}",
+                )
+                raise OtpInvalidError
+
+            is_valid = response.get(ResponseParams.DATA)
+            if not is_valid:
+                raise OtpInvalidError
+
+        except Exception as e:
+            if isinstance(e, OtpInvalidError):
+                raise
+            logger.error(f"Error calling external OTP verification: {e}")
+            raise CommServiceAPICallFailedError from e
 
 
 async def _get_cached_registration_data(cache: Redis, receiver: str) -> dict[str, Any]:

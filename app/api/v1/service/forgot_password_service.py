@@ -98,58 +98,48 @@ class ForgotPasswordService:
         return Messages.OTP_SENT
 
     @staticmethod
-    async def set_forgot_password(
+    async def _get_user_for_reset(
         db: AsyncSession,
-        email: str,
-        password: str,
-        client_id: str,
-        device_id: str,
-        cache: Redis,
-    ) -> tuple[str, str, int, Any]:
-        """Update user password and return auth token."""
-        # 0. Check if device is registered
-        if not device_id or not await DeviceService.is_device_registered(
-            device_id,
-            db,
-        ):
-            raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+        email: str | None,
+        mobile: str | None,
+        calling_code: str | None,
+    ) -> Any:
+        """Find user account by email or mobile."""
+        user_data = None
+        if email:
+            rows = await execute_query(
+                UserQueries.GET_USER_BY_EMAIL,
+                {"email": email},
+                db,
+            )
+            if rows:
+                user_data = rows[0]
+        elif mobile and calling_code:
+            rows = await execute_query(
+                UserQueries.GET_USER_BY_MOBILE,
+                {"mobile": mobile, "calling_code": calling_code},
+                db,
+            )
+            if rows:
+                user_data = rows[0]
 
-        # 1. Get User
-        rows = await execute_query(UserQueries.GET_USER_BY_EMAIL, {"email": email}, db)
-        if not rows:
+        if not user_data:
             raise UserNotFoundError
 
-        user_data = rows[0]
-        user_id = user_data["id"]
-
-        # Check account state
         ForgotPasswordService._validate_user_state(user_data)
+        return user_data
 
-        # 2. Update Password
-        hashed_password = AuthService.hash_password(password)
-        await execute_query(
-            UserQueries.UPDATE_USER_PASSWORD,
-            {"user_id": user_id, "password": hashed_password},
-            db,
-        )
-        await db.commit()
-
-        # 3. Generate Local Token (Legacy/Audit)
-        user = User(id=user_id, email=email)
-
-        token, expires_at = await AuthService.generate_token(
-            db_session=db,
-            user=user,
-            client_id=client_id,
-            cache=cache,
-            device_id=device_id,
-        )
-
-        # 4. FusionAuth Integration & Linking & Refresh Token
+    @staticmethod
+    async def _integrate_fusion_auth(
+        user_id: Any,
+        email: str | None,
+        device_id: str,
+        db: AsyncSession,
+        cache: Redis,
+    ) -> tuple[str | None, str | None]:
+        """Sync user with FusionAuth and generate tokens."""
         try:
             user_uuid_str = str(user_id)
-
-            # 4.1 Sync User (Ensure exists) - Cache sync status to avoid redundant calls
             sync_cache_key = f"fa_synced:{user_uuid_str}"
             is_synced = await cache.get(sync_cache_key)
 
@@ -159,49 +149,90 @@ class ForgotPasswordService:
                     user_uuid_str,
                     email,
                 )
-                # Cache for 24 hours
                 await cache.set(sync_cache_key, "true", ex=86400)
 
-            # 4.2 Issue Token & Create Refresh Session in Parallel
-            async def generate_refresh() -> str:
-                return await AuthService.create_refresh_session(
-                    db_session=db,
-                    user_id=str(user_id),
-                    device_id=device_id or DeviceNames.UNKNOWN_DEVICE,
-                )
-
-            async def issue_fa_token() -> str:
-                return await asyncio.to_thread(
+            # Parallelize token and session generation
+            fa_token_task = asyncio.create_task(
+                asyncio.to_thread(
                     FusionAuthService.issue_token,
                     user_uuid_str,
                     user_details={"device_id": device_id},
-                )
-
-            fa_token_task = asyncio.create_task(issue_fa_token())
-            refresh_task = asyncio.create_task(generate_refresh())
-
-            fa_token, refresh_token = await asyncio.gather(
-                fa_token_task,
-                refresh_task,
+                ),
+            )
+            refresh_task = asyncio.create_task(
+                AuthService.create_refresh_session(
+                    db_session=db,
+                    user_id=user_uuid_str,
+                    device_id=device_id or DeviceNames.UNKNOWN_DEVICE,
+                ),
             )
 
-            if fa_token:
-                token = fa_token
-                expires_at = int(time.time()) + (
-                    settings.jwt_access_token_expire_minutes * 60
-                )
+            return await asyncio.gather(fa_token_task, refresh_task)
 
         except Exception as e:
-            # Log the error but continue if token was already generated locally
-            # In production, you might want more strict handling
             import logging
 
-            logging.getLogger(__name__).warning(f"Error in FusionAuth integration: {e}")
-            if not refresh_token:
-                # Fallback to local refresh token if FA failed (if applicable)
-                pass
+            logging.getLogger(__name__).warning(f"FusionAuth error: {e}")
+            return None, None
 
-        # 5. Link device to user
+    @staticmethod
+    async def set_forgot_password(
+        db: AsyncSession,
+        email: str | None,
+        mobile: str | None,
+        calling_code: str | None,
+        password: str,
+        client_id: str,
+        device_id: str,
+        cache: Redis,
+    ) -> tuple[str, str, int, Any]:
+        """Update user password and return auth token."""
+        if not device_id or not await DeviceService.is_device_registered(
+            device_id,
+            db,
+        ):
+            raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
+        user_data = await ForgotPasswordService._get_user_for_reset(
+            db,
+            email,
+            mobile,
+            calling_code,
+        )
+        user_id = user_data["id"]
+        final_email = user_data.get("email") or email
+
+        hashed_password = AuthService.hash_password(password)
+        await execute_query(
+            UserQueries.UPDATE_USER_PASSWORD,
+            {"user_id": user_id, "password": hashed_password},
+            db,
+        )
+        await db.commit()
+
+        user = User(id=user_id, email=final_email)
+        token, expires_at = await AuthService.generate_token(
+            db_session=db,
+            user=user,
+            client_id=client_id,
+            cache=cache,
+            device_id=device_id,
+        )
+
+        fa_token, refresh_token = await ForgotPasswordService._integrate_fusion_auth(
+            user_id,
+            final_email,
+            device_id,
+            db,
+            cache,
+        )
+
+        if fa_token:
+            token = fa_token
+            expires_at = int(time.time()) + (
+                settings.jwt_access_token_expire_minutes * 60
+            )
+
         await DeviceService.link_device_to_user(
             device_id=device_id or "",
             user_uuid=user_id,
@@ -210,4 +241,4 @@ class ForgotPasswordService:
             auth_token=token,
         )
 
-        return token, refresh_token, expires_at, user_id
+        return token, refresh_token or "", expires_at, user_id

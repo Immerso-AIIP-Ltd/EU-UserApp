@@ -127,7 +127,7 @@ async def join_waitlist(
     client_ip = (
         x_forwarded.split(",")[0].strip()
         if x_forwarded
-        else (request.client.host if request.client else settings.redis_host)
+        else (request.client.host if request.client else settings.host)
     )
 
     if not device_id:

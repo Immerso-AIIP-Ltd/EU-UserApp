@@ -1,5 +1,7 @@
 """Application constants."""
 
+import os
+
 
 # General
 class AppUserApp:
@@ -16,6 +18,19 @@ class AppUserApp:
     REDIS_RETRY_ON_TIMEOUT = True
     REDIS_HEALTH_CHECK_INTERVAL = 10
     REDIS_DECODE_RESPONSES = True
+    REDIS_CLUSTER_NODES = os.getenv(
+        "APP_REDIS_CLUSTER_NODES",
+        "127.0.0.1:7000,127.0.0.1:7001,127.0.0.1:7002",
+    )
+    REDIS_PASSWORD = os.getenv("APP_REDIS_PASS") or None
+    REDIS_SOCKET_TIMEOUT = int(os.getenv("APP_REDIS_SOCKET_TIMEOUT", "5"))
+    # OAuth Redis Config
+    OAUTH_REDIS_CLUSTER_NODES = os.getenv(
+        "APP_OAUTH_REDIS_CLUSTER_NODES",
+        REDIS_CLUSTER_NODES,
+    )
+    OAUTH_REDIS_PASSWORD = os.getenv("APP_OAUTH_REDIS_PASS") or None
+    OAUTH_REDIS_SOCKET_TIMEOUT = int(os.getenv("APP_OAUTH_REDIS_SOCKET_TIMEOUT", "5"))
 
 
 # HTTP Status Codes
@@ -223,6 +238,7 @@ class PlatformTypes:
     ANDROID = "android"
     IOS = "ios"
     WEB = "web"
+    MWEB = "mweb"
 
 
 class DeviceTypes:

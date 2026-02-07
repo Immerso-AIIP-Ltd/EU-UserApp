@@ -50,10 +50,14 @@ async def call_communication_api(
         raise CommServiceAPICallFailedError from e
 
     if response.status_code != HTTPStatus.OK:
+        error_detail = response.text
+        logger.error(
+            f"Communication API returned {response.status_code}: {error_detail}",
+        )
         logger.info(
             CommServiceConfig.LOGGER_MSG,
             extra={
-                LogKeys.SERVER_RESPONSE: response.text,
+                LogKeys.SERVER_RESPONSE: error_detail,
                 LogKeys.SERVER_RESPONSE_CODE: response.status_code,
             },
         )
