@@ -51,6 +51,7 @@ jobs:
           APP_FUSIONAUTH_URL=http://localhost:9011
           APP_FUSIONAUTH_API_KEY=dummy
           APP_FUSIONAUTH_CLIENT_ID=dummy
+          APP_JWT_SECRET_KEY=this-is-a-very-secure-and-long-secret-key-for-testing-purposes
           OTEL_SDK_DISABLED=true
           EOF
 
