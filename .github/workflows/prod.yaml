@@ -52,6 +52,7 @@ jobs:
           APP_COMM_SERVICE_X_SERVICE_TOKEN=dummy
           APP_COMMUNICATION_API_URL=https://example.com
           APP_WEB_URL=https://example.com
+          APP_JWT_SECRET_KEY=this-is-a-very-secure-and-long-secret-key-for-testing-purposes
           APP_LEGACY_API_URL=https://example.com
           APP_LEGACY_OAUTH_CONSUMER_KEY=dummy
           APP_LEGACY_OAUTH_CONSUMER_SECRET=dummy
