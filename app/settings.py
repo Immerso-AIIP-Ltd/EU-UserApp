@@ -62,7 +62,9 @@ class Settings(BaseSettings):
     oauth_redis_socket_timeout: int = Field(default=5)
 
     # JWT Settings
-    jwt_secret_key: str = Field(default="dummy")
+    jwt_secret_key: str = Field(
+        default="this-is-a-very-secure-and-long-secret-key-for-testing-purposes",
+    )
     jwt_algorithm: str = Field(default="HS256")
     jwt_access_token_expire_minutes: int = Field(default=1440)
     user_token_days_to_expire: int = Field(default=30)
@@ -115,6 +117,9 @@ class Settings(BaseSettings):
     fusionauth_client_id: str = Field(default="dummy")
     fusionauth_bootstrap_key_id: Optional[str] = Field(default=None)
     decryption_private_key_b64: Optional[str] = Field(default=None)
+
+    # ReCaptcha Settings
+    recaptcha_project_id: str = Field(default="eros-universe-8cddf")
 
     # Kafka Settings
     kafka_bootstrap_servers: str = Field(default="localhost:9092")

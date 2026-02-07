@@ -9,7 +9,6 @@ from loguru import logger
 from app.core.constants import (
     AppleLogMessages,
     AuthConfig,
-    JwtOptions,
     PlatformTypes,
     RequestParams,
     SocialProviders,
@@ -76,7 +75,7 @@ class AppleOAuthService:
                 algorithms=[AuthConfig.RS256],
                 audience=await self.get_client_id(),
                 issuer=settings.apple_issuer,
-                options={JwtOptions.VERIFY_EXP: True},
+                options={"verify_exp": True},
             )
             exp_raw: Optional[Any] = decoded.get("exp")
             if decoded.get("sub") != uid:
