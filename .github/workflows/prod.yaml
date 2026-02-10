@@ -3,7 +3,7 @@ name: Eternals eu-user - Prod Build & Push
 on:
   push:
     tags:
-      - "*-user-dev"
+      - "*-user-gcp-prod"
 
 jobs:
 
@@ -34,8 +34,50 @@ jobs:
 
       - name: Create .env
         run: |
-          echo "APP_ENVIRONMENT=test" >> .env
-          echo "APP_DB_BASE=app_test" >> .env
+          cat << EOF > .env
+          APP_ENVIRONMENT=test
+          APP_DB_BASE=app_test
+          APP_REDIS_PORT=6379
+          APP_JWT_SECRET_KEY=test_secret
+          APP_BLOCK_DURATION_SECONDS=60
+          APP_BREVO_FORGOT_PASSWORD_TEMPLATE_ID=1
+          APP_BREVO_REGISTRATION_SUCCESS_TEMPLATE_ID=1
+          APP_BREVO_EMAIL_VERIFICATION_TEMPLATE_ID=1
+          APP_BREVO_OTP_RESEND_TEMPLATE_ID=1
+          APP_BREVO_PASSWORD_CHANGE_SUCCESS_TEMPLATE_ID=1
+          APP_BREVO_PROFILE_UPDATE_SUCCESS_TEMPLATE_ID=1
+          APP_EROSUNIVERSE_WEBSITE_URL=https://example.com
+          APP_BREVO_RESET_URL=https://example.com/reset
+          APP_COMM_SERVICE_X_API_CLIENT=dummy
+          APP_COMM_SERVICE_X_SERVICE_TOKEN=dummy
+          APP_COMMUNICATION_API_URL=https://example.com
+          APP_WEB_URL=https://example.com
+          APP_JWT_SECRET_KEY=this-is-a-very-secure-and-long-secret-key-for-testing-purposes
+          APP_LEGACY_API_URL=https://example.com
+          APP_LEGACY_OAUTH_CONSUMER_KEY=dummy
+          APP_LEGACY_OAUTH_CONSUMER_SECRET=dummy
+          APP_LOAD_TEST_BYPASS_SECRET=dummy
+          APP_DEEPLINK_LOGIN_SCREEN=dummy
+          APP_DEEPLINK_OTP_SCREEN=dummy
+          APP_DEEPLINK_SET_PASSWORD=dummy
+          APP_DEEPLINK_LINK_ACCOUNT=dummy
+          APP_FACEBOOK_AUTH_LINK=dummy
+          APP_GOOGLE_CLIENT_ID=dummy
+          APP_GOOGLE_ANDROID_CLIENT_ID=dummy
+          APP_GOOGLE_IOS_CLIENT_ID=dummy
+          APP_GOOGLE_WEB_CLIENT_ID=dummy
+          APP_APPLE_CLIENT_ID=dummy
+          APP_APPLE_IOS_CLIENT_ID=dummy
+          APP_APPLE_TEAM_ID=dummy
+          APP_APPLE_KEY_ID=dummy
+          APP_APPLE_PRIVATE_KEY=dummy
+          APP_FACEBOOK_CLIENT_ID=dummy
+          APP_FACEBOOK_CLIENT_SECRET=dummy
+          APP_FUSIONAUTH_URL=http://localhost:9011
+          APP_FUSIONAUTH_API_KEY=dummy
+          APP_FUSIONAUTH_CLIENT_ID=dummy
+          OTEL_SDK_DISABLED=true
+          EOF
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -63,7 +105,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set IMAGE_TAG
-        run: echo "IMAGE_TAG=eu-user-prod-${GITHUB_SHA}" >> $GITHUB_ENV
+        run: echo "IMAGE_TAG=eu-user-gcp-prod-${GITHUB_SHA}" >> $GITHUB_ENV
 
       - uses: docker/build-push-action@v6
         with:
@@ -83,7 +125,7 @@ jobs:
         run: |
           git clone https://$GIT_USER:$GIT_TOKEN@github.com/Immerso-AIIP-Ltd/eros-universe-Helm-charts.git
           cd eros-universe-Helm-charts
-          git checkout eros-universe-prod
+          git checkout gcp-prod
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
@@ -93,4 +135,4 @@ jobs:
 
           git add "$service"
           git commit -m "chore: update eu-user image tag to ${IMAGE_TAG}" || echo "No changes to commit"
-          git push origin eros-universe-prod
+          git push origin gcp-prod

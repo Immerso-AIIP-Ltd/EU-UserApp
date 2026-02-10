@@ -49,7 +49,6 @@ from app.core.exceptions import (
     CommServiceAPICallFailedError,
     DecryptionFailedError,
     DeviceNotRegisteredError,
-    OtpExpiredError,
     OtpInvalidError,
     PayloadNotEncryptedError,
     RegistrationSessionClosedError,
