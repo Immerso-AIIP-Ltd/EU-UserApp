@@ -526,12 +526,13 @@ async def _verify_waitlist_otp(
             intent=Intents.WAITLIST,
         )
         cached_otp = await cache.get(redis_key)
-        if (
-            not cached_otp
-            or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
-            or (isinstance(cached_otp, str) and cached_otp != otp)
-        ):
+        if not cached_otp:
             raise OtpExpiredError
+
+        if (isinstance(cached_otp, bytes) and cached_otp.decode() != otp) or (
+            isinstance(cached_otp, str) and cached_otp != otp
+        ):
+            raise OtpInvalidError
         await cache.delete(redis_key)
     else:
         receiver = f"{calling_code}{mobile}".lstrip("+")
@@ -540,10 +541,11 @@ async def _verify_waitlist_otp(
             intent=Intents.WAITLIST,
         )
         cached_otp = await cache.get(redis_key)
-        if (
-            not cached_otp
-            or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
-            or (isinstance(cached_otp, str) and cached_otp != otp)
+        if not cached_otp:
+            raise OtpExpiredError
+
+        if (isinstance(cached_otp, bytes) and cached_otp.decode() != otp) or (
+            isinstance(cached_otp, str) and cached_otp != otp
         ):
             raise OtpInvalidError
         await cache.delete(redis_key)

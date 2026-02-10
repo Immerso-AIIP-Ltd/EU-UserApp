@@ -282,14 +282,6 @@ class IpBlockedError(AppError):
     error_code = ErrorCodes.IP_BLOCKED
 
 
-class OtpExpiredError(AppError):
-    """OTP has expired."""
-
-    http_code = status.HTTP_400_BAD_REQUEST
-    message = ErrorMessages.OTP_EXPIRED
-    error_code = ErrorCodes.OTP_EXPIRED
-
-
 class OtpTooManyAttemptsError(AppError):
     """Too many OTP verification attempts."""
 
@@ -457,6 +449,17 @@ class OtpInvalidError(AppError):
             http_code=status.HTTP_400_BAD_REQUEST,
             message="Invalid OTP",
             error_code="US400",
+        )
+
+
+class OtpExpiredError(AppError):
+    """Raised when the OTP has expired."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            http_code=status.HTTP_400_BAD_REQUEST,
+            message=ErrorMessages.OTP_EXPIRED,
+            error_code=ErrorCodes.OTP_EXPIRED,
         )
 
 

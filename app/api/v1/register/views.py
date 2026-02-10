@@ -49,6 +49,7 @@ from app.core.exceptions import (
     CommServiceAPICallFailedError,
     DecryptionFailedError,
     DeviceNotRegisteredError,
+    OtpExpiredError,
     OtpInvalidError,
     PayloadNotEncryptedError,
     RegistrationSessionClosedError,
@@ -629,10 +630,11 @@ async def _verify_and_consume_otp(
             f"Cached Raw: {cached_otp}",
         )
 
-        if (
-            not cached_otp
-            or (isinstance(cached_otp, bytes) and cached_otp.decode() != otp)
-            or (isinstance(cached_otp, str) and cached_otp != otp)
+        if not cached_otp:
+            raise OtpExpiredError
+
+        if (isinstance(cached_otp, bytes) and cached_otp.decode() != otp) or (
+            isinstance(cached_otp, str) and cached_otp != otp
         ):
             raise OtpInvalidError
 
@@ -642,6 +644,7 @@ async def _verify_and_consume_otp(
         # For MOBILE, call external Communication API for validation
         from app.api.v1.service import register_deeplinks
         from app.api.v1.service.register_commservice import call_communication_api
+        from app.core.constants import ErrorCodes
 
         payload = {
             "receiver": str(receiver).lstrip("+"),
@@ -667,6 +670,12 @@ async def _verify_and_consume_otp(
                 logger.warning(
                     f"External OTP verification failed for {receiver}: {response}",
                 )
+                if (
+                    response
+                    and response.get(ResponseParams.ERROR_CODE)
+                    == ErrorCodes.OTP_EXPIRED
+                ):
+                    raise OtpExpiredError
                 raise OtpInvalidError
 
             is_valid = response.get(ResponseParams.DATA)
@@ -674,7 +683,7 @@ async def _verify_and_consume_otp(
                 raise OtpInvalidError
 
         except Exception as e:
-            if isinstance(e, OtpInvalidError):
+            if isinstance(e, (OtpInvalidError, OtpExpiredError)):
                 raise
             logger.error(f"Error calling external OTP verification: {e}")
             raise CommServiceAPICallFailedError from e
