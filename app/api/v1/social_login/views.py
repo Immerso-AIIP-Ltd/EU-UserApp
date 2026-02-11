@@ -2,7 +2,6 @@ from typing import Any, Union
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from loguru import logger
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,8 +35,6 @@ async def google_login(
 ) -> JSONResponse:
     """Google Login / Sign Up API - Enforced Encryption."""
 
-    logger.info(f"Google Login Request: {payload}")
-
     if not isinstance(payload, EncryptedRequest):
         if (
             not isinstance(payload, dict)
@@ -49,14 +46,12 @@ async def google_login(
             payload = EncryptedRequest(**payload)
         except Exception as e:
             raise PayloadNotEncryptedError from e
-        logger.info(f"Decrypted Google Payload: {payload}")
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
             encrypted_key=payload.key,
             encrypted_data=payload.data,
         )
-        logger.info(f"Decrypted Google Payload: {decrypted_payload}")
         login_data = SocialLoginRequest(**decrypted_payload)
     except Exception as e:
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
@@ -65,7 +60,6 @@ async def google_login(
         login_data.id_token,
         headers.get(RequestParams.PLATFORM) or "unknown",
     )
-    logger.info(f"Google Service: {google_service}")
 
     request_data = {
         "uid": login_data.uid,
@@ -75,14 +69,12 @@ async def google_login(
         RequestParams.COUNTRY: headers.get(RequestParams.COUNTRY),
         "user_agent": request.headers.get("User-Agent"),
     }
-    logger.info(f"Request Data: {request_data}")
     data = await SocialLoginService.google_login(
         google_service=google_service,
         request_data=request_data,
         db_session=db_session,
         cache=cache,
     )
-    logger.info(f"Google Login Response: {data}")
     return standard_response(
         message=SuccessMessages.USER_LOGGED_IN,
         request=request,
