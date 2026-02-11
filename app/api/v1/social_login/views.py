@@ -65,6 +65,7 @@ async def google_login(
         login_data.id_token,
         headers.get(RequestParams.PLATFORM) or "unknown",
     )
+    logger.info(f"Google Service: {google_service}")
 
     request_data = {
         "uid": login_data.uid,
@@ -81,6 +82,7 @@ async def google_login(
         db_session=db_session,
         cache=cache,
     )
+    logger.info(f"Google Login Response: {data}")
     return standard_response(
         message=SuccessMessages.USER_LOGGED_IN,
         request=request,
