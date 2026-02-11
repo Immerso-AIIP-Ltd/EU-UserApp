@@ -28,20 +28,20 @@ class GoogleOAuthService:
     async def verify_id_token(self) -> Any:
         """Verify the Google ID token."""
         try:
-            if self.platform == "ios":
-                google_client_id = settings.google_ios_client_id
-            elif self.platform == "android":
-                google_client_id = settings.google_android_client_id
-            else:
-                # Allow both client IDs for testing/web
-                google_client_id = (
-                    None  # Disable audience check strictly for debugging/unblocking
-                )
+            # Collect all valid client IDs as potential audiences
+            audiences = [
+                settings.google_web_client_id,
+                settings.google_android_client_id,
+                settings.google_ios_client_id,
+                settings.google_client_id,
+            ]
+            # Filter out "dummy" or empty values
+            valid_audiences = [aud for aud in audiences if aud and aud != "dummy"]
 
             id_info = google.oauth2.id_token.verify_oauth2_token(
                 self.id_token,
                 requests.Request(),
-                google_client_id,
+                valid_audiences,
             )
 
             if id_info["iss"] not in [
