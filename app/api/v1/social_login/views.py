@@ -2,6 +2,7 @@ from typing import Any, Union
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from loguru import logger
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -48,14 +49,14 @@ async def google_login(
             payload = EncryptedRequest(**payload)
         except Exception as e:
             raise PayloadNotEncryptedError from e
-        print(payload)
+        logger.info(f"Decrypted Google Payload: {payload}")
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
             encrypted_key=payload.key,
             encrypted_data=payload.data,
         )
-        print(decrypted_payload)
+        logger.info(f"Decrypted Google Payload: {decrypted_payload}")
         login_data = SocialLoginRequest(**decrypted_payload)
     except Exception as e:
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
