@@ -35,6 +35,8 @@ async def google_login(
 ) -> JSONResponse:
     """Google Login / Sign Up API - Enforced Encryption."""
 
+    logger.info(f"Google Login Request: {payload}")
+
     if not isinstance(payload, EncryptedRequest):
         if (
             not isinstance(payload, dict)
@@ -46,12 +48,14 @@ async def google_login(
             payload = EncryptedRequest(**payload)
         except Exception as e:
             raise PayloadNotEncryptedError from e
+        print(payload)
 
     try:
         decrypted_payload = SecurityService.decrypt_payload(
             encrypted_key=payload.key,
             encrypted_data=payload.data,
         )
+        print(decrypted_payload)
         login_data = SocialLoginRequest(**decrypted_payload)
     except Exception as e:
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
