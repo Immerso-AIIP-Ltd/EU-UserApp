@@ -74,6 +74,7 @@ async def google_login(
         RequestParams.COUNTRY: headers.get(RequestParams.COUNTRY),
         "user_agent": request.headers.get("User-Agent"),
     }
+    logger.info(f"Request Data: {request_data}")
     data = await SocialLoginService.google_login(
         google_service=google_service,
         request_data=request_data,
