@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Annotated, Any, Dict, Generic, List, Optional, Self, TypeVar, Union
 from uuid import UUID
 
+from loguru import logger
 from pydantic import AliasChoices, BaseModel, EmailStr, Field, model_validator
 
 from app.core.constants import Description, ErrorMessages, Headers, SuccessMessages
@@ -549,6 +550,41 @@ class UserProfileData(BaseModel):
     nick_name: Optional[str] = None
     birth_date: Optional[Union[str, date]] = None
     identity_providers: Optional[Dict[str, Any]] = None
+
+    @model_validator(mode="after")
+    def populate_birth_date(self) -> Self:
+        """Populate birth_date from components if missing."""
+        if (
+            not self.birth_date
+            and self.birth_day
+            and self.birth_month
+            and self.birth_year
+        ):
+            try:
+                # Ensure parts are valid strings/ints
+                day = str(self.birth_day).zfill(2)
+                month = str(self.birth_month).zfill(2)
+                year = str(self.birth_year)
+                self.birth_date = f"{day}/{month}/{year}"
+            except Exception as e:
+                # If construction fails, leave as is
+
+                logger.warning(f"Failed to populate birth_date: {e}")
+        return self
+
+    @model_validator(mode="after")
+    def populate_name_if_missing(self) -> Self:
+        """Populate name from firstname and lastname if missing."""
+        if not self.name:
+            # Filter out None values
+            parts = [
+                part
+                for part in [self.firstname, self.lastname]
+                if part is not None and str(part).strip()
+            ]
+            if parts:
+                self.name = " ".join(parts)
+        return self
 
     class Config:
         from_attributes = True

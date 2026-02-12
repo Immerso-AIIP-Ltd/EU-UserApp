@@ -295,7 +295,7 @@ class UserQueries:
         SELECT
             u.id AS uuid,
             u.email,
-            CONCAT(p.firstname, ' ', COALESCE(p.lastname, '')) AS name,
+            TRIM(CONCAT(p.firstname, ' ', COALESCE(p.lastname, ''))) AS name,
             p.firstname,
             p.lastname,
             u.mobile,

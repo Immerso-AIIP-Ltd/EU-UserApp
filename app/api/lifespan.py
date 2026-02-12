@@ -4,6 +4,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 
 from app.cache.factory import RedisFactory
+from app.core.constants import AppUserApp
 from app.db.factory import DatabaseFactory
 from app.settings import settings
 
@@ -21,17 +22,37 @@ async def lifespan_setup(
     :param app: the fastAPI application.
     :return: function that actually performs actions.
     """
-
     app.middleware_stack = None
-    redis_factory = RedisFactory(str(settings.redis_url))
-    app.state.redis_factory = redis_factory
-    app.middleware_stack = app.build_middleware_stack()
-    app.state.db_factory = DatabaseFactory(
-        db_url=str(settings.db_url),
-        db_echo=settings.db_echo,
-        pool_size=settings.db_pool_size,
-        max_overflow=settings.db_max_overflow,
+    db_factory = DatabaseFactory(str(settings.db_url), settings.db_echo)
+
+    cluster_nodes = settings.redis_cluster_nodes
+    if not cluster_nodes:
+        raise ValueError("Redis cluster nodes configuration is missing")
+
+    redis_factory = RedisFactory(
+        cluster_nodes=cluster_nodes,
+        password=settings.redis_pass,
+        socket_timeout=settings.redis_socket_timeout,
+        decode_responses=True,
+        socket_connect_timeout=AppUserApp.REDIS_SOCKET_CONNECT_TIMEOUT,
+        health_check_interval=AppUserApp.REDIS_HEALTH_CHECK_INTERVAL,
+        max_connections=AppUserApp.REDIS_MAX_CONNECTIONS,
     )
+
+    oauth_redis_factory = RedisFactory(
+        cluster_nodes=settings.oauth_redis_cluster_nodes or cluster_nodes,
+        password=settings.oauth_redis_pass,
+        socket_timeout=settings.oauth_redis_socket_timeout,
+        decode_responses=True,
+        socket_connect_timeout=AppUserApp.REDIS_SOCKET_CONNECT_TIMEOUT,
+        health_check_interval=AppUserApp.REDIS_HEALTH_CHECK_INTERVAL,
+        max_connections=AppUserApp.REDIS_MAX_CONNECTIONS,
+    )
+
+    app.state.db_factory = db_factory
+    app.state.redis_factory = redis_factory
+    app.state.oauth_redis_factory = oauth_redis_factory
+    app.state.db_session_factory = db_factory.get_session
 
     app.middleware_stack = app.build_middleware_stack()
 
@@ -43,5 +64,6 @@ async def lifespan_setup(
         yield
     finally:
         await KafkaProducerService.stop()
-        await app.state.redis_factory.close()
         await app.state.db_factory.close()
+        await app.state.redis_factory.close()
+        await app.state.oauth_redis_factory.close()
