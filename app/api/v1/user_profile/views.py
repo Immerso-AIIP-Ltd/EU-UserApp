@@ -29,6 +29,7 @@ from app.core.constants import (
 from app.core.exceptions.exceptions import (
     ProfileFetchError,
     UserNotFoundError,
+    ValidationError,
 )
 from app.core.middleware.auth import get_user_from_x_token
 from app.db.dependencies import get_db_session
@@ -148,6 +149,13 @@ async def update_user_profile(
     )
     if not user_id:
         raise UserNotFoundError(message=ErrorMessages.USER_NOT_FOUND)
+
+    if profile_update.name is not None and (
+        profile_update.name == "" or len(profile_update.name) > 50
+    ):
+        raise ValidationError(
+            detail="name cannot be empty or greater than 50 characters",
+        )
 
     # Invalidate cache
     cache_key = build_cache_key(
