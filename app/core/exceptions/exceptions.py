@@ -205,7 +205,7 @@ class DeviceNotInvitedError(AppError):
 class InvalidCouponError(AppError):
     """Coupon ID not valid."""
 
-    http_code = status.HTTP_200_OK
+    http_code = status.HTTP_400_BAD_REQUEST
     message = ErrorMessages.COUPON_ID_INVALID
     error_code = ErrorCodes.COUPON_ID_INVALID
 

@@ -27,6 +27,7 @@ from app.core.exceptions import (
     DecryptionFailedError,
     DeviceNotInvitedError,
     DeviceRegistrationError,
+    InvalidCouponError,
     PayloadNotEncryptedError,
     ValidationError,
 )
@@ -168,7 +169,7 @@ async def invite_device(
     )
 
     if not coupon:
-        raise ValidationError(ErrorMessages.COUPON_ID_INVALID)
+        raise InvalidCouponError
 
     coupon_data = dict(coupon[0])
 
