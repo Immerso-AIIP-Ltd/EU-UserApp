@@ -37,6 +37,7 @@ from app.core.constants import (
     SuccessMessages,
 )
 from app.core.exceptions import (
+    CommServiceAPICallFailedError,
     DecryptionFailedError,
     DeviceNotRegisteredError,
     EmailMobileRequiredError,
@@ -535,20 +536,56 @@ async def _verify_waitlist_otp(
             raise OtpInvalidError
         await cache.delete(redis_key)
     else:
-        receiver = f"{calling_code}{mobile}".lstrip("+")
-        redis_key = CacheKeyTemplates.OTP_MOBILE.format(
-            receiver=receiver,
-            intent=Intents.WAITLIST,
-        )
-        cached_otp = await cache.get(redis_key)
-        if not cached_otp:
-            raise OtpExpiredError
+        # For MOBILE, call external Communication API for validation
+        from app.core.constants import ErrorCodes
 
-        if (isinstance(cached_otp, bytes) and cached_otp.decode() != otp) or (
-            isinstance(cached_otp, str) and cached_otp != otp
-        ):
-            raise OtpInvalidError
-        await cache.delete(redis_key)
+        receiver = f"{calling_code}{mobile}".lstrip("+")
+
+        payload = {
+            "receiver": receiver,
+            "receiver_type": RequestParams.MOBILE,
+            "intent": Intents.WAITLIST,
+            "otp": otp,
+        }
+
+        logger.info(
+            f"Calling external OTP verification for {receiver} "
+            f"with payload: {payload}",
+        )
+
+        try:
+            response = await call_communication_api(
+                deeplinks.VERIFY_OTP_URL,
+                payload,
+            )
+            logging.info(
+                f"External OTP verification response for {receiver}: {response}",
+            )
+
+            if (
+                not response
+                or response.get(CommParams.STATUS) != ResponseParams.SUCCESS
+            ):
+                logger.warning(
+                    f"External OTP verification failed for {receiver}: {response}",
+                )
+                if (
+                    response
+                    and response.get(ResponseParams.ERROR_CODE)
+                    == ErrorCodes.OTP_EXPIRED
+                ):
+                    raise OtpExpiredError
+                raise OtpInvalidError
+
+            is_valid = response.get(ResponseParams.DATA)
+            if not is_valid:
+                raise OtpInvalidError
+
+        except Exception as e:
+            if isinstance(e, (OtpInvalidError, OtpExpiredError)):
+                raise
+            logger.error(f"Error calling external OTP verification: {e}")
+            raise CommServiceAPICallFailedError from e
 
 
 async def _get_waitlist_entry(

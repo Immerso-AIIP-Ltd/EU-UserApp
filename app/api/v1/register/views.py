@@ -663,6 +663,9 @@ async def _verify_and_consume_otp(
                 register_deeplinks.VERIFY_OTP_URL,
                 payload,
             )
+            logger.info(
+                f"External OTP verification response for {receiver}: {response}",
+            )
             if (
                 not response
                 or response.get(CommParams.STATUS) != ResponseParams.SUCCESS
