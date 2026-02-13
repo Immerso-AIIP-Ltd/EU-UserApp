@@ -275,7 +275,7 @@ async def verify_otp_register(
 
     if verify_payload.temp_key and not cached_data.get(LoginParams.PROFILE_IMAGE):
         cached_data[LoginParams.PROFILE_IMAGE] = verify_payload.temp_key
-    
+
     # Include push_token from verify payload if provided
     if verify_payload.push_token:
         cached_data["push_token"] = verify_payload.push_token
@@ -911,45 +911,69 @@ async def _finalize_registration_and_auth(
 
         # 4. Link Device independently
         if auth_token:
-            # Update device with push_token from registration data if available
             push_token = cached_data.get("push_token")
-            if push_token:
-                await execute_query(
-                    query=UserQueries.UPDATE_DEVICE,
-                    db_session=db_session,
-                    params={
-                        RequestParams.DEVICE_ID: device_id,
-                        "device_type": None,
-                        "device_name": None,
-                        "push_token": push_token,
-                    },
-                )
-            
-            await execute_query(
-                query=UserQueries.LINK_DEVICE_TO_USER,
+            await _update_device_and_sync_redis(
                 db_session=db_session,
-                params={
-                    RequestParams.DEVICE_ID: device_id,
-                    RequestParams.USER_ID: user_id,
-                    RequestParams.USER_TOKEN: auth_token,
-                },
+                device_id=device_id,
+                user_id=user_id,
+                push_token=push_token,
+                auth_token=auth_token,
+                cache=cache,
             )
-            
-            # Sync device token to Redis after linking
-            if push_token and cache:
-                try:
-                    from app.api.v1.service.device_redis_service import DeviceTokenRedisService
-                    device = await DeviceService.get_device(device_id, db_session)
-                    redis_service = DeviceTokenRedisService(cache)
-                    await redis_service.store_device_token_in_redis(device, str(user_id))
-                except Exception as redis_err:
-                    logger.warning(f"Failed to sync device token to Redis: {redis_err}")
 
     except Exception as e:
         logger.error(f"Post-registration optimization error: {e}")
 
     await db_session.commit()
     return auth_token, refresh_token, token_expiry
+
+
+async def _update_device_and_sync_redis(
+    db_session: AsyncSession,
+    device_id: str,
+    user_id: Any,
+    push_token: str | None,
+    auth_token: str,
+    cache: Redis,
+) -> None:
+    """Update device with push token and sync to Redis."""
+    if push_token:
+        await execute_query(
+            query=UserQueries.UPDATE_DEVICE,
+            db_session=db_session,
+            params={
+                RequestParams.DEVICE_ID: device_id,
+                "device_type": None,
+                "device_name": None,
+                "push_token": push_token,
+            },
+        )
+
+    await execute_query(
+        query=UserQueries.LINK_DEVICE_TO_USER,
+        db_session=db_session,
+        params={
+            RequestParams.DEVICE_ID: device_id,
+            RequestParams.USER_ID: user_id,
+            RequestParams.USER_TOKEN: auth_token,
+        },
+    )
+
+    # Sync device token to Redis after linking
+    if push_token and cache:
+        try:
+            from app.api.v1.service.device_redis_service import (
+                DeviceTokenRedisService,
+            )
+
+            device = await DeviceService.get_device(device_id, db_session)
+            redis_service = DeviceTokenRedisService(cache)
+            await redis_service.store_device_token_in_redis(
+                device,
+                str(user_id),
+            )
+        except Exception as redis_err:
+            logger.warning(f"Failed to sync device token to Redis: {redis_err}")
 
 
 @router.post("/resend_otp")

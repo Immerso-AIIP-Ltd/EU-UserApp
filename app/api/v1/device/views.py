@@ -318,36 +318,36 @@ async def sync_device_token(
 ) -> JSONResponse:
     """
     Sync FCM/APNs push token for a device - Authenticated endpoint.
-    
+
     This endpoint allows the mobile app to update the push notification token
     after login or when the token is refreshed by the OS.
-    
+
     Use Cases:
     1. App gets FCM token after successful login
     2. FCM token refreshed by OS in background
     3. User enables notifications in app settings
-    
+
     Args:
         payload: Contains push_token and optional device_type
         headers: Must include x-api-token (auth token) and x-device-id
-    
+
     Returns:
         Success response with sync status
     """
     device_id = headers.get("x_device_id")
-    
+
     if not device_id:
         raise ValidationError(detail=ErrorMessages.DEVICE_ID_MISSING)
-    
+
     try:
         # 1. Verify device exists
         device = await DeviceService.get_device(device_id, db_session)
-        
+
         # 2. Get user_id from device
         user_uuid = device.get("user_uuid")
         if not user_uuid:
             raise ValidationError(detail="Device not linked to any user")
-        
+
         # 3. Update push_token in database
         await execute_query(
             UserQueries.UPDATE_DEVICE,
@@ -360,7 +360,7 @@ async def sync_device_token(
             db_session,
         )
         await db_session.commit()
-        
+
         # 4. Get updated device and sync to Redis
         updated_device = await DeviceService.get_device(device_id, db_session)
         redis_service = DeviceTokenRedisService(cache)
@@ -368,7 +368,7 @@ async def sync_device_token(
             updated_device,
             str(user_uuid),
         )
-        
+
         return standard_response(
             message="Device token synced successfully",
             request=request,
@@ -378,6 +378,6 @@ async def sync_device_token(
                 "redis_synced": sync_result.get("success", False),
             },
         )
-        
+
     except Exception as e:
         raise ValidationError(detail=f"Failed to sync device token: {e!s}") from e

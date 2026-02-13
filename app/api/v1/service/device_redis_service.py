@@ -39,7 +39,8 @@ class DeviceTokenRedisService:
                 return {"success": False, "message": "No push token"}
 
             # Store individual device token
-            # Key format matches EU-Social expectations: device_token:{user_id}:{device_id}
+            # Key format matches EU-Social expectations:
+            # device_token:{user_id}:{device_id}
             device_key = f"device_token:{user_uuid}:{device_id}"
             device_data = {
                 "token": push_token,
