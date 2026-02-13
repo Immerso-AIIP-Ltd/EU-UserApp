@@ -1,7 +1,13 @@
 """Cache dependencies."""
 
+from typing import Optional
+
+import redis
 from fastapi import Request
 from redis.asyncio.cluster import RedisCluster
+from redis.asyncio import Redis
+
+from app.settings import settings
 
 
 def get_redis_connection(request: Request) -> RedisCluster:

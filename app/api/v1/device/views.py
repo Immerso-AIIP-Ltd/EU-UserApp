@@ -11,7 +11,10 @@ from app.api.v1.schemas import (
     DeviceInviteRequest,
     DeviceRegisterRequest,
     EncryptedRequest,
+    SyncDeviceTokenRequest,
 )
+from app.api.v1.service.device_redis_service import DeviceTokenRedisService
+from app.api.v1.service.device_service import DeviceService
 from app.api.v1.service.geo_service import GeoService
 from app.cache.base import build_cache_key, set_cache
 from app.cache.dependencies import get_redis_connection
@@ -36,6 +39,7 @@ from app.db.utils import execute_and_transform, execute_query
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import (
+    validate_common_headers,
     validate_headers_without_auth,
     validate_headers_without_x_device_id,
 )
@@ -302,3 +306,78 @@ async def register_device(
         request=request,
         data={RequestParams.DEVICE_ID: device_uuid},
     )
+
+
+@router.post("/sync-token")
+async def sync_device_token(
+    request: Request,
+    payload: SyncDeviceTokenRequest,
+    db_session: AsyncSession = Depends(get_db_session),
+    headers: dict[str, Any] = Depends(validate_common_headers),
+    cache: Redis = Depends(get_redis_connection),
+) -> JSONResponse:
+    """
+    Sync FCM/APNs push token for a device - Authenticated endpoint.
+    
+    This endpoint allows the mobile app to update the push notification token
+    after login or when the token is refreshed by the OS.
+    
+    Use Cases:
+    1. App gets FCM token after successful login
+    2. FCM token refreshed by OS in background
+    3. User enables notifications in app settings
+    
+    Args:
+        payload: Contains push_token and optional device_type
+        headers: Must include x-api-token (auth token) and x-device-id
+    
+    Returns:
+        Success response with sync status
+    """
+    device_id = headers.get("x_device_id")
+    
+    if not device_id:
+        raise ValidationError(detail=ErrorMessages.DEVICE_ID_MISSING)
+    
+    try:
+        # 1. Verify device exists
+        device = await DeviceService.get_device(device_id, db_session)
+        
+        # 2. Get user_id from device
+        user_uuid = device.get("user_uuid")
+        if not user_uuid:
+            raise ValidationError(detail="Device not linked to any user")
+        
+        # 3. Update push_token in database
+        await execute_query(
+            UserQueries.UPDATE_DEVICE,
+            {
+                "device_id": device_id,
+                "device_type": payload.device_type,
+                "device_name": None,
+                "push_token": payload.push_token,
+            },
+            db_session,
+        )
+        await db_session.commit()
+        
+        # 4. Get updated device and sync to Redis
+        updated_device = await DeviceService.get_device(device_id, db_session)
+        redis_service = DeviceTokenRedisService(cache)
+        sync_result = await redis_service.store_device_token_in_redis(
+            updated_device,
+            str(user_uuid),
+        )
+        
+        return standard_response(
+            message="Device token synced successfully",
+            request=request,
+            data={
+                "device_id": device_id,
+                "token_updated": True,
+                "redis_synced": sync_result.get("success", False),
+            },
+        )
+        
+    except Exception as e:
+        raise ValidationError(detail=f"Failed to sync device token: {e!s}") from e
