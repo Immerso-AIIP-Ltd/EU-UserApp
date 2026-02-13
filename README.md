@@ -11,7 +11,7 @@ To run the project use this set of commands:
 
 ```bash
 poetry install
-poetry run python -m app
+poetry run python -m app 
 ```
 
 This will start the server on the configured host.
