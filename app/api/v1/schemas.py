@@ -89,6 +89,16 @@ class DeviceInviteRequest(BaseModel):
     coupon_id: str = Field(..., description=Description.COUPON_ID)
 
 
+class SyncDeviceTokenRequest(BaseModel):
+    """Request schema for /user/v1/device/sync-token - Update FCM/APNs push token."""
+
+    push_token: str = Field(..., description=Description.PUSH_TOKEN, min_length=50)
+    device_type: Optional[str] = Field(
+        default="android",
+        description="Device platform: android, ios, web",
+    )
+
+
 class RefreshTokenRequest(BaseModel):
     """Request schema for refresh token."""
 
@@ -112,6 +122,7 @@ class LoginRequest(BaseModel):
         description=Description.CALLING_CODE,
     )
     password: Optional[str] = Field(default=None, description=Description.PASSWORD)
+    push_token: Optional[str] = Field(default=None, description=Description.PUSH_TOKEN)
 
     @model_validator(mode="after")
     def validate_login_credentials(self) -> Self:
@@ -147,6 +158,7 @@ class RegisterWithProfileRequest(BaseModel):
         default=None,
         description=Description.PROFILE_IMAGE,
     )
+    push_token: Optional[str] = Field(default=None, description=Description.PUSH_TOKEN)
 
     @model_validator(mode="after")
     def validate_contact_info(self) -> Self:
@@ -213,6 +225,7 @@ class VerifyOTPRegisterRequest(BaseModel):
         default=IntentEnum.REGISTRATION,
         description=Description.INTENT,
     )
+    push_token: Optional[str] = Field(default=None, description=Description.PUSH_TOKEN)
 
     @model_validator(mode="after")
     def validate_contact_info(self) -> Self:
