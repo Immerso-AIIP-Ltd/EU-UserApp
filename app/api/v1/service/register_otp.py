@@ -1,3 +1,4 @@
+import json
 import logging
 import secrets
 import string
@@ -125,11 +126,12 @@ class GenerateOtpService:
         name: Optional[str] = None,
     ) -> None:
         """Handle logic for email-based OTP delivery."""
-        redis_key = CacheKeyTemplates.OTP_EMAIL.format(
-            receiver=receiver,
-            intent=intent,
-        )
+        redis_key = CacheKeyTemplates.OTP_EMAIL.format(receiver=receiver, intent=intent)
         await redis_client.setex(redis_key, CacheTTL.OTP_EXPIRY, otp)
+        logger.debug(
+            f"Cached OTP for email {receiver} with intent {intent} "
+            f"in Redis with key {redis_key}",
+        )
 
         try:
             payload: Dict[str, Any] = {}
@@ -178,6 +180,7 @@ class GenerateOtpService:
         calling_code: Optional[str],
     ) -> None:
         """Handle logic for mobile-based OTP delivery (SMS) via external API."""
+
         if not x_forwarded_for:
             logger.error(LogMessages.CLIENT_IP_MISSING)
             raise exceptions.ClientIpNotProvidedError
@@ -229,6 +232,22 @@ class GenerateOtpService:
                 register_deeplinks.GENERATE_OTP_URL,
                 payload,
             )
+            logging.info(f"Received response from OTP generation API: {response}")
+
+            redis_key = CacheKeyTemplates.OTP_MOBILE.format(
+                receiver=receiver,
+                intent=intent,
+            )
+            await redis_client.setex(
+                redis_key,
+                CacheTTL.OTP_EXPIRY,
+                json.dumps(response),
+            )
+            logging.info(
+                f"Cached OTP generation response for {receiver} in Redis with key "
+                f"{redis_key}",
+            )
+
             if response and response.get(CommParams.STATUS) == ResponseParams.SUCCESS:
                 is_otp_sent = response.get(ResponseParams.DATA)
                 if not is_otp_sent:
@@ -237,6 +256,7 @@ class GenerateOtpService:
             else:
                 logger.error(f"External OTP generation failed: {response}")
                 raise exceptions.CommServiceAPICallFailedError
+
         except Exception as e:
             logger.error(LogMessages.SMS_SEND_EXCEPTION.format(e))
             raise exceptions.CommServiceAPICallFailedError from e
