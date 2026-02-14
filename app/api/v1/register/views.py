@@ -4,7 +4,7 @@ from datetime import date
 from typing import Any, Optional, Union
 
 import bcrypt
-from fastapi import APIRouter, Depends, Header, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Request
 from fastapi.responses import JSONResponse
 from google.cloud import recaptchaenterprise_v1
 from google.cloud.recaptchaenterprise_v1 import Assessment
@@ -119,6 +119,7 @@ async def register_with_profile(
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
     x_forwarded_for: str | None = Header(None, alias=RequestParams.X_FORWARDED_FOR),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ) -> JSONResponse:
     """Sign Up - Step 1 (Check Existence and Register) with Enforced Encryption."""
 
@@ -212,6 +213,7 @@ async def verify_otp_register(
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
     cache: Redis = Depends(get_redis_connection),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ) -> JSONResponse:
     """Sign Up - Step 2 (Verify OTP & Create) with Enforced Encryption."""
 
@@ -289,6 +291,7 @@ async def verify_otp_register(
         headers,
         receiver_type,
         cached_data,
+        background_tasks,
     )
 
 
@@ -450,6 +453,7 @@ async def _finalize_user_registration(
     headers: dict[str, Any],
     receiver_type: str,
     cached_data: dict[str, Any],
+    background_tasks: BackgroundTasks,
 ) -> JSONResponse:
     """Finalize user registration process."""
     # 3. Register User in DB
@@ -545,19 +549,17 @@ async def _finalize_user_registration(
             "Content-Type": "application/json",
         }
 
-        # Fire and forget / or wait? Ideally this should be a background task (celery),
-        # but for now running it here as requested.
-        # We won't block the response on failure though, just log error.
-        await HttpClient.make_request(
+        # Use BackgroundTasks for fire-and-forget
+        background_tasks.add_task(
+            HttpClient.make_request,
             url=payment_url,
             method="POST",
             headers=payment_headers,
-            # The curl command didn't show -d so body might be empty.
             json={},
         )
-        logger.info(f"Assigned free plan to user {user_id}")
+        logger.info(f"Queued free plan assignment for user {user_id}")
     except Exception as e:
-        logger.error(f"Failed to assign free plan to user {user_id}: {e}")
+        logger.error(f"Failed to queue free plan assignment for user {user_id}: {e}")
         # Proceeding without failing the registration
 
     response_data = {
