@@ -114,7 +114,6 @@ class CacheTTL:
     OTP_EXPIRY = 600  # 10 minutes
     TOKEN_EXPIRY = 864000  # 10 days
 
-
 class QueryTimeouts:
     """Database query timeout values in seconds."""
 

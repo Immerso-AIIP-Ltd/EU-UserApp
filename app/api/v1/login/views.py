@@ -42,6 +42,7 @@ from app.core.exceptions import (
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform, execute_query
 from app.settings import settings
+from app.utils.rewards import call_reward_api_async
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
 from app.utils.validate_headers import (
@@ -189,6 +190,12 @@ async def login_user(
         RequestParams.REFRESH_TOKEN: refresh_token,
         RequestParams.USER: user_response,
     }
+
+    # Reward API
+    try:
+        await call_reward_api_async(request, action_type="type1")
+    except Exception:
+        logger.exception("Reward API failed")
 
     return standard_response(
         message=SuccessMessages.USER_LOGGED_IN,
