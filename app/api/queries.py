@@ -378,6 +378,7 @@ class UserQueries:
     INSERT_FRIEND_INVITE = text(
         """
         INSERT INTO user_app.friend_invite (
+            id,
             inviter_id,
             invited_email,
             invited_mobile,
@@ -391,6 +392,7 @@ class UserQueries:
             modified_at
         )
         VALUES (
+            gen_random_uuid(),
             CAST(:inviter_id AS UUID),
             :invited_email,
             :invited_mobile,
