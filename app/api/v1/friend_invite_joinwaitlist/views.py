@@ -1027,10 +1027,12 @@ async def _send_invite_notification(
     invited_calling_code: str | None,
     inviter_email: str | None,
 ) -> bool:
-    """Send invitation via Email or SMS."""
+    """Send invitation via Email and/or SMS."""
+    total_sent = False
     try:
+        sender_name = inviter_email if inviter_email else "A friend"
+
         if invited_email:
-            sender_name = inviter_email if inviter_email else "A friend"
             email_payload = {
                 CommParams.RECIPIENTS: [invited_email],
                 CommParams.SUBJECT: EmailTemplates.FRIEND_INVITE_SUBJECT.format(
@@ -1045,25 +1047,33 @@ async def _send_invite_notification(
                 deeplinks.MAIL_SEND_URL,
                 email_payload,
             )
-            return bool(resp and resp.get(CommParams.STATUS) == ResponseParams.SUCCESS)
+            logger.info(f"Communication API EMAIL response: {resp}")
+            if resp and resp.get(CommParams.STATUS) == ResponseParams.SUCCESS:
+                total_sent = True
 
         if invited_mobile and invited_calling_code:
-            sender_name = inviter_email if inviter_email else "A friend"
             sms_payload = {
-                "receiver": f"{invited_calling_code}{invited_mobile}".lstrip("+"),
-                CommParams.MESSAGE: EmailTemplates.FRIEND_INVITE_MESSAGE.format(
-                    sender_name,
-                    settings.web_url,
-                ),
+                CommParams.RECEIVER: invited_calling_code + invited_mobile,
+                CommParams.TEMPLATE: settings.sms_friend_invite_template_id,
+                CommParams.TEMPLATE_VARIABLES: {
+                    CommParams.VAR1: sender_name,
+                    CommParams.VAR2: settings.web_url,
+                },
+                CommParams.SENDER: settings.msg91_sender_id,
+                CommParams.ENTITY_ID: settings.msg91_entity_id,
+                CommParams.ASYNC_VALUE: False,
             }
+            logger.info(f"Sending MSG91 SMS with payload: {sms_payload}")
             resp = await call_communication_api(deeplinks.SMS_SEND_URL, sms_payload)
-            return bool(resp and resp.get(CommParams.STATUS) == ResponseParams.SUCCESS)
+            logger.info(f"Communication API SMS response: {resp}")
+            if resp and resp.get(CommParams.STATUS) == ResponseParams.SUCCESS:
+                total_sent = True
 
     except Exception as e:
         logger.error(f"{ErrorMessages.INVITE_SEND_FAILED}: {e}")
         return False
 
-    return False
+    return total_sent
 
 
 async def _persist_invite(
