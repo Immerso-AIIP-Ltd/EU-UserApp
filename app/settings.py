@@ -141,6 +141,12 @@ class Settings(BaseSettings):
     # Reward API Settings
     reward_api_url: str = Field(default="https://example.com")
 
+    # FREE plan Service Settings
+    app_assign_free_plan_api_url: str = Field(
+        default="http://dev-apigateway.erosuniverse.com",
+    )
+    app_assign_free_plan_public_key: str = Field(default="dummy")
+
     @property
     def db_url(self) -> URL:
         """
