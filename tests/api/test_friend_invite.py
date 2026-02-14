@@ -184,7 +184,7 @@ async def test_friend_invite_success(
         await assert_endpoint_success(
             client,
             "POST",
-            "/user/v1/auth/social/friend_invite",
+            "/user/v1/social/friend_invite",
             SuccessMessages.FRIEND_INVITES_SENT.format(1),
             payload=payload,
             headers=headers,
