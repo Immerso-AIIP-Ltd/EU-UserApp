@@ -143,7 +143,7 @@ class Settings(BaseSettings):
 
     # FREE plan Service Settings
     app_assign_free_plan_api_url: str = Field(
-        default="http://dev-apigateway.erosuniverse.com",
+        default="https://apigateway.erosuniverse.com/api/v1/payments/subscription/assign-free-plan",
     )
     app_assign_free_plan_public_key: str = Field(default="dummy")
 
