@@ -346,6 +346,7 @@ class ResponseParams:
 class CommParams:
     """Communication payload parameter names."""
 
+    RECEIVER = "receiver"
     RECIPIENTS = "recipients"
     SUBJECT = "subject"
     MESSAGE = "message"
@@ -355,6 +356,16 @@ class CommParams:
     VARIABLES = "variables"
     INTENT = "intent"
     VAR = "var"
+    INVITER_ID = "inviter_id"
+    VAR1 = "var1"
+    VAR2 = "var2"
+    VALUE1 = "value1"
+    VALUE2 = "value2"
+    TEMPLATE = "template"
+    TEMPLATE_VARIABLES = "template_variables"
+    SENDER = "sender"
+    ENTITY_ID = "entity_id"
+    ASYNC_VALUE = "async_value"
     STATUS = "status"
 
 
@@ -380,6 +391,15 @@ class EmailTemplates:
     FRIEND_INVITE_MESSAGE = (
         "Hi,\n\n{0} has invited you to join our platform.\n"
         "Click here to register: {1}\n\nThanks!"
+    )
+
+
+class SMSTemplates:
+    """SMS body templates."""
+
+    FRIEND_INVITE_MESSAGE = (
+        "Hi, {0} has invited you to access Eros Universe. "
+        "Complete your registration here: {1} Thank you!"
     )
 
 
@@ -418,6 +438,9 @@ class TemplateParams:
     RESET_URL = "reset_url"
     OTP = "otp"
     VAR = "var"
+    INVITER_ID = "inviter_id"
+    VAR1 = "var1"
+    VAR2 = "var2"
 
 
 class LogMessages:
