@@ -30,7 +30,6 @@ class SocialLoginService:
         request_data: dict[str, Any],
         db_session: AsyncSession,
         cache: Redis,
-        background_tasks: Any,
     ) -> dict[str, Any]:
         """Handle Google Social Login business logic."""
         # 1. Verify Google ID Token
@@ -110,7 +109,6 @@ class SocialLoginService:
             db_session,
             cache,
             is_created,
-            background_tasks,
         )
 
     @staticmethod
@@ -119,7 +117,6 @@ class SocialLoginService:
         request_data: dict[str, Any],
         db_session: AsyncSession,
         cache: Redis,
-        background_tasks: Any,
     ) -> dict[str, Any]:
         """Handle Apple Social Login business logic."""
         # 1. Verify Apple ID Token
@@ -195,7 +192,6 @@ class SocialLoginService:
             db_session,
             cache,
             is_created,
-            background_tasks,
         )
 
     @staticmethod
@@ -204,7 +200,6 @@ class SocialLoginService:
         request_data: dict[str, Any],
         db_session: AsyncSession,
         cache: Redis,
-        background_tasks: Any,
     ) -> dict[str, Any]:
         """Handle Facebook Social Login business logic."""
         # 1. Verify Facebook Access Token
@@ -280,7 +275,6 @@ class SocialLoginService:
             db_session,
             cache,
             is_created,
-            background_tasks,
         )
 
     @staticmethod
@@ -290,7 +284,6 @@ class SocialLoginService:
         db_session: AsyncSession,
         cache: Redis,
         is_created: bool,
-        background_tasks: Any,
     ) -> dict[str, Any]:
         """Finalize social login process (token generation, events, etc.)."""
         device_id = request_data.get("device_id")
@@ -356,19 +349,15 @@ class SocialLoginService:
                     "Content-Type": "application/json",
                 }
 
-                # Use BackgroundTasks for fire-and-forget
-                background_tasks.add_task(
-                    HttpClient.make_request,
+                await HttpClient.make_request(
                     url=payment_url,
                     method="POST",
                     headers=payment_headers,
                     json={},
                 )
-                logger.info(f"Queued free plan assignment for user {user_id}")
+                logger.info(f"Assigned free plan to user {user_id}")
             except Exception as e:
-                logger.error(
-                    f"Failed to queue free plan assignment for user {user_id}: {e}",
-                )
+                logger.error(f"Failed to assign free plan to user {user_id}: {e}")
 
         # Generate Refresh Token
         refresh_token = await AuthService.create_refresh_session(
