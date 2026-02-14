@@ -62,6 +62,7 @@ from app.core.exceptions import (
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform, execute_query
 from app.settings import settings
+from app.utils.http_client import HttpClient
 from app.utils.rewards import call_reward_api_async
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
@@ -530,6 +531,34 @@ async def _finalize_user_registration(
         ),
         "thumbnail": profile.get("thumbnail"),
     }
+
+    # Assign Free Plan via External API
+    try:
+        # Define the payload/headers as per requirement
+        # Headers: x-platform: web, x-user-id: <user_id>, x-public-key: PK...
+        payment_url = settings.app_assign_free_plan_api_url
+        payment_headers = {
+            # Defaulting to web as per curl example
+            "x-platform": "web",
+            "x-user-id": str(user_id),
+            "x-public-key": settings.app_assign_free_plan_public_key,
+            "Content-Type": "application/json",
+        }
+
+        # Fire and forget / or wait? Ideally this should be a background task (celery),
+        # but for now running it here as requested.
+        # We won't block the response on failure though, just log error.
+        await HttpClient.make_request(
+            url=payment_url,
+            method="POST",
+            headers=payment_headers,
+            # The curl command didn't show -d so body might be empty.
+            json={},
+        )
+        logger.info(f"Assigned free plan to user {user_id}")
+    except Exception as e:
+        logger.error(f"Failed to assign free plan to user {user_id}: {e}")
+        # Proceeding without failing the registration
 
     response_data = {
         RequestParams.AUTH_TOKEN: auth_token,
