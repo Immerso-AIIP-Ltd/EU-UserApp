@@ -54,10 +54,7 @@ from app.db.utils import execute_query
 from app.settings import settings
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
-from app.utils.validate_headers import (
-    validate_common_headers,
-    validate_headers_without_auth,
-)
+from app.utils.validate_headers import validate_headers_without_auth
 
 logger = logging.getLogger(__name__)
 
@@ -904,7 +901,7 @@ async def friend_invite(
     request: Request,
     payload: FriendInviteRequest,
     db_session: AsyncSession = Depends(get_db_session),
-    headers: dict[str, Any] = Depends(validate_common_headers),
+    headers: dict[str, Any] = Depends(validate_headers_without_auth),
     x_device_id: str = Header(..., alias=HeaderKeys.X_DEVICE_ID),
 ) -> JSONResponse:
     """Invite a friend via email or mobile."""
@@ -925,26 +922,6 @@ async def friend_invite(
 
     inviter_email = waitlist_entry.email
     waitlist_id = waitlist_entry.id
-
-    # 2. Check Inviter Registration
-    if not inviter_user_id:
-        logger.warning(
-            f"{ErrorMessages.INVITER_NOT_FOUND}: Device {x_device_id}, "
-            f"Email {inviter_email}",
-        )
-        return standard_response(
-            request=request,
-            message=SuccessMessages.INVITER_NOT_REGISTERED,
-            data={
-                RequestParams.INVITED: [],
-                RequestParams.DUPLICATES: [],
-                RequestParams.INVALID: [],
-                RequestParams.FAILED: [
-                    item.model_dump() if isinstance(item, FriendInviteObject) else item
-                    for item in payload.invited_list
-                ],
-            },
-        )
 
     # 3. Process Invites
     created_invites = []

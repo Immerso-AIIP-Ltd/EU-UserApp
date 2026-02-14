@@ -33,6 +33,11 @@ api_router.include_router(
     prefix="/social",
     tags=["Waitlist"],
 )
+api_router.include_router(
+    friend_invite_joinwaitlist.friend_invite_router,
+    prefix="/social",
+    tags=["Friend Invite"],
+)
 
 # Protected Routes (Prefixed with /auth -> /user/v1/auth/...)
 api_router.include_router(logout.router, prefix="/auth/user", tags=["Logout"])
@@ -41,10 +46,6 @@ api_router.include_router(
     prefix="/auth/user_profile",
     tags=["profile"],
 )
-api_router.include_router(
-    friend_invite_joinwaitlist.friend_invite_router,
-    prefix="/auth/social",
-    tags=["Friend Invite"],
-)
+
 
 api_router.include_router(docs.router)
