@@ -1007,17 +1007,16 @@ async def _send_invite_notification(
     """Send invitation via Email or SMS."""
     try:
         if invited_email:
+            sender_name = inviter_email if inviter_email else "A friend"
             email_payload = {
                 CommParams.RECIPIENTS: [invited_email],
                 CommParams.SUBJECT: EmailTemplates.FRIEND_INVITE_SUBJECT.format(
-                    inviter_email,
+                    sender_name,
                 ),
                 CommParams.MESSAGE: EmailTemplates.FRIEND_INVITE_MESSAGE.format(
-                    inviter_email,
+                    sender_name,
                     settings.web_url,
                 ),
-                CommParams.HTML_CONTENT: None,
-                CommParams.TEMPLATE_ID: None,
             }
             resp = await call_communication_api(
                 deeplinks.MAIL_SEND_URL,
@@ -1026,11 +1025,13 @@ async def _send_invite_notification(
             return bool(resp and resp.get(CommParams.STATUS) == ResponseParams.SUCCESS)
 
         if invited_mobile and invited_calling_code:
+            sender_name = inviter_email if inviter_email else "A friend"
             sms_payload = {
-                RequestParams.MOBILE: invited_mobile,
-                RequestParams.CALLING_CODE: invited_calling_code,
-                CommParams.MESSAGE: None,
-                CommParams.VARIABLES: {CommParams.VAR: invited_mobile},
+                "receiver": f"{invited_calling_code}{invited_mobile}".lstrip("+"),
+                CommParams.MESSAGE: EmailTemplates.FRIEND_INVITE_MESSAGE.format(
+                    sender_name,
+                    settings.web_url,
+                ),
             }
             resp = await call_communication_api(deeplinks.SMS_SEND_URL, sms_payload)
             return bool(resp and resp.get(CommParams.STATUS) == ResponseParams.SUCCESS)
@@ -1045,7 +1046,7 @@ async def _send_invite_notification(
 async def _persist_invite(
     db_session: AsyncSession,
     inviter_user_id: UUID | None,
-    waitlist_id: int,
+    waitlist_id: UUID,
     invited_email: str | None,
     invited_mobile: str | None,
     invited_calling_code: str | None,
@@ -1090,5 +1091,6 @@ async def _persist_invite(
         return "created" if res else "duplicate"
 
     except Exception as e:
+        await db_session.rollback()
         logger.error(f"{ErrorMessages.INVITE_DB_INSERT_FAILED}: {e}")
         return "failed"
