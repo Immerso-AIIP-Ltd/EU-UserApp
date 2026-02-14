@@ -301,7 +301,6 @@ class UserQueries:
             u.mobile,
             u.calling_code,
             p.image_url AS image,
-            p.thumbnail_url AS thumbnail,
             p.country_code AS country,
             p.gender,
             p.about_me,
