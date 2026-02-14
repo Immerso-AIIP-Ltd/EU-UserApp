@@ -26,6 +26,7 @@ from app.api.v1.service.asset_manager import AssetManagerService
 from app.api.v1.service.auth_service import AuthService
 from app.api.v1.service.device_service import DeviceService
 from app.api.v1.service.fusionauth_service import FusionAuthService
+from app.api.v1.service.payment_service import assign_free_plan_to_user
 from app.api.v1.service.register_otp import GenerateOtpService
 from app.api.v1.service.register_service import UserVerifyService
 from app.cache.base import build_cache_key, get_cache, set_cache
@@ -62,7 +63,6 @@ from app.core.exceptions import (
 from app.db.dependencies import get_db_session
 from app.db.utils import execute_and_transform, execute_query
 from app.settings import settings
-from app.utils.http_client import HttpClient
 from app.utils.rewards import call_reward_api_async
 from app.utils.security import SecurityService
 from app.utils.standard_response import standard_response
@@ -533,37 +533,7 @@ async def _finalize_user_registration(
     }
 
     # Assign Free Plan via External API
-    try:
-        # Define the payload/headers as per requirement
-        # Headers: x-platform: web, x-user-id: <user_id>, x-public-key: PK...
-        payment_url = settings.app_assign_free_plan_api_url
-        payment_headers = {
-            # Defaulting to web as per curl example
-            "x-platform": "web",
-            "x-user-id": str(user_id),
-            "x-public-key": settings.app_assign_free_plan_public_key,
-            "Content-Type": "application/json",
-        }
-
-        payment_headers = {
-            # Defaulting to web as per curl example
-            "x-platform": "web",
-            "x-user-id": str(user_id),
-            "x-public-key": settings.app_assign_free_plan_public_key,
-            "Content-Type": "application/json",
-        }
-
-        # Reverted back to await as per user request
-        await HttpClient.make_request(
-            url=payment_url,
-            method="POST",
-            headers=payment_headers,
-            json={},
-        )
-        logger.info(f"Assigned free plan to user {user_id}")
-    except Exception as e:
-        logger.error(f"Failed to assign free plan to user {user_id}: {e}")
-        # Proceeding without failing the registration
+    await assign_free_plan_to_user(user_id)
 
     response_data = {
         RequestParams.AUTH_TOKEN: auth_token,

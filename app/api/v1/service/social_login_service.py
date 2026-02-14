@@ -1,7 +1,6 @@
 import asyncio
 from typing import Any
 
-from loguru import logger
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,12 +11,11 @@ from app.api.v1.service.device_service import DeviceService
 from app.api.v1.service.facebook_oauth_service import FacebookOAuthService
 from app.api.v1.service.fusionauth_service import FusionAuthService
 from app.api.v1.service.google_oauth_service import GoogleOAuthService
+from app.api.v1.service.payment_service import assign_free_plan_to_user
 from app.core.constants import DeviceNames, ErrorMessages, RequestParams
 from app.core.exceptions.exceptions import DeviceNotRegisteredError
 from app.db.models.user_app import User
 from app.db.utils import execute_query
-from app.settings import settings
-from app.utils.http_client import HttpClient
 from app.utils.kafka_producer import KafkaProducerService
 
 
@@ -340,24 +338,8 @@ class SocialLoginService:
             )
 
             # Assign Free Plan via External API
-            try:
-                payment_url = settings.app_assign_free_plan_api_url
-                payment_headers = {
-                    "x-platform": "web",
-                    "x-user-id": str(user_id),
-                    "x-public-key": settings.app_assign_free_plan_public_key,
-                    "Content-Type": "application/json",
-                }
-
-                await HttpClient.make_request(
-                    url=payment_url,
-                    method="POST",
-                    headers=payment_headers,
-                    json={},
-                )
-                logger.info(f"Assigned free plan to user {user_id}")
-            except Exception as e:
-                logger.error(f"Failed to assign free plan to user {user_id}: {e}")
+            # Assign Free Plan via External API
+            await assign_free_plan_to_user(user_id)
 
         # Generate Refresh Token
         refresh_token = await AuthService.create_refresh_session(

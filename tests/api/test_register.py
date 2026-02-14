@@ -98,7 +98,7 @@ async def test_verify_otp_register_success(
         "app.api.v1.register.views.execute_and_transform",
         new_callable=AsyncMock,
     ) as mock_transform, patch(
-        "app.api.v1.register.views.HttpClient.make_request",
+        "app.api.v1.register.views.assign_free_plan_to_user",
         new_callable=AsyncMock,
     ):
 
