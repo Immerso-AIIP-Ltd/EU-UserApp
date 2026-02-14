@@ -1,6 +1,6 @@
 from typing import Any, Union
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +32,7 @@ async def google_login(
     db_session: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ) -> JSONResponse:
     """Google Login / Sign Up API - Enforced Encryption."""
 
@@ -74,6 +75,7 @@ async def google_login(
         request_data=request_data,
         db_session=db_session,
         cache=cache,
+        background_tasks=background_tasks,
     )
     return standard_response(
         message=SuccessMessages.USER_LOGGED_IN,
@@ -89,6 +91,7 @@ async def apple_login(
     db_session: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ) -> JSONResponse:
     """Apple Login / Sign Up API - Enforced Encryption."""
 
@@ -132,6 +135,7 @@ async def apple_login(
         request_data=request_data,
         db_session=db_session,
         cache=cache,
+        background_tasks=background_tasks,
     )
 
     return standard_response(
@@ -148,6 +152,7 @@ async def facebook_login(
     db_session: AsyncSession = Depends(get_db_session),
     cache: Redis = Depends(get_redis_connection),
     headers: dict[str, Any] = Depends(validate_headers_without_auth),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ) -> JSONResponse:
     """Facebook Login / Sign Up API - Enforced Encryption."""
 
@@ -186,6 +191,7 @@ async def facebook_login(
         request_data=request_data,
         db_session=db_session,
         cache=cache,
+        background_tasks=background_tasks,
     )
 
     return standard_response(
