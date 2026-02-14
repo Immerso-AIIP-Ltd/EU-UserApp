@@ -138,6 +138,9 @@ class Settings(BaseSettings):
     deeplink_link_account: str = Field(default="dummy")
     facebook_auth_link: str = Field(default="dummy")
 
+    # Reward API Settings
+    reward_api_url: str = Field(default="https://example.com")
+
     @property
     def db_url(self) -> URL:
         """
