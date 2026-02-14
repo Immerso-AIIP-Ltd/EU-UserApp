@@ -18,6 +18,7 @@ from app.core.exceptions.exceptions import (
     AccountBlockedError,
     AccountDeactivatedError,
     DeviceNotRegisteredError,
+    IncorrectPasswordError,
     UnauthorizedError,
     UserNotFoundError,
 )
@@ -96,7 +97,7 @@ class LoginService:
             login_data.password,
             user["password"],
         ):
-            raise UnauthorizedError(ErrorMessages.INCORRECT_PASSWORD)
+            raise IncorrectPasswordError(ErrorMessages.INCORRECT_PASSWORD)
 
         # Generate token
         token, expires_at = await AuthService.generate_token(

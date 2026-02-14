@@ -672,3 +672,14 @@ class PayloadNotEncryptedError(AppError):
             message=detail,
             error_code=ErrorCodes.PAYLOAD_NOT_ENCRYPTED_CODE,
         )
+
+
+class IncorrectPasswordError(AppError):
+    """Raised when the provided password is incorrect."""
+
+    def __init__(self, message: str = ErrorMessages.INCORRECT_PASSWORD) -> None:
+        super().__init__(
+            http_code=status.HTTP_400_BAD_REQUEST,
+            message=message,
+            error_code=ErrorCodes.INCORRECT_PASSWORD_CODE,
+        )
