@@ -115,6 +115,7 @@ class CacheTTL:
     TOKEN_EXPIRY = 120  # 2 minutes
 
 
+
 class QueryTimeouts:
     """Database query timeout values in seconds."""
 

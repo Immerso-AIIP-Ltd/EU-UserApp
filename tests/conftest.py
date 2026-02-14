@@ -27,6 +27,12 @@ from app.settings import settings
 
 
 @pytest.fixture(autouse=True)
+def override_jwt_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Override JWT secret with a secure key for testing."""
+    monkeypatch.setattr(settings, "jwt_secret_key", "a" * 32)
+
+
+@pytest.fixture(autouse=True)
 def disable_cache_for_non_config_tests(
     monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
