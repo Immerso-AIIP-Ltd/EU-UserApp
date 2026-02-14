@@ -153,6 +153,7 @@ class DeviceService:
         skipped_legacy_login: bool = False,
         uuid: str | None = None,
         session: AsyncSession | None = None,
+        push_token: str | None = None,
     ) -> None:
         """Links a device to a user and syncs token to Redis."""
         device_id = str(device_id)
@@ -167,6 +168,19 @@ class DeviceService:
         if not exists:
             # logic to handle non-existent device if needed, or pass
             pass
+
+        # Update push_token if provided
+        if push_token and exists:
+            await execute_query(
+                UserQueries.UPDATE_DEVICE,
+                {
+                    "device_id": device_id,
+                    "device_type": None,
+                    "device_name": None,
+                    "push_token": push_token,
+                },
+                final_session,
+            )
 
         # Update DB
         await execute_query(

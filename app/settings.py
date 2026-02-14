@@ -66,7 +66,8 @@ class Settings(BaseSettings):
         default="this-is-a-very-secure-and-long-secret-key-for-testing-purposes",
     )
     jwt_algorithm: str = Field(default="HS256")
-    jwt_access_token_expire_minutes: int = Field(default=14400)
+    jwt_access_token_expire_minutes: int = Field(default=2)  # 2 minutes
+
     user_token_days_to_expire: int = Field(default=30)
 
     # Celery settings

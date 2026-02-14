@@ -62,6 +62,7 @@ class LoginService:
         device_id: str | None,
         db_session: AsyncSession,
         cache: Redis,
+        push_token: str | None = None,
     ) -> tuple[dict[str, Any], str, str, int]:
         """Authenticates a user and generates a login token."""
 
@@ -176,6 +177,7 @@ class LoginService:
             db_session=db_session,
             cache=cache,
             auth_token=token,
+            push_token=push_token or login_data.push_token,
         )
 
         return user, token, refresh_token, expires_at

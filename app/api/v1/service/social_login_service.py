@@ -15,6 +15,7 @@ from app.core.constants import DeviceNames, ErrorMessages, RequestParams
 from app.core.exceptions.exceptions import DeviceNotRegisteredError
 from app.db.models.user_app import User
 from app.db.utils import execute_query
+from app.utils.kafka_producer import KafkaProducerService
 
 
 class SocialLoginService:
@@ -42,6 +43,7 @@ class SocialLoginService:
         )
 
         user = None
+        is_created = False
         if rows:
             user = dict(rows[0])
         else:
@@ -78,6 +80,7 @@ class SocialLoginService:
                 )
                 if signup_rows:
                     user = dict(signup_rows[0])
+                    is_created = True
 
         if not user:
             # This shouldn't happen if signup_with_social works
@@ -97,74 +100,13 @@ class SocialLoginService:
             db_session,
         )
 
-        # 5. Generate Auth Token
-        # 5. Generate Auth Token
-        # 5. Generate Auth Token
-
-        device_id = request_data.get("device_id")
-        if not device_id or not await DeviceService.is_device_registered(
-            device_id,
+        return await SocialLoginService._finalize_social_login(
+            user_id,
+            request_data,
             db_session,
-        ):
-            raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
-
-        token, expires_at = await AuthService.generate_token(
-            user=User(id=user_id),
-            client_id=request_data[RequestParams.API_CLIENT],
-            db_session=db_session,
-            cache=cache,
-            device_id=device_id,
+            cache,
+            is_created,
         )
-
-        # FusionAuth Integration
-        try:
-            user_uuid_str = str(user_id)
-            user_email = user.get("email")
-
-            # 1. Sync User (Ensure exists)
-            await asyncio.to_thread(
-                FusionAuthService.create_fusion_user,
-                user_uuid_str,
-                user_email,
-            )
-
-            # 2. Issue Token
-            fa_token = await asyncio.to_thread(
-                FusionAuthService.issue_token,
-                user_uuid_str,
-            )
-
-            if fa_token:
-                token = fa_token
-        except Exception as e:
-            raise Exception(ErrorMessages.FUSION_AUTH_TOKEN_ERROR) from e
-
-        # Get user details for response
-        profile_rows = await execute_query(
-            UserQueries.GET_USER_PROFILE,
-            {"user_id": user_id},
-            db_session,
-        )
-        user_profile = dict(profile_rows[0]) if profile_rows else {}
-
-        # Generate Refresh Token
-        refresh_token = await AuthService.create_refresh_session(
-            db_session=db_session,
-            user_id=str(user_id),
-            device_id=request_data.get("device_id") or DeviceNames.UNKNOWN_DEVICE,
-            user_agent=request_data.get("user_agent"),
-        )
-
-        return {
-            "auth_token": token,
-            "refresh_token": refresh_token,
-            "user": {
-                "user_id": str(user_id),
-                "email": user_profile.get("email"),
-                "name": user_profile.get("name"),
-                "image": user_profile.get("image"),
-            },
-        }
 
     @staticmethod
     async def apple_login(
@@ -188,6 +130,7 @@ class SocialLoginService:
         )
 
         user = None
+        is_created = False
         if rows:
             user = dict(rows[0])
         else:
@@ -221,6 +164,7 @@ class SocialLoginService:
                 )
                 if signup_rows:
                     user = dict(signup_rows[0])
+                    is_created = True
 
         if not user:
             raise Exception(ErrorMessages.FUSION_AUTH_REGISTRATION_ERROR)
@@ -239,73 +183,13 @@ class SocialLoginService:
             db_session,
         )
 
-        # 5. Generate Auth Token
-        # 5. Generate Auth Token
-
-        device_id = request_data.get("device_id")
-        if not device_id or not await DeviceService.is_device_registered(
-            device_id,
+        return await SocialLoginService._finalize_social_login(
+            user_id,
+            request_data,
             db_session,
-        ):
-            raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
-
-        token, expires_at = await AuthService.generate_token(
-            user=User(id=user_id),
-            client_id=request_data[RequestParams.API_CLIENT],
-            db_session=db_session,
-            cache=cache,
-            device_id=device_id,
+            cache,
+            is_created,
         )
-
-        # FusionAuth Integration
-        try:
-            user_uuid_str = str(user_id)
-            user_email = user.get("email")
-
-            # 1. Sync User (Ensure exists)
-            await asyncio.to_thread(
-                FusionAuthService.create_fusion_user,
-                user_uuid_str,
-                user_email,
-            )
-
-            # 2. Issue Token
-            fa_token = await asyncio.to_thread(
-                FusionAuthService.issue_token,
-                user_uuid_str,
-            )
-
-            if fa_token:
-                token = fa_token
-        except Exception as e:
-            raise Exception(ErrorMessages.FUSION_AUTH_TOKEN_ERROR) from e
-
-        # Get user details for response
-        profile_rows = await execute_query(
-            UserQueries.GET_USER_PROFILE,
-            {"user_id": user_id},
-            db_session,
-        )
-        user_profile = dict(profile_rows[0]) if profile_rows else {}
-
-        # Generate Refresh Token
-        refresh_token = await AuthService.create_refresh_session(
-            db_session=db_session,
-            user_id=str(user_id),
-            device_id=request_data.get("device_id") or DeviceNames.UNKNOWN_DEVICE,
-            user_agent=request_data.get("user_agent"),
-        )
-
-        return {
-            "auth_token": token,
-            "refresh_token": refresh_token,
-            "user": {
-                "user_id": str(user_id),
-                "email": user_profile.get("email"),
-                "name": user_profile.get("name"),
-                "image": user_profile.get("image"),
-            },
-        }
 
     @staticmethod
     async def facebook_login(
@@ -331,6 +215,7 @@ class SocialLoginService:
         )
 
         user = None
+        is_created = False
         if rows:
             user = dict(rows[0])
         else:
@@ -362,6 +247,7 @@ class SocialLoginService:
                 )
                 if signup_rows:
                     user = dict(signup_rows[0])
+                    is_created = True
 
         if not user:
             raise Exception(ErrorMessages.FUSION_AUTH_REGISTRATION_ERROR)
@@ -380,9 +266,23 @@ class SocialLoginService:
             db_session,
         )
 
-        # 5. Generate Auth Token
-        # 5. Generate Auth Token
+        return await SocialLoginService._finalize_social_login(
+            user_id,
+            request_data,
+            db_session,
+            cache,
+            is_created,
+        )
 
+    @staticmethod
+    async def _finalize_social_login(
+        user_id: int | str,
+        request_data: dict[str, Any],
+        db_session: AsyncSession,
+        cache: Redis,
+        is_created: bool,
+    ) -> dict[str, Any]:
+        """Finalize social login process (token generation, events, etc.)."""
         device_id = request_data.get("device_id")
         if not device_id or not await DeviceService.is_device_registered(
             device_id,
@@ -399,9 +299,18 @@ class SocialLoginService:
         )
 
         # FusionAuth Integration
+
+        # Get user details for response/logic
+        profile_rows = await execute_query(
+            UserQueries.GET_USER_PROFILE,
+            {"user_id": user_id},
+            db_session,
+        )
+        user_profile = dict(profile_rows[0]) if profile_rows else {}
+        user_email = user_profile.get("email")
+
         try:
             user_uuid_str = str(user_id)
-            user_email = user.get("email")
 
             # 1. Sync User (Ensure exists)
             await asyncio.to_thread(
@@ -421,13 +330,11 @@ class SocialLoginService:
         except Exception as e:
             raise Exception(ErrorMessages.FUSION_AUTH_TOKEN_ERROR) from e
 
-        # Get user details for response
-        profile_rows = await execute_query(
-            UserQueries.GET_USER_PROFILE,
-            {"user_id": user_id},
-            db_session,
-        )
-        user_profile = dict(profile_rows[0]) if profile_rows else {}
+        if is_created:
+            await KafkaProducerService.publish_event(
+                event_type="USER_CREATED",
+                data=user_profile,
+            )
 
         # Generate Refresh Token
         refresh_token = await AuthService.create_refresh_session(

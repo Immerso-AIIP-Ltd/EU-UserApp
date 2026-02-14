@@ -11,7 +11,9 @@ class DeviceTokenRedisService:
 
     def __init__(self, redis_client: Redis) -> None:
         self.redis_client = redis_client
-        self.ttl = 86400  # 24 hours default, can be moved to settings
+        # TTL aligned with EU-Social and CommService (30 days)
+        # Token should persist across multiple logins
+        self.ttl = 60 * 60 * 24 * 30  # 30 days
 
     async def store_device_token_in_redis(
         self,
@@ -26,7 +28,8 @@ class DeviceTokenRedisService:
             user_uuid: UUID of the user
         """
         try:
-            device_id = device["device_id"]
+            # DB returns 'serial_number', use it as device_id for Redis key
+            device_id = device.get("serial_number") or device.get("device_id")
             push_token = device.get("push_token")
 
             if not push_token:
@@ -36,6 +39,8 @@ class DeviceTokenRedisService:
                 return {"success": False, "message": "No push token"}
 
             # Store individual device token
+            # Key format matches EU-Social expectations:
+            # device_token:{user_id}:{device_id}
             device_key = f"device_token:{user_uuid}:{device_id}"
             device_data = {
                 "token": push_token,
@@ -67,7 +72,8 @@ class DeviceTokenRedisService:
     ) -> dict[str, Any]:
         """Remove device token from Redis when device is deactivated."""
         try:
-            device_id = device["device_id"]
+            # DB returns 'serial_number', use it as device_id for Redis key
+            device_id = device.get("serial_number") or device.get("device_id")
 
             # Remove individual device token
             device_key = f"device_token:{user_uuid}:{device_id}"
