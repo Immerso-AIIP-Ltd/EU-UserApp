@@ -97,7 +97,10 @@ async def test_verify_otp_register_success(
     ) as mock_finalize, patch(
         "app.api.v1.register.views.execute_and_transform",
         new_callable=AsyncMock,
-    ) as mock_transform:
+    ) as mock_transform, patch(
+        "app.api.v1.register.views.HttpClient.make_request",
+        new_callable=AsyncMock,
+    ):
 
         user_id = uuid.uuid4()
         mock_insert.return_value = [{"id": user_id, "email": "register@example.com"}]
