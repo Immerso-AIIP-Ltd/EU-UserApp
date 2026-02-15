@@ -282,6 +282,31 @@ async def verify_otp_register(
     if verify_payload.push_token:
         cached_data["push_token"] = verify_payload.push_token
 
+    logger.info(
+        f"Cached data before finalizing registration for {receiver}: "
+        f"profile_image={cached_data.get(LoginParams.PROFILE_IMAGE)}, "
+        f"push_token={cached_data.get('push_token')}",
+    )
+
+    # Log Redis configuration for debugging
+    redis_config = {
+        "cluster_nodes": (
+            settings.redis_cluster_nodes
+            if hasattr(settings, "redis_cluster_nodes")
+            else None
+        ),
+        "redis_host": settings.redis_host if hasattr(settings, "redis_host") else None,
+        "redis_port": settings.redis_port if hasattr(settings, "redis_port") else None,
+        "cache_type": type(cache).__name__,
+    }
+    logger.info(
+        f"Redis Configuration for token storage: "
+        f"cluster_nodes={redis_config.get('cluster_nodes')}, "
+        f"host={redis_config.get('redis_host')}, "
+        f"port={redis_config.get('redis_port')}, "
+        f"cache_type={redis_config.get('cache_type')}",
+    )
+
     return await _finalize_user_registration(
         request,
         db_session,
@@ -948,6 +973,12 @@ async def _update_device_and_sync_redis(
     cache: Redis,
 ) -> None:
     """Update device with push token and sync to Redis."""
+    logger.info(
+        f"[REDIS SYNC] Starting device token sync to Redis: "
+        f"user_id={user_id}, device_id={device_id}, "
+        f"has_push_token={push_token is not None}",
+    )
+
     if push_token:
         await execute_query(
             query=UserQueries.UPDATE_DEVICE,
@@ -978,13 +1009,54 @@ async def _update_device_and_sync_redis(
             )
 
             device = await DeviceService.get_device(device_id, db_session)
+
+            # Log Redis configuration and keys that will be used
+            redis_key_device = f"device_token:{user_id}:{device_id}"
+            redis_key_user = f"user_device_tokens:{user_id}"
+
+            redis_config = {
+                "cluster_nodes": (
+                    settings.redis_cluster_nodes
+                    if hasattr(settings, "redis_cluster_nodes")
+                    else None
+                ),
+                "redis_host": (
+                    settings.redis_host if hasattr(settings, "redis_host") else None
+                ),
+                "redis_port": (
+                    settings.redis_port if hasattr(settings, "redis_port") else None
+                ),
+                "cache_connection": str(cache),
+            }
+
+            token_preview = push_token[:50] if push_token else "None"
+            logger.info(
+                f"[REDIS STORAGE] Storing device token in Redis:\n"
+                f"  User ID: {user_id}\n"
+                f"  Device ID: {device_id}\n"
+                f"  Individual Key: {redis_key_device}\n"
+                f"  User List Key: {redis_key_user}\n"
+                f"  Redis Config: {redis_config}\n"
+                f"  Push Token (first 50 chars): {token_preview}...",
+            )
+
             redis_service = DeviceTokenRedisService(cache)
             await redis_service.store_device_token_in_redis(
                 device,
                 str(user_id),
             )
+
+            logger.info(
+                f"[REDIS SUCCESS] Device token successfully stored "
+                f"in Redis for user {user_id}",
+            )
         except Exception as redis_err:
-            logger.warning(f"Failed to sync device token to Redis: {redis_err}")
+            logger.warning(
+                f"[REDIS ERROR] Failed to sync device token to Redis: {redis_err}\n"
+                f"  User ID: {user_id}\n"
+                f"  Device ID: {device_id}\n"
+                f"  Error Type: {type(redis_err).__name__}",
+            )
 
 
 @router.post("/resend_otp")
