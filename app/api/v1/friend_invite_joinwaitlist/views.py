@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.queries import UserQueries
@@ -932,6 +933,18 @@ async def friend_invite(
     for item in payload.invited_list:
         invited_email, invited_mobile, invited_calling_code = _parse_invite_item(item)
 
+        # Check if already a member or in waitlist
+        if await _check_if_already_member(
+            db_session,
+            invited_email,
+            invited_mobile,
+            invited_calling_code,
+            inviter_user_id,
+            waitlist_id,
+        ):
+            duplicate_invites.append(item)
+            continue
+
         # Send Invite (Bypassed for load test)
         is_bypass = (
             request.headers.get(HeaderKeys.X_LOAD_TEST_BYPASS)
@@ -1088,6 +1101,129 @@ async def _send_invite_notification(
         return False
 
     return total_sent
+
+
+async def _is_registered(
+    db_session: AsyncSession,
+    email: str | None,
+    mobile: str | None,
+    calling_code: str | None,
+) -> bool:
+    """Helper to check if user is registered."""
+    if email:
+        res = await execute_query(
+            query=UserQueries.GET_USER_BY_EMAIL,
+            params={RequestParams.EMAIL: email},
+            db_session=db_session,
+        )
+    else:
+        res = await execute_query(
+            query=UserQueries.GET_USER_BY_MOBILE,
+            params={
+                RequestParams.MOBILE: mobile,
+                RequestParams.CALLING_CODE: calling_code,
+            },
+            db_session=db_session,
+        )
+    return bool(res)
+
+
+async def _is_waitlisted(
+    db_session: AsyncSession,
+    email: str | None,
+    mobile: str | None,
+    calling_code: str | None,
+) -> bool:
+    """Helper to check if user is on waitlist."""
+    if email:
+        res = await execute_query(
+            query=UserQueries.GET_WAITLIST_BY_EMAIL,
+            params={RequestParams.EMAIL: email},
+            db_session=db_session,
+        )
+    else:
+        res = await execute_query(
+            query=UserQueries.GET_WAITLIST_BY_MOBILE,
+            params={
+                RequestParams.MOBILE: mobile,
+                RequestParams.CALLING_CODE: calling_code,
+            },
+            db_session=db_session,
+        )
+    return bool(res)
+
+
+async def _is_already_invited(
+    db_session: AsyncSession,
+    email: str | None,
+    mobile: str | None,
+    calling_code: str | None,
+    inviter_id: UUID | None,
+    waitlist_id: UUID | None,
+) -> bool:
+    """Helper to check if user is already invited."""
+    if not (inviter_id or waitlist_id):
+        return False
+
+    if email:
+        query = text(
+            """
+            SELECT id FROM user_app.friend_invite
+            WHERE invited_email = :email
+              AND (waitlist_id = :waitlist_id OR
+                   (inviter_id = :inviter_id AND inviter_id IS NOT NULL))
+            LIMIT 1;
+            """,
+        )
+        params = {
+            RequestParams.EMAIL: email,
+            RequestParams.WAITLIST_ID: waitlist_id,
+            RequestParams.INVITER_ID: inviter_id,
+        }
+    else:
+        query = text(
+            """
+            SELECT id FROM user_app.friend_invite
+            WHERE invited_mobile = :mobile AND invited_calling_code = :calling_code
+              AND (waitlist_id = :waitlist_id OR
+                   (inviter_id = :inviter_id AND inviter_id IS NOT NULL))
+            LIMIT 1;
+            """,
+        )
+        params = {
+            RequestParams.MOBILE: mobile,
+            RequestParams.CALLING_CODE: calling_code,
+            RequestParams.WAITLIST_ID: waitlist_id,
+            RequestParams.INVITER_ID: inviter_id,
+        }
+
+    res = await execute_query(query=query, params=params, db_session=db_session)
+    return bool(res)
+
+
+async def _check_if_already_member(
+    db_session: AsyncSession,
+    email: str | None,
+    mobile: str | None,
+    calling_code: str | None,
+    inviter_id: UUID | None,
+    waitlist_id: UUID | None = None,
+) -> bool:
+    """Check if the invited person is already in waitlist or registered."""
+    if await _is_registered(db_session, email, mobile, calling_code):
+        return True
+
+    if await _is_waitlisted(db_session, email, mobile, calling_code):
+        return True
+
+    return await _is_already_invited(
+        db_session,
+        email,
+        mobile,
+        calling_code,
+        inviter_id,
+        waitlist_id,
+    )
 
 
 async def _persist_invite(
