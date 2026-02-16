@@ -895,6 +895,8 @@ async def friend_invite(
 
     for item in payload.invited_list:
         invited_email, invited_mobile, invited_calling_code = _parse_invite_item(item)
+        if invited_email:
+            invited_email = invited_email.lower()
 
         # Check if already a member or in waitlist
         if await _check_if_already_member(
@@ -1074,12 +1076,23 @@ async def _is_registered(
 ) -> bool:
     """Helper to check if user is registered."""
     if email:
+        logger.debug(f"Checking if registered: {email}")
+        query = text(
+            """
+            SELECT id FROM user_app.user
+            WHERE LOWER(email) = LOWER(:email)
+            LIMIT 1;
+            """,
+        )
         res = await execute_query(
-            query=UserQueries.GET_USER_BY_EMAIL,
+            query=query,
             params={RequestParams.EMAIL: email},
             db_session=db_session,
         )
     else:
+        if not mobile or not calling_code:
+            return False
+
         res = await execute_query(
             query=UserQueries.GET_USER_BY_MOBILE,
             params={
@@ -1088,7 +1101,10 @@ async def _is_registered(
             },
             db_session=db_session,
         )
-    return bool(res)
+    if res:
+        logger.info(f"User is already registered: {email or mobile}")
+        return True
+    return False
 
 
 async def _is_waitlisted(
@@ -1099,12 +1115,24 @@ async def _is_waitlisted(
 ) -> bool:
     """Helper to check if user is on waitlist."""
     if email:
+        logger.info(f"Checking if waitlisted: {email}")  # Changed to info
+        query = text(
+            """
+            SELECT id FROM user_app.waitlist
+            WHERE LOWER(email) = LOWER(:email)
+            LIMIT 1;
+            """,
+        )
         res = await execute_query(
-            query=UserQueries.GET_WAITLIST_BY_EMAIL,
+            query=query,
             params={RequestParams.EMAIL: email},
             db_session=db_session,
         )
     else:
+        if not mobile or not calling_code:
+            return False
+
+        logger.info(f"Checking if waitlisted mobile: {mobile}")  # Added info
         res = await execute_query(
             query=UserQueries.GET_WAITLIST_BY_MOBILE,
             params={
@@ -1113,7 +1141,10 @@ async def _is_waitlisted(
             },
             db_session=db_session,
         )
-    return bool(res)
+    if res:
+        logger.info(f"User is already on waitlist: {email or mobile}")
+        return True
+    return False
 
 
 async def _is_already_invited(
@@ -1124,44 +1155,47 @@ async def _is_already_invited(
     inviter_id: UUID | None,
     waitlist_id: UUID | None,
 ) -> bool:
-    """Helper to check if user is already invited."""
-    if not (inviter_id or waitlist_id):
-        return False
+    """Helper to check if user is already invited (globally)."""
+    # Diagnostic: Check table visibility
+    count_res = await db_session.execute(
+        text("SELECT COUNT(*) FROM user_app.friend_invite"),
+    )
+    total_rows = count_res.scalar()
+    logger.info(f"Total rows in friend_invite table as seen by app: {total_rows}")
 
     if email:
+        logger.info(f"Checking global invite for email: {email}")
         query = text(
             """
             SELECT id FROM user_app.friend_invite
-            WHERE invited_email = :email
-              AND (waitlist_id = :waitlist_id OR
-                   (inviter_id = :inviter_id AND inviter_id IS NOT NULL))
+            WHERE LOWER(invited_email) = LOWER(:email)
             LIMIT 1;
             """,
         )
-        params = {
-            RequestParams.EMAIL: email,
-            RequestParams.WAITLIST_ID: waitlist_id,
-            RequestParams.INVITER_ID: inviter_id,
-        }
+        params = {RequestParams.EMAIL: email}  # Consistent name
     else:
+        if not mobile or not calling_code:
+            return False
+
+        logger.info(f"Checking global invite for mobile: {calling_code}{mobile}")
         query = text(
             """
             SELECT id FROM user_app.friend_invite
-            WHERE invited_mobile = :mobile AND invited_calling_code = :calling_code
-              AND (waitlist_id = :waitlist_id OR
-                   (inviter_id = :inviter_id AND inviter_id IS NOT NULL))
+            WHERE invited_mobile = :mobile
+              AND invited_calling_code = :calling_code
             LIMIT 1;
             """,
         )
         params = {
             RequestParams.MOBILE: mobile,
             RequestParams.CALLING_CODE: calling_code,
-            RequestParams.WAITLIST_ID: waitlist_id,
-            RequestParams.INVITER_ID: inviter_id,
         }
 
     res = await execute_query(query=query, params=params, db_session=db_session)
-    return bool(res)
+    if res:
+        logger.info(f"Duplicate global invite found for {email or mobile}")
+        return True
+    return False
 
 
 async def _check_if_already_member(
@@ -1220,6 +1254,7 @@ async def _persist_invite(
             if existing:
                 invited_user_id = existing[0].id
 
+        logger.info(f"Persisting invite for {invited_email or invited_mobile}")
         res = await execute_query(
             query=UserQueries.INSERT_FRIEND_INVITE,
             params={
@@ -1233,10 +1268,20 @@ async def _persist_invite(
             },
             db_session=db_session,
         )
-        await db_session.commit()
-        return "created" if res else "duplicate"
+        # Redundant commit removed. get_db_session handles commit.
+        if res:
+            logger.info(
+                f"Successfully inserted invite for {invited_email or invited_mobile}",
+            )
+            return "created"
+
+        logger.warning(
+            f"Invite insertion returned no ID for {invited_email or invited_mobile}",
+        )
+        return "duplicate"
 
     except Exception as e:
+        # Fallback rollback
         await db_session.rollback()
         logger.error(f"{ErrorMessages.INVITE_DB_INSERT_FAILED}: {e}")
         return "failed"
