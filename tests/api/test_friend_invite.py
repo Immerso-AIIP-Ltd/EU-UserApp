@@ -172,6 +172,10 @@ async def test_friend_invite_success(
         new_callable=AsyncMock,
         return_value=(mock_waitlist_entry, 456),
     ), patch(
+        "app.api.v1.friend_invite_joinwaitlist.views._check_if_already_member",
+        new_callable=AsyncMock,
+        return_value=False,
+    ), patch(
         "app.api.v1.friend_invite_joinwaitlist.views._send_invite_notification",
         new_callable=AsyncMock,
         return_value=True,
