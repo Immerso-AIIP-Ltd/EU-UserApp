@@ -559,7 +559,7 @@ class SuccessMessages:
     PASSWORD_RESET_SUCCESS = "Password reset successful"  # noqa: S105
     USER_REGISTERED_VERIFIED = "User registered and verified successfully."
     WAITLIST_QUEUE_STATUS = (
-        "You're #{0} in the queue, with this {1}. We'll notify you when it is ready."
+        "You're in the queue, with this {1}. We'll notify you when it is ready."
     )
     WAITLIST_ALREADY_EXISTS = "Already on the Waitlist."
     WAITLIST_OTP_RESENT = "{0} already exists but not verified. OTP has been resent."
