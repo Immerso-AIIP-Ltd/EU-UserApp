@@ -47,8 +47,12 @@ class GenerateOtpService:
             ip_address=ip_address,
             receiver=receiver,
         )
-        val = await redis_client.get(redis_key)
-        return val is not None
+        try:
+            val = await redis_client.get(redis_key)
+            return val is not None
+        except Exception as e:
+            logger.error(f"Redis error checking blocked IP {ip_address}: {e}")
+            raise exceptions.RedisServerDownError from e
 
     @staticmethod
     async def _increment_otp_request(
@@ -101,6 +105,7 @@ class GenerateOtpService:
                 intent,
                 is_resend,
                 db_session,
+                x_forwarded_for=x_forwarded_for,
                 name=name,
             )
         elif receiver_type == RequestParams.MOBILE:
@@ -123,9 +128,47 @@ class GenerateOtpService:
         intent: str,
         is_resend: bool,
         db_session: Optional[AsyncSession],
+        x_forwarded_for: Optional[str] = None,
         name: Optional[str] = None,
     ) -> None:
         """Handle logic for email-based OTP delivery."""
+
+        # 1. Rate Limiting Check (Same as Mobile)
+        if x_forwarded_for:
+            if await GenerateOtpService._is_ip_blocked(
+                redis_client,
+                x_forwarded_for,
+                receiver,
+            ):
+                logger.warning(LogMessages.IP_BLOCKED.format(x_forwarded_for))
+                raise exceptions.IpBlockedError
+
+            req_count = await GenerateOtpService._increment_otp_request(
+                redis_client,
+                x_forwarded_for,
+                receiver,
+            )
+            logger.debug(
+                LogMessages.OTP_REQ_COUNT.format(x_forwarded_for, receiver, req_count),
+            )
+
+            if req_count > 5:
+                logger.warning(
+                    LogMessages.TOO_MANY_REQUESTS_BLOCKING.format(
+                        x_forwarded_for,
+                        receiver,
+                    ),
+                )
+                try:
+                    block_ip_for_24_hours.apply_async(
+                        queue=CeleryQueues.BLOCK_IP_QUEUE,
+                        args=([x_forwarded_for, receiver]),
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to queue IP block task: {e}")
+
+                raise exceptions.OtpTooManyAttemptsError
+
         redis_key = CacheKeyTemplates.OTP_EMAIL.format(receiver=receiver, intent=intent)
         await redis_client.setex(redis_key, CacheTTL.OTP_EXPIRY, otp)
         logger.debug(
@@ -202,17 +245,21 @@ class GenerateOtpService:
             LogMessages.OTP_REQ_COUNT.format(x_forwarded_for, receiver, req_count),
         )
 
-        if req_count > 3:
+        if req_count > 5:
             logger.warning(
                 LogMessages.TOO_MANY_REQUESTS_BLOCKING.format(
                     x_forwarded_for,
                     receiver,
                 ),
             )
-            block_ip_for_24_hours.apply_async(
-                queue=CeleryQueues.BLOCK_IP_QUEUE,
-                args=([x_forwarded_for, receiver]),
-            )
+            try:
+                block_ip_for_24_hours.apply_async(
+                    queue=CeleryQueues.BLOCK_IP_QUEUE,
+                    args=([x_forwarded_for, receiver]),
+                )
+            except Exception as e:
+                logger.error(f"Failed to queue IP block task: {e}")
+
             raise exceptions.OtpTooManyAttemptsError
 
         # Call External Communication API for OTP Generation

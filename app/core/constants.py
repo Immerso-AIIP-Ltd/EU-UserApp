@@ -705,7 +705,9 @@ class ErrorMessages:
     FORGOT_PASSWORD = "Forgot Password"  # noqa: S105
     OTP_EXPIRED = "OTP Expired"
     OTP_INVALID_OR_EXPIRED = "OTP is Invalid or Expired"
-    OTP_TOO_MANY_ATTEMPTS = "OTP Too Many Attempts"
+    OTP_TOO_MANY_ATTEMPTS = (
+        "You have exceeded the maximum number of OTP attempts. Please wait 24 hours."
+    )
     IP_BLOCKED = "IP is blocked"
     PROVIDE_EMAIL_OR_MOBILE = (
         "Provide only email OR only mobile with calling_code, not both"
@@ -756,7 +758,7 @@ class ErrorMessages:
     # Duplicates removed here
     DEVICE_ID_MISSING = "Device ID missing"
     TIMESTAMP_MISSING = "Timestamp missing in payload"
-    REQUEST_EXPIRED = "Request expired (Timestamp check failed)"
+    REQUEST_EXPIRED = "Request expired. Please check your system clock or try again."
     INSTALL_ID_MISSING = "install_id missing"
     INVALID_ENCRYPTED_DATA_LENGTH = "Invalid Encrypted Data Length"
     KEY_RETRIEVAL_FAILED = "Key Retrieval Failed"

@@ -38,6 +38,7 @@ from app.core.constants import (
 )
 from app.core.exceptions import (
     CommServiceAPICallFailedError,
+    DBIntegrityError,
     DecryptionFailedError,
     DeviceNotRegisteredError,
     EmailMobileRequiredError,
@@ -119,6 +120,17 @@ async def join_waitlist(
         raise DecryptionFailedError(detail=f"Decryption failed: {e!s}") from e
 
     device_id = waitlist_payload.device_id
+
+    # CRITICAL: Validate that the device_id in payload is also registered
+    if str(device_id) != str(
+        device_id_header,
+    ) and not await DeviceService.is_device_registered(
+        str(device_id),
+        db_session,
+        cache=cache,
+    ):
+        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED)
+
     email = waitlist_payload.email
     mobile = waitlist_payload.mobile
     calling_code = waitlist_payload.calling_code
@@ -264,17 +276,25 @@ async def _process_email_flow(
         )
 
     # 3. New registration
-    new_entry_rows = await execute_query(
-        query=UserQueries.INSERT_WAITLIST_ENTRY,
-        params={
-            RequestParams.DEVICE_ID: str(device_id),
-            RequestParams.EMAIL: email,
-            RequestParams.MOBILE: "",
-            RequestParams.CALLING_CODE: "",
-        },
-        db_session=db_session,
-    )
-    new_entry = new_entry_rows[0]
+    try:
+        new_entry_rows = await execute_query(
+            query=UserQueries.INSERT_WAITLIST_ENTRY,
+            params={
+                RequestParams.DEVICE_ID: str(device_id),
+                RequestParams.EMAIL: email,
+                RequestParams.MOBILE: "",
+                RequestParams.CALLING_CODE: "",
+            },
+            db_session=db_session,
+        )
+        if not new_entry_rows:
+            raise DBIntegrityError("Failed to insert waitlist entry")
+
+        new_entry = new_entry_rows[0]
+    except DBIntegrityError as e:
+        logger.error(f"Integrity Error in email waitlist join: {e}")
+        # Final fallback - if validation somehow passed but insert failed
+        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED) from e
 
     # 4. Update invite_device
     await execute_query(
@@ -413,17 +433,24 @@ async def _process_mobile_flow(
         )
 
     # 3. New registration
-    new_entry_rows = await execute_query(
-        query=UserQueries.INSERT_WAITLIST_ENTRY,
-        params={
-            RequestParams.DEVICE_ID: str(device_id),
-            RequestParams.EMAIL: "",
-            RequestParams.MOBILE: mobile,
-            RequestParams.CALLING_CODE: calling_code,
-        },
-        db_session=db_session,
-    )
-    new_entry = new_entry_rows[0]
+    try:
+        new_entry_rows = await execute_query(
+            query=UserQueries.INSERT_WAITLIST_ENTRY,
+            params={
+                RequestParams.DEVICE_ID: str(device_id),
+                RequestParams.EMAIL: "",
+                RequestParams.MOBILE: mobile,
+                RequestParams.CALLING_CODE: calling_code,
+            },
+            db_session=db_session,
+        )
+        if not new_entry_rows:
+            raise DBIntegrityError("Failed to insert waitlist entry")
+
+        new_entry = new_entry_rows[0]
+    except DBIntegrityError as e:
+        logger.error(f"Integrity Error in mobile waitlist join: {e}")
+        raise DeviceNotRegisteredError(ErrorMessages.DEVICE_NOT_REGISTERED) from e
 
     # 4. Update invite_device
     await execute_query(
@@ -702,6 +729,7 @@ async def _handle_resend_waitlist_email_otp(
     cache: Redis,
     db_session: AsyncSession,
     email: str,
+    x_forwarded_for: str | None,
 ) -> JSONResponse | None:
     """Helper to handle resending waitlist email OTP."""
     existing_entry = await execute_query(
@@ -727,6 +755,7 @@ async def _handle_resend_waitlist_email_otp(
         receiver_type=RequestParams.EMAIL,
         intent=Intents.WAITLIST,
         db_session=db_session,
+        x_forwarded_for=x_forwarded_for,
     )
     return None
 
@@ -831,12 +860,20 @@ async def resend_waitlist_otp(
             data={RequestParams.IS_VERIFIED: False},
         )
 
+    x_forwarded = x_forwarded_for or request.headers.get(RequestParams.X_FORWARDED_FOR)
+    client_ip = (
+        x_forwarded.split(",")[0].strip()
+        if x_forwarded
+        else (request.client.host if request.client else settings.host)
+    )
+
     if email:
         email_resp = await _handle_resend_waitlist_email_otp(
             request,
             cache,
             db_session,
             email,
+            client_ip,
         )
         if email_resp:
             return email_resp
@@ -850,7 +887,7 @@ async def resend_waitlist_otp(
             db_session,
             mobile,
             calling_code,
-            x_forwarded_for,
+            client_ip,
         )
         if mobile_resp:
             return mobile_resp
