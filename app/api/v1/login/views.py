@@ -155,7 +155,6 @@ async def login_user(
         device_id=device_id,
         db_session=db_session,
         cache=cache,
-        push_token=login_data.push_token,
     )
 
     # 2. Fetch Full Profile for response

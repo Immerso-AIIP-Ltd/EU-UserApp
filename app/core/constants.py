@@ -100,6 +100,7 @@ class CacheKeyTemplates:
     BLOCKED_IP = "blocked_ip_{ip_address}_{receiver}"
     OTP_REQ_COUNT = "otp_reqcount_{ip_address}_{receiver}"
     USER_AUTH_TOKEN = "auth:{user_uuid}:{device_id}"  # noqa: S105
+    CACHE_KEY_DEVICE_PUSH_TOKEN = "device:push_token:{device_id}"  # noqa: S105
 
 
 class CacheTTL:
@@ -113,6 +114,7 @@ class CacheTTL:
     TTL_USER_PROFILE = 3600
     OTP_EXPIRY = 600  # 10 minutes
     TOKEN_EXPIRY = 864000  # 10 days
+    TTL_DEVICE_PUSH_TOKEN = 86400  # 24 hours
 
 
 class QueryTimeouts:

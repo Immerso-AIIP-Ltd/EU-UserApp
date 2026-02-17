@@ -2,6 +2,7 @@ from typing import Any, Union
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from loguru import logger
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -238,6 +239,7 @@ async def register_device(
     payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
     headers: dict[str, Any] = Depends(validate_headers_without_x_device_id),
+    cache: Redis = Depends(get_redis_connection),
 ) -> JSONResponse:
     """Register a new device - Enforced Encryption."""
 
@@ -301,6 +303,25 @@ async def register_device(
         ) from e
 
     device_uuid = str(result[0]["id"]) if result else None
+
+    # Cache push_token in Redis (keyed by device_id) so it can be
+    # picked up later in verify_otp_register when user_id is available
+    if reg_payload.push_token and device_uuid:
+        push_cache_key = build_cache_key(
+            CacheKeyTemplates.CACHE_KEY_DEVICE_PUSH_TOKEN,
+            device_id=device_uuid,
+        )
+        await set_cache(
+            cache,
+            push_cache_key,
+            reg_payload.push_token,
+            ttl=CacheTTL.TTL_DEVICE_PUSH_TOKEN,
+        )
+        logger.info(
+            f"[DEVICE REG] Cached push_token for device {device_uuid}: "
+            f"{reg_payload.push_token[:30]}...",
+        )
+
     return standard_response(
         message=SuccessMessages.DEVICE_REGISTERED_SUCCESS,
         request=request,

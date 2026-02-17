@@ -850,7 +850,7 @@ class UserQueries:
             device_name = COALESCE(:device_name, device_name),
             push_token = COALESCE(:push_token, push_token),
             modified_at = NOW()
-        WHERE id = :device_id
+        WHERE id::text = :device_id OR serial_number = :device_id
         """,
     )
 

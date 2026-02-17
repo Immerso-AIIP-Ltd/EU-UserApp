@@ -247,10 +247,14 @@ async def verify_otp_register(
     calling_code = verify_payload.calling_code
     intent = verify_payload.intent
     otp = verify_payload.otp
-
+    push_token = verify_payload.push_token
     receiver = email if email else f"{calling_code}{mobile}".lstrip("+")
     receiver_type = RequestParams.EMAIL if email else RequestParams.MOBILE
 
+    logger.info(
+        f"Received OTP verification request for {receiver} with intent {intent}. "
+        f"Push token provided: {'Yes' if push_token else 'No'}",
+    )
     # 1. Verify and Consume OTP
     is_bypass = (
         request.headers.get(HeaderKeys.X_LOAD_TEST_BYPASS)
@@ -279,8 +283,41 @@ async def verify_otp_register(
         cached_data[LoginParams.PROFILE_IMAGE] = verify_payload.temp_key
 
     # Include push_token from verify payload if provided
+    logger.debug(
+        f"[PUSH_TOKEN CHECK] Verify payload push_token: {verify_payload.push_token}"
+    )
     if verify_payload.push_token:
         cached_data["push_token"] = verify_payload.push_token
+        logger.info(
+            f"[PUSH_TOKEN] Added push_token to cached_data for {receiver}: "
+            f"{verify_payload.push_token[:50]}..."
+        )
+    else:
+        # Fallback: retrieve push_token cached during device_registration
+        device_id = headers.get(RequestParams.DEVICE_ID)
+        if device_id:
+            push_cache_key = build_cache_key(
+                CacheKeyTemplates.CACHE_KEY_DEVICE_PUSH_TOKEN,
+                device_id=device_id,
+            )
+            device_push_token = await get_cache(cache, push_cache_key)
+            if device_push_token:
+                cached_data["push_token"] = device_push_token
+                logger.info(
+                    f"[PUSH_TOKEN] Retrieved push_token from device cache "
+                    f"for {receiver} (device={device_id}): "
+                    f"{str(device_push_token)[:50]}...",
+                )
+            else:
+                logger.warning(
+                    f"[PUSH_TOKEN] No push_token in verify_payload or "
+                    f"device cache for {receiver} (device={device_id})",
+                )
+        else:
+            logger.warning(
+                f"[PUSH_TOKEN] No push_token in verify_payload and "
+                f"no device_id in headers for {receiver}",
+            )
 
     logger.info(
         f"Cached data before finalizing registration for {receiver}: "
@@ -948,6 +985,11 @@ async def _finalize_registration_and_auth(
         # 4. Link Device independently
         if auth_token:
             push_token = cached_data.get("push_token")
+            logger.info(
+                f"[DEVICE LINKING] About to link device and sync to Redis: "
+                f"device_id={device_id}, user_id={user_id}, "
+                f"push_token={'Present ('+push_token[:30]+'...)' if push_token else 'None'}"
+            )
             await _update_device_and_sync_redis(
                 db_session=db_session,
                 device_id=device_id,
@@ -976,10 +1018,14 @@ async def _update_device_and_sync_redis(
     logger.info(
         f"[REDIS SYNC] Starting device token sync to Redis: "
         f"user_id={user_id}, device_id={device_id}, "
-        f"has_push_token={push_token is not None}",
+        f"has_push_token={push_token is not None}, "
+        f"push_token_preview={push_token[:50] if push_token else 'None'}",
     )
 
     if push_token:
+        logger.info(
+            f"[DB UPDATE] Updating device {device_id} with push_token in database"
+        )
         await execute_query(
             query=UserQueries.UPDATE_DEVICE,
             db_session=db_session,
@@ -989,6 +1035,13 @@ async def _update_device_and_sync_redis(
                 "device_name": None,
                 "push_token": push_token,
             },
+        )
+        logger.info(
+            f"[DB UPDATE] Device {device_id} updated successfully in database"
+        )
+    else:
+        logger.warning(
+            f"[DB UPDATE] Skipping device update - no push_token provided for device {device_id}"
         )
 
     await execute_query(
@@ -1002,13 +1055,25 @@ async def _update_device_and_sync_redis(
     )
 
     # Sync device token to Redis after linking
+    logger.info(
+        f"[REDIS CHECK] Checking conditions for Redis sync: "
+        f"push_token={'Present' if push_token else 'None'}, "
+        f"cache={'Connected' if cache else 'None'}"
+    )
+    
     if push_token and cache:
         try:
             from app.api.v1.service.device_redis_service import (
                 DeviceTokenRedisService,
             )
 
+            logger.info(f"[REDIS SYNC] Fetching device data from DB for device_id={device_id}")
             device = await DeviceService.get_device(device_id, db_session)
+            logger.info(
+                f"[REDIS SYNC] Device data retrieved: "
+                f"serial_number={device.get('serial_number')}, "
+                f"push_token_in_db={device.get('push_token', 'None')[:30] if device.get('push_token') else 'None'}"
+            )
 
             # Log Redis configuration and keys that will be used
             redis_key_device = f"device_token:{user_id}:{device_id}"
@@ -1041,22 +1106,30 @@ async def _update_device_and_sync_redis(
             )
 
             redis_service = DeviceTokenRedisService(cache)
-            await redis_service.store_device_token_in_redis(
+            result = await redis_service.store_device_token_in_redis(
                 device,
                 str(user_id),
             )
 
             logger.info(
-                f"[REDIS SUCCESS] Device token successfully stored "
-                f"in Redis for user {user_id}",
+                f"[REDIS SUCCESS] Device token storage result: {result} "
+                f"for user {user_id}, device {device_id}",
             )
         except Exception as redis_err:
-            logger.warning(
+            logger.error(
                 f"[REDIS ERROR] Failed to sync device token to Redis: {redis_err}\n"
                 f"  User ID: {user_id}\n"
                 f"  Device ID: {device_id}\n"
-                f"  Error Type: {type(redis_err).__name__}",
+                f"  Error Type: {type(redis_err).__name__}\n"
+                f"  Error Message: {str(redis_err)}",
+                exc_info=True,
             )
+    else:
+        logger.warning(
+            f"[REDIS SKIP] Skipping Redis sync - "
+            f"push_token={'Present' if push_token else 'Missing'}, "
+            f"cache={'Connected' if cache else 'Not connected'}"
+        )
 
 
 @router.post("/resend_otp")
