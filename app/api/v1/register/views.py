@@ -207,7 +207,7 @@ async def register_with_profile(
 
 
 @router.post("/verify_otp_register")
-async def verify_otp_register(
+async def verify_otp_register(  # noqa: C901
     request: Request,
     payload: Union[EncryptedRequest, dict[str, Any]],
     db_session: AsyncSession = Depends(get_db_session),
@@ -283,6 +283,22 @@ async def verify_otp_register(
     # Include push_token from verify payload if provided
     if verify_payload.push_token:
         cached_data["push_token"] = verify_payload.push_token
+    else:
+        # Fallback: retrieve push_token cached during device_registration
+        device_id = headers.get(RequestParams.DEVICE_ID)
+        if device_id:
+            push_cache_key = build_cache_key(
+                CacheKeyTemplates.CACHE_KEY_DEVICE_PUSH_TOKEN,
+                device_id=device_id,
+            )
+            device_push_token = await get_cache(cache, push_cache_key)
+            if device_push_token:
+                cached_data["push_token"] = device_push_token
+                logger.info(
+                    f"[PUSH_TOKEN] Retrieved push_token from device cache "
+                    f"for {receiver} (device={device_id}): "
+                    f"{str(device_push_token)[:50]}...",
+                )
 
     logger.info(
         f"Cached data before finalizing registration for {receiver}: "
