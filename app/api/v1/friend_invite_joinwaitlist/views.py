@@ -36,6 +36,7 @@ from app.core.constants import (
     RequestParams,
     ResponseParams,
     SuccessMessages,
+    TemplateParams,
 )
 from app.core.exceptions import (
     CommServiceAPICallFailedError,
@@ -282,6 +283,7 @@ async def _process_email_flow(
                 RequestParams.EMAIL: email,
                 RequestParams.MOBILE: "",
                 RequestParams.CALLING_CODE: "",
+                RequestParams.NAME: name,
             },
             db_session=db_session,
         )
@@ -439,6 +441,7 @@ async def _process_mobile_flow(
                 RequestParams.EMAIL: "",
                 RequestParams.MOBILE: mobile,
                 RequestParams.CALLING_CODE: calling_code,
+                RequestParams.NAME: name,
             },
             db_session=db_session,
         )
@@ -707,6 +710,25 @@ async def verify_waitlist(
 
     await db_session.commit()
     updated_row = updated_entry[0]
+
+    # 4. Send welcome email after successful verification
+    if email:
+        # For email flow: use name from entry if available, otherwise extract from email
+        username = entry.name if entry.name else email.split("@")[0]
+        await call_communication_api(
+            deeplinks.MAIL_SEND_URL,
+            {
+                CommParams.RECIPIENTS: [email],
+                CommParams.TEMPLATE_ID: int(
+                    settings.brevo_wait_list_welcome_email_template_id,
+                ),
+                CommParams.TEMPLATE_PARAMS: {
+                    TemplateParams.USERNAME: username,
+                },
+            },
+        )
+    # For mobile flow: use name from entry if available, otherwise empty string
+    # (No email to send for mobile-only registrations)
 
     return standard_response(
         request=request,

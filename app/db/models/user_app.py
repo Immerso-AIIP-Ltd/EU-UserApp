@@ -355,6 +355,7 @@ class Waitlist(Base):
     email = Column(VARCHAR(255), nullable=False, index=True)
     mobile = Column(VARCHAR(20), nullable=False)
     calling_code = Column(VARCHAR(10), nullable=False)
+    name = Column(VARCHAR(255), nullable=True)
     device_id = Column(
         UUID(as_uuid=True),
         ForeignKey("user_app.device.id"),

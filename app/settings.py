@@ -81,6 +81,7 @@ class Settings(BaseSettings):
     brevo_otp_resend_template_id: str = Field(default="dummy")
     brevo_password_change_success_template_id: str = Field(default="dummy")
     brevo_profile_update_success_template_id: str = Field(default="dummy")
+    brevo_wait_list_welcome_email_template_id: str = Field(default="dummy")
     sms_friend_invite_template_id: str = Field(default="695f8c33374e046e72677aeb")
     msg91_sender_id: str = Field(default="EROSNV")
     msg91_entity_id: str = Field(default="1107176786435257801")

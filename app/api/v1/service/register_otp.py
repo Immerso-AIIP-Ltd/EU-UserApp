@@ -395,7 +395,10 @@ class GenerateOtpService:
         name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Generate payload for registration/verification email."""
+        # Use standard email verification template for all OTP emails
+        # Welcome emails are sent separately after verification
         template_id = settings.brevo_email_verification_template_id
+
         if template_id:
             username = await GenerateOtpService._get_username(
                 receiver,
