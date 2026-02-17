@@ -115,7 +115,7 @@ async def _assign_free_plan_safe(
 ) -> None:
     """
     Safely assign free plan to user in background task.
-    
+
     This wrapper ensures that any exceptions (including RetryError) are caught
     and logged without crashing the application.
     """
@@ -261,7 +261,7 @@ async def verify_otp_register(  # noqa: C901
         payload.data,
     )
 
-    await device_task  
+    await device_task
     try:
         decrypted_payload = await decryption_task
         verify_payload = VerifyOTPRegisterRequest(**decrypted_payload)
