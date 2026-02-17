@@ -254,7 +254,6 @@ async def verify_otp_register(  # noqa: C901
         except Exception as e:
             raise PayloadNotEncryptedError from e
 
-    # Optimized: Parallelize Device Validation and Decryption
     device_task = _validate_device_registered(headers, db_session, cache=cache)
     decryption_task = asyncio.to_thread(
         SecurityService.decrypt_payload,
@@ -262,7 +261,7 @@ async def verify_otp_register(  # noqa: C901
         payload.data,
     )
 
-    await device_task  # Wait for device check
+    await device_task  
     try:
         decrypted_payload = await decryption_task
         verify_payload = VerifyOTPRegisterRequest(**decrypted_payload)
@@ -278,7 +277,6 @@ async def verify_otp_register(  # noqa: C901
     receiver = email if email else f"{calling_code}{mobile}".lstrip("+")
     receiver_type = RequestParams.EMAIL if email else RequestParams.MOBILE
 
-    # 1. Verify and Consume OTP
     is_bypass = (
         request.headers.get(HeaderKeys.X_LOAD_TEST_BYPASS)
         == settings.load_test_bypass_secret
@@ -299,17 +297,14 @@ async def verify_otp_register(  # noqa: C901
             calling_code,
         )
 
-    # Register and Finalize
     cached_data = await _get_cached_registration_data(cache, receiver)
 
     if verify_payload.temp_key and not cached_data.get(LoginParams.PROFILE_IMAGE):
         cached_data[LoginParams.PROFILE_IMAGE] = verify_payload.temp_key
 
-    # Include push_token from verify payload if provided
     if verify_payload.push_token:
         cached_data["push_token"] = verify_payload.push_token
     else:
-        # Fallback: retrieve push_token cached during device_registration
         device_id = headers.get(RequestParams.DEVICE_ID)
         if device_id:
             push_cache_key = build_cache_key(
@@ -331,7 +326,6 @@ async def verify_otp_register(  # noqa: C901
         f"push_token={cached_data.get('push_token')}",
     )
 
-    # Log Redis configuration for debugging
     redis_config = {
         "cluster_nodes": (
             settings.redis_cluster_nodes
