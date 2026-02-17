@@ -714,7 +714,25 @@ async def verify_waitlist(
     # 4. Send welcome email after successful verification
     if email:
         # For email flow: use name from entry if available, otherwise extract from email
-        username = entry.name if entry.name else email.split("@")[0]
+        if entry.name:
+            username = entry.name
+        else:
+            # Extract first name from email and remove numbers
+            import re
+
+            email_prefix = email.split("@")[0]
+            # Replace common separators with spaces
+            email_prefix = (
+                email_prefix.replace(".", " ").replace("_", " ").replace("-", " ")
+            )
+            # Remove all numbers
+            email_prefix = re.sub(r"\d+", "", email_prefix)
+            # Get first word and title case it
+            username = (
+                email_prefix.split()[0].strip().title()
+                if email_prefix.split()
+                else "User"
+            )
         await call_communication_api(
             deeplinks.MAIL_SEND_URL,
             {
