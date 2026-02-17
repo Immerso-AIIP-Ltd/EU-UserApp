@@ -108,6 +108,31 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_bytes, hashed_bytes)
 
 
+async def _assign_free_plan_safe(
+    payment_url: str,
+    payment_headers: dict[str, str],
+    user_id: str,
+) -> None:
+    """
+    Safely assign free plan to user in background task.
+    
+    This wrapper ensures that any exceptions (including RetryError) are caught
+    and logged without crashing the application.
+    """
+    try:
+        await HttpClient.make_request(
+            url=payment_url,
+            method="POST",
+            headers=payment_headers,
+            json={},
+        )
+        logger.info(f"Successfully assigned free plan to user {user_id}")
+    except Exception as e:
+        logger.error(
+            f"Failed to assign free plan for user {user_id}: {type(e).__name__}: {e}",
+        )
+
+
 router = APIRouter()
 
 
@@ -590,18 +615,15 @@ async def _finalize_user_registration(
             "Content-Type": "application/json",
         }
 
-        # Use BackgroundTasks for fire-and-forget
         background_tasks.add_task(
-            HttpClient.make_request,
-            url=payment_url,
-            method="POST",
-            headers=payment_headers,
-            json={},
+            _assign_free_plan_safe,
+            payment_url,
+            payment_headers,
+            user_id,
         )
         logger.info(f"Queued free plan assignment for user {user_id}")
     except Exception as e:
         logger.error(f"Failed to queue free plan assignment for user {user_id}: {e}")
-        # Proceeding without failing the registration
 
     response_data = {
         RequestParams.AUTH_TOKEN: auth_token,
