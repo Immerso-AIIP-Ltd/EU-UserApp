@@ -1,9 +1,9 @@
 name: Eternals eu-user - Dev Build & Push
 
-on:
-  push:
-    branches:
-      - eros-user-dev
+# on:
+#   push:
+#     branches:
+#       - eros-user-dev
 
 jobs:
 
